@@ -43,3 +43,8 @@ export async function helperSteamState(): Promise<HelperSteamState | null> {
 export async function helperAction(action: 'open' | 'exit'): Promise<boolean> {
   return (await call(`/${action}`, 'POST', 4000)) !== null;
 }
+
+// Desinstala o helper pelo próprio site. false = não deu (versão antiga do helper, sem essa função).
+export async function helperUninstall(): Promise<boolean> {
+  return (await call('/uninstall', 'POST', 4000)) !== null;
+}

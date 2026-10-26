@@ -49,6 +49,7 @@ export default function App() {
     source: steamSource,
     open: openSteam,
     stop: stopSteam,
+    refresh: refreshSteam,
   } = useSteamStatus(!!user && hasKey);
   const skin = getSkin(theme.skin);
 
@@ -226,7 +227,9 @@ export default function App() {
             {view === 'library' && (
               <div className="hidden items-center gap-2 md:flex">
                 <OpenSteamButton status={steamStatus} source={steamSource} onOpen={openSteam} onStop={stopSteam} />
-                {steamHelper === 'offline' && <HelperInstall />}
+                {steamHelper !== 'checking' && (
+                  <HelperInstall installed={steamHelper === 'online'} onChanged={refreshSteam} />
+                )}
               </div>
             )}
             {view === 'library' && !usingDemo && (

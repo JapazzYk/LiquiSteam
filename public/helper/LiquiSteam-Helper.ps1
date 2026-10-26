@@ -28,6 +28,13 @@ function Get-SteamExe {
         $exe = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction Stop).SteamExe
         if ($exe -and (Test-Path $exe)) { return $exe }
     } catch { }
+    # Instalacao padrao, caso o registro nao tenha o caminho.
+    foreach ($base in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+        if ($base) {
+            $candidate = Join-Path $base 'Steam\steam.exe'
+            if (Test-Path $candidate) { return $candidate }
+        }
+    }
     return $null
 }
 
@@ -72,7 +79,7 @@ function Handle-Request($context) {
     }
 
     if ($method -eq 'GET' -and $path -eq '/status') {
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 1; steam = (Get-SteamState) }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 2; steam = (Get-SteamState) }
         return
     }
 
@@ -80,10 +87,23 @@ function Handle-Request($context) {
     if ($method -eq 'POST' -and $origin -and ($path -eq '/open' -or $path -eq '/exit')) {
         $exe = Get-SteamExe
         if ($path -eq '/open') {
-            if ($exe) { Start-Process -FilePath $exe } else { Start-Process 'steam://open/main' }
+            # -silent: abre a Steam direto na bandeja, sem janela da loja nem avisos na tela.
+            if ($exe) { Start-Process -FilePath $exe -ArgumentList '-silent' } else { Start-Process 'steam://open/main' }
         } else {
             if ($exe) { Start-Process -FilePath $exe -ArgumentList '-shutdown' } else { Start-Process 'steam://exit' }
         }
+        Send-Json $response 202 @{ ok = $true }
+        return
+    }
+
+    # Desinstalacao pelo site: remove o atalho de inicializacao, agenda a exclusao da pasta e encerra.
+    if ($method -eq 'POST' -and $origin -and $path -eq '/uninstall') {
+        $link = Join-Path ([Environment]::GetFolderPath('Startup')) 'LiquiSteam Helper.lnk'
+        Remove-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+        $dir = $PSScriptRoot
+        $cleanup = "Start-Sleep -Seconds 3; Remove-Item -LiteralPath '$dir' -Recurse -Force -ErrorAction SilentlyContinue"
+        Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cleanup)
+        $script:quit = $true
         Send-Json $response 202 @{ ok = $true }
         return
     }
@@ -100,7 +120,8 @@ try {
     exit 0
 }
 
-while ($listener.IsListening) {
+$script:quit = $false
+while ($listener.IsListening -and -not $script:quit) {
     $context = $listener.GetContext()
     try {
         Handle-Request $context
@@ -110,3 +131,6 @@ while ($listener.IsListening) {
         $context.Response.Close()
     }
 }
+
+$listener.Stop()
+exit 0

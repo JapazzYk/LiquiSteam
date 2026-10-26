@@ -179,5 +179,8 @@ export function useSteamStatus(accountAvailable: boolean) {
     }
   }, [watchAfter]);
 
-  return { status, helper, source, open, stop };
+  // Confere de novo agora (por exemplo, depois de instalar ou desinstalar o helper).
+  const refresh = useCallback(() => tickRef.current(), []);
+
+  return { status, helper, source, open, stop, refresh };
 }
