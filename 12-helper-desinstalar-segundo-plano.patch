@@ -1,0 +1,427 @@
+diff --git a/public/helper/LiquiSteam-Helper.ps1 b/public/helper/LiquiSteam-Helper.ps1
+--- a/public/helper/LiquiSteam-Helper.ps1	2026-10-26 20:10:37.747665878 -0300
++++ b/public/helper/LiquiSteam-Helper.ps1	2026-10-26 20:10:37.751694818 -0300
+@@ -28,9 +28,70 @@
+         $exe = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction Stop).SteamExe
+         if ($exe -and (Test-Path $exe)) { return $exe }
+     } catch { }
++    # Instalacao padrao, caso o registro nao tenha o caminho.
++    foreach ($base in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
++        if ($base) {
++            $candidate = Join-Path $base 'Steam\steam.exe'
++            if (Test-Path $candidate) { return $candidate }
++        }
++    }
+     return $null
+ }
+ 
++# Esconde as janelas da Steam (loja, avisos) logo depois de abrir pelo site.
++$script:canHide = $false
++try {
++    Add-Type -Namespace LiquiSteam -Name Win -UsingNamespace 'System.Collections.Generic' -MemberDefinition @'
++public delegate bool EnumProc(IntPtr h, IntPtr l);
++[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
++[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
++[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
++[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h, int cmd);
++public static int HideWindows(int[] pids) {
++    HashSet<uint> set = new HashSet<uint>();
++    foreach (int id in pids) { set.Add((uint)id); }
++    int count = 0;
++    EnumWindows(delegate (IntPtr h, IntPtr l) {
++        if (!IsWindowVisible(h)) { return true; }
++        uint pid;
++        GetWindowThreadProcessId(h, out pid);
++        if (set.Contains(pid)) { ShowWindowAsync(h, 0); count++; }
++        return true;
++    }, IntPtr.Zero);
++    return count;
++}
++'@
++    $script:canHide = $true
++} catch { }
++
++$script:stealth = $null
++function Start-Stealth {
++    if (-not $script:canHide) { return }
++    if ($script:stealth) { try { $script:stealth.Stop(); $script:stealth.Dispose() } catch { } }
++    $ps = [powershell]::Create()
++    [void]$ps.AddScript({
++        $end = (Get-Date).AddSeconds(45)
++        $lastHide = $null
++        while ((Get-Date) -lt $end) {
++            Start-Sleep -Milliseconds 300
++            # Depois de esconder, para quando nada mais aparece por 12 segundos.
++            if ($lastHide -and ((Get-Date) - $lastHide).TotalSeconds -gt 12) { break }
++            $ids = @(Get-Process -Name 'steam', 'steamwebhelper' -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
++            if ($ids.Count -eq 0) { continue }
++            # So esconde depois do login: a tela de entrada precisa continuar visivel.
++            $user = 0
++            try {
++                $value = (Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction Stop).ActiveUser
++                if ($null -ne $value) { $user = [int]$value }
++            } catch { }
++            if ($user -eq 0) { continue }
++            if ([LiquiSteam.Win]::HideWindows([int[]]$ids) -gt 0) { $lastHide = Get-Date }
++        }
++    })
++    [void]$ps.BeginInvoke()
++    $script:stealth = $ps
++}
++
+ function Send-Json($response, [int]$code, $body) {
+     $bytes = [System.Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Compress))
+     $response.StatusCode = $code
+@@ -72,7 +133,7 @@
+     }
+ 
+     if ($method -eq 'GET' -and $path -eq '/status') {
+-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 1; steam = (Get-SteamState) }
++        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 3; steam = (Get-SteamState) }
+         return
+     }
+ 
+@@ -80,7 +141,9 @@
+     if ($method -eq 'POST' -and $origin -and ($path -eq '/open' -or $path -eq '/exit')) {
+         $exe = Get-SteamExe
+         if ($path -eq '/open') {
+-            if ($exe) { Start-Process -FilePath $exe } else { Start-Process 'steam://open/main' }
++            # -silent: abre a Steam direto na bandeja, sem janela da loja nem avisos na tela.
++            if ($exe) { Start-Process -FilePath $exe -ArgumentList '-silent' } else { Start-Process 'steam://open/main' }
++            Start-Stealth
+         } else {
+             if ($exe) { Start-Process -FilePath $exe -ArgumentList '-shutdown' } else { Start-Process 'steam://exit' }
+         }
+@@ -88,6 +151,18 @@
+         return
+     }
+ 
++    # Desinstalacao pelo site: remove o atalho de inicializacao, agenda a exclusao da pasta e encerra.
++    if ($method -eq 'POST' -and $origin -and $path -eq '/uninstall') {
++        $link = Join-Path ([Environment]::GetFolderPath('Startup')) 'LiquiSteam Helper.lnk'
++        Remove-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
++        $dir = $PSScriptRoot
++        $cleanup = "Start-Sleep -Seconds 3; Remove-Item -LiteralPath '$dir' -Recurse -Force -ErrorAction SilentlyContinue"
++        Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cleanup)
++        $script:quit = $true
++        Send-Json $response 202 @{ ok = $true }
++        return
++    }
++
+     Send-Json $response 404 @{ error = 'not-found' }
+ }
+ 
+@@ -100,7 +175,8 @@
+     exit 0
+ }
+ 
+-while ($listener.IsListening) {
++$script:quit = $false
++while ($listener.IsListening -and -not $script:quit) {
+     $context = $listener.GetContext()
+     try {
+         Handle-Request $context
+@@ -110,3 +186,6 @@
+         $context.Response.Close()
+     }
+ }
++
++$listener.Stop()
++exit 0
+diff --git a/src/App.tsx b/src/App.tsx
+--- a/src/App.tsx	2026-10-26 20:10:37.746151806 -0300
++++ b/src/App.tsx	2026-10-26 20:10:37.751333603 -0300
+@@ -49,6 +49,7 @@
+     source: steamSource,
+     open: openSteam,
+     stop: stopSteam,
++    refresh: refreshSteam,
+   } = useSteamStatus(!!user && hasKey);
+   const skin = getSkin(theme.skin);
+ 
+@@ -226,7 +227,9 @@
+             {view === 'library' && (
+               <div className="hidden items-center gap-2 md:flex">
+                 <OpenSteamButton status={steamStatus} source={steamSource} onOpen={openSteam} onStop={stopSteam} />
+-                {steamHelper === 'offline' && <HelperInstall />}
++                {steamHelper !== 'checking' && (
++                  <HelperInstall installed={steamHelper === 'online'} onChanged={refreshSteam} />
++                )}
+               </div>
+             )}
+             {view === 'library' && !usingDemo && (
+diff --git a/src/components/HelperInstall.tsx b/src/components/HelperInstall.tsx
+--- a/src/components/HelperInstall.tsx	2026-10-26 20:10:37.746094647 -0300
++++ b/src/components/HelperInstall.tsx	2026-10-26 20:10:37.751286739 -0300
+@@ -1,20 +1,29 @@
+ import { useEffect, useRef, useState } from 'react';
+-import { Check, Copy, MonitorDown, X } from 'lucide-react';
++import { Check, Copy, MonitorCheck, MonitorDown, Trash2, X } from 'lucide-react';
++import { helperUninstall } from '@/lib/steamHelper';
+ 
+-// Ajuda para instalar o LiquiSteam Helper (Windows). Aparece ao lado do botão da Steam
+-// enquanto o helper não está rodando. O comando baixa o instalador do próprio site.
+-function installCommand(): string {
++// Instalar e desinstalar o LiquiSteam Helper (Windows), ao lado do botão da Steam.
++// O helper é opcional: sem ele o site funciona, só que o status da Steam fica menos preciso.
++function installerCommand(extra = ''): string {
+   const base = `${window.location.origin}/helper`;
+   return (
+     `$r = Invoke-WebRequest -UseBasicParsing '${base}/instalar.ps1'; ` +
+     `$t = if ($r.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($r.Content) } else { $r.Content }; ` +
+-    `& ([scriptblock]::Create($t)) -Base '${base}'`
++    `& ([scriptblock]::Create($t)) -Base '${base}'${extra}`
+   );
+ }
+ 
+-export default function HelperInstall() {
++type RemoveState = 'idle' | 'confirm' | 'working' | 'done' | 'unsupported';
++
++interface HelperInstallProps {
++  installed: boolean; // o helper está rodando neste computador
++  onChanged: () => void; // pede ao app para conferir o helper de novo
++}
++
++export default function HelperInstall({ installed, onChanged }: HelperInstallProps) {
+   const [open, setOpen] = useState(false);
+-  const [copied, setCopied] = useState(false);
++  const [copied, setCopied] = useState<'install' | 'remove' | null>(null);
++  const [removeState, setRemoveState] = useState<RemoveState>('idle');
+   const rootRef = useRef<HTMLDivElement>(null);
+ 
+   // Fecha ao clicar fora ou apertar Esc.
+@@ -34,41 +43,68 @@
+     };
+   }, [open]);
+ 
+-  const copy = async () => {
++  // Acompanha o resultado real: quando o helper deixa de responder, a remoção terminou.
++  useEffect(() => {
++    if (!installed && removeState === 'working') setRemoveState('done');
++    if (installed && removeState === 'done') setRemoveState('idle');
++  }, [installed, removeState]);
++
++  // Se o helper continuar respondendo depois de um tempo, volta ao estado normal.
++  useEffect(() => {
++    if (removeState !== 'working') return;
++    const timer = window.setTimeout(() => setRemoveState((s) => (s === 'working' ? 'idle' : s)), 8000);
++    return () => window.clearTimeout(timer);
++  }, [removeState]);
++
++  const copy = async (kind: 'install' | 'remove') => {
+     try {
+-      await navigator.clipboard.writeText(installCommand());
+-      setCopied(true);
+-      window.setTimeout(() => setCopied(false), 2000);
++      await navigator.clipboard.writeText(installerCommand(kind === 'remove' ? ' -Remover' : ''));
++      setCopied(kind);
++      window.setTimeout(() => setCopied(null), 2000);
+     } catch {
+-      // Sem permissão para a área de transferência: o comando continua visível para copiar à mão.
++      // Sem permissão para a área de transferência: nada a fazer.
+     }
+   };
+ 
++  const uninstall = async () => {
++    setRemoveState('working');
++    const ok = await helperUninstall();
++    if (!ok) {
++      setRemoveState('unsupported');
++      return;
++    }
++    // O helper se encerra logo depois de responder; confere de novo em seguida.
++    window.setTimeout(onChanged, 1500);
++  };
++
++  const Icon = installed ? MonitorCheck : MonitorDown;
++  const label = installed ? 'Helper ativo' : 'Helper';
++
+   return (
+     <div ref={rootRef} className="relative">
+       <button
+         type="button"
+         onClick={() => setOpen((value) => !value)}
+         aria-expanded={open}
+-        aria-label="Helper opcional: sincronizar o status com a Steam"
+-        title="Helper opcional: deixa o status da Steam sempre exato"
++        aria-label={installed ? 'Helper ativo: gerenciar ou desinstalar' : 'Helper opcional: sincronizar o status com a Steam'}
++        title={installed ? 'LiquiSteam Helper ativo' : 'Helper opcional: deixa o status da Steam sempre exato'}
+         className="flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+       >
+-        <MonitorDown className="h-4 w-4" />
++        <Icon className={`h-4 w-4 ${installed ? 'text-ok' : ''}`} />
+         <span className="hidden whitespace-nowrap xl:inline">
+-          Helper <span className="text-white/45">· opcional</span>
++          {label} {!installed && <span className="text-white/45">· opcional</span>}
+         </span>
+       </button>
+ 
+       {open && (
+         <div
+           role="dialog"
+-          aria-label="Instalar o LiquiSteam Helper"
++          aria-label="LiquiSteam Helper"
+           className="install-pop absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-32px))] rounded-2xl border p-4"
+         >
+           <div className="flex items-start justify-between gap-3">
+             <p className="text-sm font-semibold tracking-tight text-white">
+-              Sincronizar com a Steam
++              {installed ? 'LiquiSteam Helper' : 'Sincronizar com a Steam'}
+               <span className="ml-2 rounded-full border border-white/15 px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-white/55">
+                 Opcional
+               </span>
+@@ -82,28 +118,107 @@
+               <X className="h-4 w-4" />
+             </button>
+           </div>
+-          <p className="mt-2 text-[13px] leading-relaxed text-white/65">
+-            Este botão é opcional e não faz parte do app. Ele aparece porque o LiquiSteam Helper não está
+-            rodando neste computador. Instale-o, uma vez só, para o status da Steam bater sempre e para o botão
+-            abrir e encerrar o cliente. Só para Windows, sem precisar de administrador.
+-          </p>
+-          <ol className="mt-3 grid list-decimal gap-1.5 pl-5 text-[13px] leading-relaxed text-white/65">
+-            <li>Abra o PowerShell (tecla Windows, digite PowerShell).</li>
+-            <li>Clique em Copiar comando, cole lá e aperte Enter.</li>
+-            <li>Volte aqui: o ponto no botão da Steam fica verde.</li>
+-          </ol>
+-          <button
+-            type="button"
+-            onClick={copy}
+-            className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
+-          >
+-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+-            {copied ? 'Comando copiado' : 'Copiar comando'}
+-          </button>
+-          <p className="mt-3 text-xs leading-relaxed text-white/45">
+-            O helper só responde ao LiquiSteam e inicia junto com o Windows. Sem ele, o site ainda
+-            funciona, só que o status da Steam fica estimado.
+-          </p>
++
++          {installed ? (
++            <>
++              <p className="mt-2 text-[13px] leading-relaxed text-white/65">
++                O helper está ativo neste computador: o status da Steam é lido direto do Windows e o botão abre a Steam
++                em segundo plano (na bandeja, sem a janela da loja) e a encerra. Ele só responde ao LiquiSteam e inicia junto com o Windows.
++              </p>
++
++              {removeState === 'idle' && (
++                <button
++                  type="button"
++                  onClick={() => setRemoveState('confirm')}
++                  className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-sm font-medium text-white/85 transition hover:border-white/30 hover:text-white"
++                >
++                  <Trash2 className="h-4 w-4" />
++                  Desinstalar helper
++                </button>
++              )}
++
++              {removeState === 'confirm' && (
++                <div className="mt-4 grid gap-2">
++                  <p className="text-[13px] text-white/75">
++                    Remover o helper deste computador? O status da Steam volta a ser estimado.
++                  </p>
++                  <div className="grid grid-cols-2 gap-2">
++                    <button
++                      type="button"
++                      onClick={() => setRemoveState('idle')}
++                      className="h-10 rounded-full border border-white/15 text-sm text-white/80 transition hover:border-white/30"
++                    >
++                      Cancelar
++                    </button>
++                    <button
++                      type="button"
++                      onClick={uninstall}
++                      className="h-10 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
++                    >
++                      Desinstalar
++                    </button>
++                  </div>
++                </div>
++              )}
++
++              {removeState === 'working' && (
++                <p className="mt-4 text-[13px] text-white/70">Removendo…</p>
++              )}
++
++              {removeState === 'unsupported' && (
++                <div className="mt-4 grid gap-2">
++                  <p className="text-[13px] leading-relaxed text-white/70">
++                    Esta versão do helper é antiga e não sabe se desinstalar pelo site. Copie o comando abaixo, cole
++                    no PowerShell e aperte Enter.
++                  </p>
++                  <button
++                    type="button"
++                    onClick={() => copy('remove')}
++                    className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
++                  >
++                    {copied === 'remove' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
++                    {copied === 'remove' ? 'Comando copiado' : 'Copiar comando de remoção'}
++                  </button>
++                </div>
++              )}
++            </>
++          ) : removeState === 'done' ? (
++            <p className="mt-3 text-[13px] leading-relaxed text-white/70">
++              Helper removido. Se mudar de ideia, é só instalar de novo por este mesmo botão.
++              <button
++                type="button"
++                onClick={() => setRemoveState('idle')}
++                className="mt-3 block text-white/55 underline underline-offset-2 hover:text-white"
++              >
++                Ver como instalar
++              </button>
++            </p>
++          ) : (
++            <>
++              <p className="mt-2 text-[13px] leading-relaxed text-white/65">
++                Este botão é opcional e não faz parte do app. Ele aparece porque o LiquiSteam Helper não está
++                rodando neste computador. Instale-o, uma vez só, para o status da Steam bater sempre e para o
++                botão abrir e encerrar o cliente. Só para Windows, sem precisar de administrador.
++              </p>
++              <ol className="mt-3 grid list-decimal gap-1.5 pl-5 text-[13px] leading-relaxed text-white/65">
++                <li>Abra o PowerShell (tecla Windows, digite PowerShell).</li>
++                <li>Clique em Copiar comando, cole lá e aperte Enter.</li>
++                <li>Volte aqui: o ponto no botão da Steam fica verde.</li>
++              </ol>
++              <button
++                type="button"
++                onClick={() => copy('install')}
++                className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
++              >
++                {copied === 'install' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
++                {copied === 'install' ? 'Comando copiado' : 'Copiar comando'}
++              </button>
++              <p className="mt-3 text-xs leading-relaxed text-white/45">
++                O helper só responde ao LiquiSteam e inicia junto com o Windows. Sem ele, o site ainda funciona,
++                só que o status da Steam fica estimado. Dá para desinstalar por aqui a qualquer momento.
++              </p>
++            </>
++          )}
+         </div>
+       )}
+     </div>
+diff --git a/src/lib/steamHelper.ts b/src/lib/steamHelper.ts
+--- a/src/lib/steamHelper.ts	2026-10-26 20:10:37.746999164 -0300
++++ b/src/lib/steamHelper.ts	2026-10-26 20:10:37.751550349 -0300
+@@ -43,3 +43,8 @@
+ export async function helperAction(action: 'open' | 'exit'): Promise<boolean> {
+   return (await call(`/${action}`, 'POST', 4000)) !== null;
+ }
++
++// Desinstala o helper pelo próprio site. false = não deu (versão antiga do helper, sem essa função).
++export async function helperUninstall(): Promise<boolean> {
++  return (await call('/uninstall', 'POST', 4000)) !== null;
++}
+diff --git a/src/lib/useSteamStatus.ts b/src/lib/useSteamStatus.ts
+--- a/src/lib/useSteamStatus.ts	2026-10-26 20:10:37.747093040 -0300
++++ b/src/lib/useSteamStatus.ts	2026-10-26 20:10:37.751573562 -0300
+@@ -179,5 +179,8 @@
+     }
+   }, [watchAfter]);
+ 
+-  return { status, helper, source, open, stop };
++  // Confere de novo agora (por exemplo, depois de instalar ou desinstalar o helper).
++  const refresh = useCallback(() => tickRef.current(), []);
++
++  return { status, helper, source, open, stop, refresh };
+ }
