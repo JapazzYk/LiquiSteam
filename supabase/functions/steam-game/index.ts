@@ -1,48 +1,119 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// steam-game: dados da Steam. Dados públicos ficam abertos; dados pessoais
+// exigem login e usam a chave guardada no servidor (nunca enviada ao navegador).
+import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, X-Client-Info',
 };
 
+// Cliente administrativo: existe só dentro da função.
+const admin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+
+interface Caller {
+  userId: string;
+  steamId: string;
+}
+
+// Quem está chamando, pelo token JWT. Sem login válido, devolve null.
+async function currentCaller(req: Request): Promise<Caller | null> {
+  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) return null;
+  const { data: profile } = await admin
+    .from('steam_profiles')
+    .select('steam_id')
+    .eq('user_id', data.user.id)
+    .maybeSingle();
+  if (!profile) return null;
+  return { userId: data.user.id, steamId: profile.steam_id as string };
+}
+
+async function storedApiKey(userId: string): Promise<string | null> {
+  const { data } = await admin
+    .from('steam_credentials')
+    .select('api_key')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return (data?.api_key as string | undefined) ?? null;
+}
+
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
   const url = new URL(req.url);
-  const action = url.searchParams.get('action'); // 'news' | 'achievements' | 'playtime' | 'validate'
-  const appid = url.searchParams.get('appid');
+  const action = url.searchParams.get('action');
+  const appidParam = url.searchParams.get('appid');
+  const appid = appidParam && /^\d+$/.test(appidParam) ? appidParam : null;
 
   try {
-    if (action === 'news') {
-      if (!appid) return jsonError(400, 'Missing appid');
+    // Público
+    if (action === 'news' && req.method === 'GET') {
+      if (!appid) return jsonError(400, 'appid inválido');
       return await handleNews(appid);
     }
-    if (action === 'achievements') {
-      if (!appid) return jsonError(400, 'Missing appid');
-      const steamId = url.searchParams.get('steamid');
-      const apiKey = url.searchParams.get('key');
-      return await handleAchievements(appid, steamId, apiKey);
+
+    // Público, com conquistas pessoais se o usuário estiver logado e tiver chave
+    if (action === 'achievements' && req.method === 'GET') {
+      if (!appid) return jsonError(400, 'appid inválido');
+      const caller = await currentCaller(req);
+      const key = caller ? await storedApiKey(caller.userId) : null;
+      return await handleAchievements(appid, caller && key ? caller.steamId : null, key);
     }
-    if (action === 'playtime') {
-      const apiKey = url.searchParams.get('key');
-      const steamId = url.searchParams.get('steamid');
-      if (!apiKey || !steamId) return jsonError(400, 'Missing key or steamid');
-      const targetAppid = appid; // optional: filter to a single game
-      return await handlePlaytime(apiKey, steamId, targetAppid);
+
+    // Pessoal
+    if (action === 'playtime' && req.method === 'GET') {
+      const caller = await currentCaller(req);
+      if (!caller) return jsonError(401, 'Faça login com a Steam.');
+      const key = await storedApiKey(caller.userId);
+      if (!key) return jsonError(400, 'Cadastre sua chave da Steam Web API.');
+      return await handlePlaytime(key, caller.steamId, appid);
     }
-    if (action === 'validate') {
-      const apiKey = url.searchParams.get('key');
-      const steamId = url.searchParams.get('steamid');
-      if (!apiKey || !steamId) return jsonError(400, 'Missing key or steamid');
-      return await handleValidate(apiKey, steamId);
+
+    if (action === 'status' && req.method === 'GET') {
+      const caller = await currentCaller(req);
+      if (!caller) return jsonError(401, 'Faça login com a Steam.');
+      const key = await storedApiKey(caller.userId);
+      return json({ hasKey: key !== null });
     }
-    return jsonError(400, 'Unknown action');
+
+    if (action === 'save-key' && req.method === 'POST') {
+      const caller = await currentCaller(req);
+      if (!caller) return jsonError(401, 'Faça login com a Steam.');
+      const body = await req.json().catch(() => null);
+      const key = typeof body?.key === 'string' ? body.key.trim() : '';
+      if (!/^[A-Fa-f0-9]{32}$/.test(key)) {
+        return json({ ok: false, error: 'A chave tem 32 caracteres, só letras e números.' });
+      }
+      const check = await validateWithSteam(key, caller.steamId);
+      if (!check.ok) return json(check);
+      const { error } = await admin.from('steam_credentials').upsert({
+        user_id: caller.userId,
+        api_key: key,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) return jsonError(500, 'Não foi possível salvar a chave.');
+      return json({ ok: true });
+    }
+
+    if (action === 'delete-key' && req.method === 'POST') {
+      const caller = await currentCaller(req);
+      if (!caller) return jsonError(401, 'Faça login com a Steam.');
+      await admin.from('steam_credentials').delete().eq('user_id', caller.userId);
+      return json({ ok: true });
+    }
+
+    return jsonError(400, 'Ação desconhecida');
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return jsonError(500, msg);
+    console.error(err);
+    return jsonError(500, 'Erro interno');
   }
 });
 
@@ -57,7 +128,7 @@ function jsonError(status: number, message: string): Response {
   return json({ error: message }, status);
 }
 
-// Recent news/announcements for an app — public, no key required.
+// Notícias do jogo: públicas, sem chave.
 async function handleNews(appid: string): Promise<Response> {
   const steamUrl =
     `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}` +
@@ -76,8 +147,8 @@ async function handleNews(appid: string): Promise<Response> {
   return json({ news });
 }
 
-// Achievements: global unlock percentages (public) + the user's personal
-// achievements if a Steam Web API key + steamid are provided.
+// Conquistas: percentuais globais são públicos. As conquistas pessoais só vêm
+// quando há login e chave cadastrada, e a chave é usada apenas aqui.
 async function handleAchievements(
   appid: string,
   steamId: string | null,
@@ -111,7 +182,7 @@ async function handleAchievements(
         }
       }
     } catch {
-      // schema optional
+      // schema é opcional
     }
   }
 
@@ -128,7 +199,7 @@ async function handleAchievements(
       }
     }
   } catch {
-    // ignore
+    // ignora
   }
 
   const personal: Map<string, { achieved: boolean; unlockTime: number }> = new Map();
@@ -153,7 +224,7 @@ async function handleAchievements(
         }
       }
     } catch {
-      // ignore
+      // ignora
     }
   }
 
@@ -190,8 +261,7 @@ function normalizeAchievementImage(value: unknown, appid: string): string {
   return `https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/${appid}/${value}`;
 }
 
-// Playtime: fetch the user's owned games (server-side, with key) and return
-// playtime_forever for the requested app (or the full map if no appid).
+// Tempo de jogo de um jogo, ou de todos quando appid não é informado.
 async function handlePlaytime(
   apiKey: string,
   steamId: string,
@@ -222,22 +292,22 @@ async function handlePlaytime(
   return json({ games: map });
 }
 
-// Validate the key + steamid pair by making a tiny owned-games call. Returns
-// ok=false with the Steam error message if the pair is invalid.
-async function handleValidate(apiKey: string, steamId: string): Promise<Response> {
+// Confirma que a chave é válida para aquele SteamID antes de salvar.
+async function validateWithSteam(
+  apiKey: string,
+  steamId: string
+): Promise<{ ok: boolean; error?: string }> {
   const endpoint =
     `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}` +
     `&steamid=${steamId}&include_appinfo=false&format=json`;
   const res = await fetch(endpoint);
   if (res.status === 401 || res.status === 403) {
-    return json({ ok: false, error: 'Invalid Steam Web API key.' });
+    return { ok: false, error: 'Chave inválida.' };
   }
   if (!res.ok) {
-    return json({ ok: false, error: `Steam API returned ${res.status}` });
+    return { ok: false, error: `A Steam respondeu ${res.status}.` };
   }
-  const data = await res.json();
-  if (data?.response && typeof data.response === 'object') {
-    return json({ ok: true });
-  }
-  return json({ ok: false, error: 'Unexpected Steam response.' });
+  const data = await res.json().catch(() => null);
+  if (data?.response && typeof data.response === 'object') return { ok: true };
+  return { ok: false, error: 'Resposta inesperada da Steam.' };
 }

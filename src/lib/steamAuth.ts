@@ -1,9 +1,8 @@
 import type { SteamUser } from '@/types';
+import { SUPABASE_URL, ANON_KEY, supabase } from '@/lib/supabaseClient';
 
-// Steam OpenID (openid spec 2.0) does NOT issue OAuth tokens. It returns a
-// signed assertion we exchange for the user's SteamID. We keep this around to
-// identify the logged-in user, but we never need (and cannot use) a Steam Web
-// API key from here.
+// Login pela Steam (OpenID 2.0). O navegador só redireciona; quem confirma a
+// resposta é a função steam-auth, no servidor.
 const STEAM_OPENID_REALM = window.location.origin;
 const STEAM_OPENID_URL =
   'https://steamcommunity.com/openid/login' +
@@ -19,22 +18,22 @@ export function steamLoginUrl(): string {
   return STEAM_OPENID_URL;
 }
 
-// Parse the SteamID from the query string after Steam redirects back.
-// Steam returns openid.claimed_id = https://steamcommunity.com/openid/id/<steamid>
-export function parseSteamIdFromCallback(url: string = window.location.href): string | null {
+// Lê os parâmetros openid.* do retorno da Steam. Retorna null se não houver retorno.
+export function readOpenIdParams(url: string = window.location.href): Record<string, string> | null {
   try {
     const u = new URL(url);
-    const claimed = u.searchParams.get('openid.claimed_id');
-    if (!claimed) return null;
-    const match = claimed.match(/openid\/id\/(\d+)$/);
-    return match ? match[1] : null;
+    if (u.searchParams.get('steam_auth') !== 'done') return null;
+    const params: Record<string, string> = {};
+    u.searchParams.forEach((value, key) => {
+      if (key.startsWith('openid.')) params[key] = value;
+    });
+    return params['openid.claimed_id'] ? params : null;
   } catch {
     return null;
   }
 }
 
-// The redirect leaves ?steam_auth=done&openid.* params in the URL. Strip them
-// after we've consumed them so reloads don't re-trigger the auth handler.
+// Remove da barra de endereço os parâmetros já consumidos.
 export function cleanAuthFromUrl(): void {
   const url = new URL(window.location.href);
   let changed = false;
@@ -49,28 +48,31 @@ export function cleanAuthFromUrl(): void {
   }
 }
 
-// Best-effort: fetch the public persona name + avatar for a SteamID.
-// This uses the public profile XML endpoint (no key needed).
-export async function fetchSteamUser(steamId: string): Promise<SteamUser> {
-  const profileUrl = `https://steamcommunity.com/profiles/${steamId}/?xml=1`;
-  try {
-    const proxied = `https://corsproxy.io/?url=${encodeURIComponent(profileUrl)}`;
-    const res = await fetch(proxied);
-    if (!res.ok) throw new Error('profile fetch failed');
-    const xml = await res.text();
-    const steamIDMatch = xml.match(/<steamID64>(\d+)<\/steamID64>/);
-    const nameMatch = xml.match(/<steamID><!\[CDATA\[(.*?)\]\]><\/steamID>/);
-    const avatarMatch = xml.match(/<avatarFull><!\[CDATA\[(.*?)\]\]><\/avatarFull>/);
-    return {
-      steamId: steamIDMatch ? steamIDMatch[1] : steamId,
-      personaName: nameMatch ? nameMatch[1] : 'Steam Player',
-      avatarUrl: avatarMatch ? avatarMatch[1] : undefined,
-    };
-  } catch {
-    return {
-      steamId,
-      personaName: 'Steam Player',
-      avatarUrl: undefined,
-    };
+// Envia a resposta da Steam ao servidor, que confirma e devolve um token de sessão.
+export async function completeSteamLogin(params: Record<string, string>): Promise<SteamUser> {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/steam-auth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${ANON_KEY}`,
+    },
+    body: JSON.stringify({ params }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.token_hash) {
+    throw new Error(data?.error ?? 'Não foi possível concluir o login com a Steam.');
   }
+
+  const { error } = await supabase.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: data.token_hash,
+  });
+  if (error) throw new Error('Não foi possível iniciar a sessão.');
+
+  return {
+    steamId: data.steam_id,
+    personaName: data.persona_name,
+    avatarUrl: data.avatar_url ?? undefined,
+  };
 }

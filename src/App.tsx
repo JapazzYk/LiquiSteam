@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Settings as SettingsIcon, Gamepad2, Loader2, RefreshCw, SlidersHorizontal, UserCircle2 } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
@@ -12,14 +12,16 @@ import UpdateToast from '@/components/UpdateToast';
 import CustomizationPanel from '@/components/CustomizationPanel';
 import CursorGlow from '@/components/CursorGlow';
 import { useSteamStatus } from '@/lib/useSteamStatus';
-import { loadUser, saveUser, clearUser, loadApiKey, clearApiKey } from '@/lib/storage';
+import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
   getStoredSteamappsDir,
   scanInstalledGames,
   hydrateInstalledSizes,
   isFileSystemAccessSupported,
+  idbClearHandle,
 } from '@/lib/steamLibrary';
-import { parseSteamIdFromCallback, cleanAuthFromUrl, fetchSteamUser } from '@/lib/steamAuth';
+import { readOpenIdParams, cleanAuthFromUrl, completeSteamLogin } from '@/lib/steamAuth';
+import { loadAccount, saveRemoteTheme, signOutAccount } from '@/lib/account';
 import { demoGames } from '@/lib/demoGames';
 import { defaultTheme, loadTheme, saveTheme, type ThemePreferences } from '@/lib/theme';
 import type { SteamUser, InstalledGame, View } from '@/types';
@@ -32,7 +34,8 @@ export default function App() {
   const [usingDemo, setUsingDemo] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedGame, setSelectedGame] = useState<InstalledGame | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(() => loadApiKey());
+  const [hasKey, setHasKey] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePreferences>(() => loadTheme());
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const { status: steamStatus, markStarting, toggle: toggleSteam } = useSteamStatus();
@@ -40,6 +43,7 @@ export default function App() {
   const updateTheme = (nextTheme: ThemePreferences) => {
     setTheme(nextTheme);
     saveTheme(nextTheme);
+    if (user) void saveRemoteTheme(nextTheme).catch(() => undefined);
   }; 
 
   const rootStyle = {
@@ -49,18 +53,42 @@ export default function App() {
     '--glass-opacity': theme.glassOpacity,
   } as CSSProperties;
 
-  // Handle Steam OpenID redirect: ?steam_auth=done&openid.claimed_id=...
+  // Ao abrir o app: conclui o login Steam (se voltou do login) e carrega a conta.
+  // O ref impede que o modo estrito do React rode o login duas vezes.
+  const sessionStarted = useRef(false);
   useEffect(() => {
-    const steamId = parseSteamIdFromCallback();
-    if (!steamId) return;
-    cleanAuthFromUrl();
-    setLoading(true);
-    fetchSteamUser(steamId)
-      .then((u) => {
-        setUser(u);
-        saveUser(u);
-      })
-      .finally(() => setLoading(false));
+    if (sessionStarted.current) return;
+    sessionStarted.current = true;
+
+    const run = async () => {
+      setLoading(true);
+      const params = readOpenIdParams();
+      if (params) {
+        cleanAuthFromUrl();
+        try {
+          await completeSteamLogin(params);
+        } catch (e) {
+          setAccountError(e instanceof Error ? e.message : 'Falha no login com a Steam.');
+        }
+      }
+
+      const account = await loadAccount().catch(() => null);
+      if (!account) {
+        setUser(null);
+        clearUser();
+        setHasKey(false);
+        return;
+      }
+      setUser(account.user);
+      saveUser(account.user);
+      setHasKey(account.hasKey);
+      if (account.theme) {
+        setTheme(account.theme);
+        saveTheme(account.theme);
+      }
+    };
+
+    void run().finally(() => setLoading(false));
   }, []);
 
   // Auto-load games if we already have a stored steamapps handle.
@@ -82,12 +110,14 @@ export default function App() {
     if (u) {
       setUser(u);
       saveUser(u);
-    } else {
-      setUser(null);
-      clearUser();
-      clearApiKey();
-      setApiKey(null);
+      return;
     }
+    void signOutAccount();
+    setUser(null);
+    clearUser();
+    setHasKey(false);
+    // A pasta da Steam escolhida fica no navegador, então é removida ao sair.
+    void idbClearHandle();
   };
 
   const handleGamesLoaded = (g: InstalledGame[]) => {
@@ -212,6 +242,12 @@ export default function App() {
         </div>
       </header>
 
+      {accountError && (
+        <div className="px-6 md:px-10">
+          <p className="mx-auto mb-4 max-w-[1400px] text-sm font-light text-rose-300/90">{accountError}</p>
+        </div>
+      )}
+
       {/* content */}
       <main className="px-6 pb-16 md:px-10">
         {view === 'account' ? (
@@ -219,7 +255,8 @@ export default function App() {
             user={user}
             onUserChange={handleUserChange}
             onGamesLoaded={handleGamesLoaded}
-            onApiKeyChange={(k) => setApiKey(k)}
+            hasKey={hasKey}
+            onApiKeyChange={(has) => setHasKey(has)}
             onBack={() => setView('library')}
           />
         ) : (
@@ -268,7 +305,7 @@ export default function App() {
         <GameDetail
           game={selectedGame}
           user={user}
-          apiKey={apiKey}
+          hasKey={hasKey}
           steamStatus={steamStatus}
           onClose={() => setSelectedGame(null)}
         />

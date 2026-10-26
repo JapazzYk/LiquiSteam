@@ -1,59 +1,55 @@
 import type { AchievementSummary, NewsItem } from '@/types';
+import { SUPABASE_URL, ANON_KEY, accessToken } from '@/lib/supabaseClient';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-function functionUrl(action: string, params: Record<string, string>): string {
-  const u = new URL(`${SUPABASE_URL}/functions/v1/steam-game`);
-  u.searchParams.set('action', action);
-  for (const [k, v] of Object.entries(params)) {
-    if (v) u.searchParams.set(k, v);
-  }
-  return u.toString();
+interface CallOptions {
+  method?: 'GET' | 'POST';
+  body?: unknown;
+  params?: Record<string, string>;
 }
 
-async function callFunction<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
-      'Content-Type': 'application/json',
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`Steam data request failed (${res.status})`);
+// Todas as chamadas passam pela função steam-game. A chave da Steam nunca sai do servidor.
+export async function callSteamGame<T>(
+  action: string,
+  { method = 'GET', body, params = {} }: CallOptions = {}
+): Promise<T> {
+  const url = new URL(`${SUPABASE_URL}/functions/v1/steam-game`);
+  url.searchParams.set('action', action);
+  for (const [k, v] of Object.entries(params)) {
+    if (v) url.searchParams.set(k, v);
   }
-  const data = await res.json();
-  if (data && typeof data === 'object' && 'error' in data && !('achievements' in data)) {
-    throw new Error(String((data as { error: unknown }).error));
+
+  const res = await fetch(url.toString(), {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${await accessToken()}`,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error ?? `Steam data request failed (${res.status})`);
   }
   return data as T;
 }
 
 export async function fetchNews(appid: number): Promise<NewsItem[]> {
   try {
-    const data = await callFunction<{ news: NewsItem[] }>(
-      functionUrl('news', { appid: String(appid) })
-    );
+    const data = await callSteamGame<{ news: NewsItem[] }>('news', {
+      params: { appid: String(appid) },
+    });
     return data.news ?? [];
   } catch {
     return [];
   }
 }
 
-export async function fetchAchievements(
-  appid: number,
-  steamId?: string,
-  apiKey?: string
-): Promise<AchievementSummary | null> {
+export async function fetchAchievements(appid: number): Promise<AchievementSummary | null> {
   try {
-    const data = await callFunction<AchievementSummary>(
-      functionUrl('achievements', {
-        appid: String(appid),
-        steamid: steamId ?? '',
-        key: apiKey ?? '',
-      })
-    );
-    return data;
+    return await callSteamGame<AchievementSummary>('achievements', {
+      params: { appid: String(appid) },
+    });
   } catch {
     return null;
   }
@@ -61,24 +57,15 @@ export async function fetchAchievements(
 
 export interface Playtime {
   appid: number;
-  playtime_forever: number; // minutes
+  playtime_forever: number; // minutos
   name?: string | null;
 }
 
-export async function fetchPlaytime(
-  steamId: string,
-  apiKey: string,
-  appid?: number
-): Promise<Playtime | null> {
+export async function fetchPlaytime(appid?: number): Promise<Playtime | null> {
   try {
-    const data = await callFunction<Playtime>(
-      functionUrl('playtime', {
-        key: apiKey,
-        steamid: steamId,
-        appid: appid != null ? String(appid) : '',
-      })
-    );
-    return data;
+    return await callSteamGame<Playtime>('playtime', {
+      params: { appid: appid != null ? String(appid) : '' },
+    });
   } catch {
     return null;
   }
@@ -89,19 +76,18 @@ export interface ValidationResult {
   error?: string;
 }
 
-export async function validateApiKey(
-  apiKey: string,
-  steamId: string
-): Promise<ValidationResult> {
+// Valida no servidor e, se estiver certa, guarda a chave associada à conta.
+export async function saveSteamKey(apiKey: string): Promise<ValidationResult> {
   try {
-    const data = await callFunction<ValidationResult>(
-      functionUrl('validate', { key: apiKey, steamid: steamId })
-    );
-    return data;
+    return await callSteamGame<ValidationResult>('save-key', {
+      method: 'POST',
+      body: { key: apiKey },
+    });
   } catch (e) {
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : 'Validation failed',
-    };
+    return { ok: false, error: e instanceof Error ? e.message : 'Falha ao salvar a chave.' };
   }
+}
+
+export async function removeSteamKey(): Promise<void> {
+  await callSteamGame('delete-key', { method: 'POST' }).catch(() => undefined);
 }

@@ -26,7 +26,7 @@ import { gameArtworkUrls } from '@/lib/steamLibrary';
 interface GameDetailProps {
   game: InstalledGame;
   user: SteamUser | null;
-  apiKey: string | null;
+  hasKey: boolean;
   steamStatus: SteamStatus;
   onClose: () => void;
 }
@@ -36,7 +36,7 @@ type Tab = 'overview' | 'achievements' | 'news' | 'notes';
 export default function GameDetail({
   game,
   user,
-  apiKey,
+  hasKey,
   steamStatus,
   onClose,
 }: GameDetailProps) {
@@ -67,7 +67,7 @@ export default function GameDetail({
     setLoadingAch(true);
     setLoadingNews(true);
 
-    fetchAchievements(game.appid, user?.steamId, apiKey ?? undefined).then((a) => {
+    fetchAchievements(game.appid).then((a) => {
       if (cancelled) return;
       setAchievements(a);
       setLoadingAch(false);
@@ -79,9 +79,9 @@ export default function GameDetail({
     });
 
     // Sync playtime from Steam if we have credentials.
-    if (user?.steamId && apiKey) {
+    if (user && hasKey) {
       setLoadingPlaytime(true);
-      fetchPlaytime(user.steamId, apiKey, game.appid).then((p) => {
+      fetchPlaytime(game.appid).then((p) => {
         if (cancelled) return;
         setPlaytimeMinutes(p?.playtime_forever ?? null);
         setLoadingPlaytime(false);
@@ -99,7 +99,7 @@ export default function GameDetail({
     return () => {
       cancelled = true;
     };
-  }, [game.appid, game.name, user?.steamId, apiKey]);
+  }, [game.appid, game.name, user?.steamId, hasKey]);
 
   // Esc closes, scroll lock on body.
   useEffect(() => {
@@ -238,7 +238,7 @@ export default function GameDetail({
               achievements={achievements}
               playtimeMinutes={playtimeMinutes}
               loadingPlaytime={loadingPlaytime}
-              hasSync={!!(user?.steamId && apiKey)}
+              hasSync={!!(user && hasKey)}
             />
           )}
           {tab === 'achievements' && (

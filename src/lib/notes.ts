@@ -1,6 +1,7 @@
 import type { GameNote } from '@/types';
 import { supabase } from '@/lib/supabaseClient';
 
+// A RLS do banco limita a leitura e a escrita às notas do próprio usuário logado.
 export async function loadNote(
   steamId: string,
   appId: number
@@ -26,11 +27,16 @@ export async function saveNote(
   gameName: string,
   content: string
 ): Promise<GameNote | null> {
-  // Upsert: insert if missing, update content + timestamp if present.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const uid = sessionData.session?.user.id;
+  if (!uid) return null;
+
+  // Upsert: insere se não existir, atualiza conteúdo e data se já existir.
   const { data, error } = await supabase
     .from('game_notes')
     .upsert(
       {
+        user_id: uid,
         steam_id: steamId,
         app_id: appId,
         game_name: gameName,

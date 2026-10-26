@@ -1,7 +1,8 @@
 import type { SteamUser } from '@/types';
 
+// Cache local apenas para exibir o perfil enquanto a sessão é verificada.
+// A chave da Steam não é mais guardada no navegador.
 const USER_KEY = 'liquid_steam_user';
-const API_KEY = 'liquid_steam_api_key';
 
 export function loadUser(): SteamUser | null {
   try {
@@ -16,25 +17,17 @@ export function loadUser(): SteamUser | null {
 }
 
 export function saveUser(user: SteamUser): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-
-export function clearUser(): void {
-  localStorage.removeItem(USER_KEY);
-}
-
-export function loadApiKey(): string | null {
   try {
-    return localStorage.getItem(API_KEY);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
   } catch {
-    return null;
+    // armazenamento indisponível: segue sem cache
   }
 }
 
-export function saveApiKey(key: string): void {
-  localStorage.setItem(API_KEY, key);
-}
-
-export function clearApiKey(): void {
-  localStorage.removeItem(API_KEY);
+export function clearUser(): void {
+  try {
+    localStorage.removeItem(USER_KEY);
+  } catch {
+    // ignora
+  }
 }

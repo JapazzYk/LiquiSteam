@@ -1,2 +1,5 @@
 [functions.steam-game]
 verify_jwt = false
+
+[functions.steam-auth]
+verify_jwt = false

@@ -20,14 +20,14 @@ import {
   isFileSystemAccessSupported,
 } from '@/lib/steamLibrary';
 import { fileSystemAccessBlockedByIframe } from '@/lib/pwa';
-import { loadApiKey, saveApiKey, clearApiKey } from '@/lib/storage';
-import { validateApiKey } from '@/lib/steamMeta';
+import { saveSteamKey, removeSteamKey } from '@/lib/steamMeta';
 
 interface AccountPanelProps {
   user: SteamUser | null;
   onUserChange: (user: SteamUser | null) => void;
   onGamesLoaded: (games: InstalledGame[]) => void;
-  onApiKeyChange: (key: string | null) => void;
+  onApiKeyChange: (has: boolean) => void;
+  hasKey: boolean;
   onBack: () => void;
 }
 
@@ -36,12 +36,13 @@ export default function AccountPanel({
   onUserChange,
   onGamesLoaded,
   onApiKeyChange,
+  hasKey,
   onBack,
 }: AccountPanelProps) {
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [lastCount, setLastCount] = useState<number | null>(null);
-  const [apiKey, setApiKey] = useState<string>(() => loadApiKey() ?? '');
+  const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [apiKeySaved, setApiKeySaved] = useState(false);
@@ -52,8 +53,7 @@ export default function AccountPanel({
 
   const handleSignOut = () => {
     onUserChange(null);
-    onApiKeyChange(null);
-    clearApiKey();
+    onApiKeyChange(false);
     setApiKey('');
     onGamesLoaded([]);
     setLastCount(null);
@@ -67,22 +67,22 @@ export default function AccountPanel({
       return;
     }
     setApiKeyBusy(true);
-    const result = await validateApiKey(apiKey.trim(), user.steamId);
+    const result = await saveSteamKey(apiKey.trim());
     setApiKeyBusy(false);
     if (!result.ok) {
       setApiKeyError(result.error ?? 'Chave inválida.');
       return;
     }
-    saveApiKey(apiKey.trim());
-    onApiKeyChange(apiKey.trim());
+    setApiKey('');
+    onApiKeyChange(true);
     setApiKeySaved(true);
     setTimeout(() => setApiKeySaved(false), 1800);
   };
 
-  const handleClearApiKey = () => {
-    clearApiKey();
+  const handleClearApiKey = async () => {
+    await removeSteamKey();
     setApiKey('');
-    onApiKeyChange(null);
+    onApiKeyChange(false);
   };
 
   const handleScan = async () => {
@@ -243,7 +243,7 @@ export default function AccountPanel({
               )}
               {apiKeyBusy ? 'Validando…' : apiKeySaved ? 'Válida e salva' : 'Validar e salvar'}
             </button>
-            {loadApiKey() && (
+            {hasKey && (
               <button
                 onClick={handleClearApiKey}
                 className="flex h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-light text-white/60 transition-all hover:border-rose-300/30 hover:text-rose-200"

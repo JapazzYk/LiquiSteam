@@ -14,22 +14,32 @@ export const defaultTheme: ThemePreferences = {
 
 const THEME_KEY = 'liquid_steam_theme';
 
+// Garante que um valor vindo do banco ou do navegador tenha o formato esperado.
+export function normalizeTheme(value: unknown): ThemePreferences {
+  const v = (value && typeof value === 'object' ? value : {}) as Partial<ThemePreferences>;
+  return {
+    accent: typeof v.accent === 'string' ? v.accent : defaultTheme.accent,
+    accentRgb: typeof v.accentRgb === 'string' ? v.accentRgb : defaultTheme.accentRgb,
+    glowIntensity: typeof v.glowIntensity === 'number' ? v.glowIntensity : defaultTheme.glowIntensity,
+    glassOpacity: typeof v.glassOpacity === 'number' ? v.glassOpacity : defaultTheme.glassOpacity,
+  };
+}
+
+// Cache local do tema (para a primeira pintura da tela). A fonte de verdade é a conta.
 export function loadTheme(): ThemePreferences {
   try {
     const raw = localStorage.getItem(THEME_KEY);
     if (!raw) return defaultTheme;
-    const value = JSON.parse(raw) as Partial<ThemePreferences>;
-    return {
-      accent: typeof value.accent === 'string' ? value.accent : defaultTheme.accent,
-      accentRgb: typeof value.accentRgb === 'string' ? value.accentRgb : defaultTheme.accentRgb,
-      glowIntensity: typeof value.glowIntensity === 'number' ? value.glowIntensity : defaultTheme.glowIntensity,
-      glassOpacity: typeof value.glassOpacity === 'number' ? value.glassOpacity : defaultTheme.glassOpacity,
-    };
+    return normalizeTheme(JSON.parse(raw));
   } catch {
     return defaultTheme;
   }
 }
 
 export function saveTheme(theme: ThemePreferences): void {
-  localStorage.setItem(THEME_KEY, JSON.stringify(theme));
+  try {
+    localStorage.setItem(THEME_KEY, JSON.stringify(theme));
+  } catch {
+    // ignora
+  }
 }
