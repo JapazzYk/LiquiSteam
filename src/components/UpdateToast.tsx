@@ -10,8 +10,12 @@ export default function UpdateToast() {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
+    // Na primeira visita (ou num endereço novo, como cada prévia da Vercel) o service worker
+    // também "ativa" e avisa, mas não há versão antiga para trocar. Só vale como atualização
+    // quando a página já abriu controlada por um service worker anterior.
+    const hadController = !!navigator.serviceWorker.controller;
     const onMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'SW_UPDATED') {
+      if (hadController && event.data && event.data.type === 'SW_UPDATED') {
         setVisible(true);
       }
     };
@@ -21,7 +25,7 @@ export default function UpdateToast() {
     // browsers): prompt it and reload.
     const checkWaiting = async () => {
       const reg = await navigator.serviceWorker.getRegistration();
-      if (reg?.waiting) {
+      if (hadController && reg?.waiting) {
         reg.waiting.postMessage('SKIP_WAITING');
         setVisible(true);
       }
