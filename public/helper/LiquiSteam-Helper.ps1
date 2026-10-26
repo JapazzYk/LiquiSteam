@@ -1,9 +1,9 @@
-﻿# LiquiSteam Helper (Windows)
-# Pequeno serviço local que deixa o site LiquiSteam saber se a Steam está aberta
-# e abrir/encerrar o cliente. Escuta só em 127.0.0.1 e só aceita pedidos vindos do
-# seu site. Fica parado até alguém perguntar, então não consome processador.
+# LiquiSteam Helper (Windows)
+# Pequeno servico local que deixa o site LiquiSteam saber se a Steam esta aberta
+# e abrir/encerrar o cliente. Escuta so em 127.0.0.1 e so aceita pedidos vindos do
+# seu site. Fica parado ate alguem perguntar, entao nao consome processador.
 #
-# Se um dia você usar um domínio próprio, acrescente-o em $AllowedOrigin.
+# Se um dia voce usar um dominio proprio, acrescente-o em $AllowedOrigin.
 
 $Port = 47231
 $AllowedOrigin = '^(https://(liquisteam|liquisteam-[a-z0-9]+(-[a-z0-9]+)*-ryos3)\.vercel\.app|http://(localhost|127\.0\.0\.1):5173)$'
@@ -13,7 +13,7 @@ function Get-SteamState {
     $found = $procs.Count -gt 0
     foreach ($p in $procs) { $p.Dispose() }
     if (-not $found) { return 'not-running' }
-    # ActiveUser é 0 enquanto a Steam ainda inicia ou espera o login.
+    # ActiveUser e 0 enquanto a Steam ainda inicia ou espera o login.
     $user = 0
     try {
         $value = (Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction Stop).ActiveUser
@@ -76,7 +76,7 @@ function Handle-Request($context) {
         return
     }
 
-    # Ações só com Origin do seu site: um link ou formulário de outro lugar não consegue acioná-las.
+    # Acoes so com Origin do seu site: um link ou formulario de outro lugar nao consegue aciona-las.
     if ($method -eq 'POST' -and $origin -and ($path -eq '/open' -or $path -eq '/exit')) {
         $exe = Get-SteamExe
         if ($path -eq '/open') {
@@ -96,7 +96,7 @@ $listener.Prefixes.Add("http://127.0.0.1:$Port/")
 try {
     $listener.Start()
 } catch {
-    # Já existe outra cópia do helper rodando (ou a porta está ocupada).
+    # Ja existe outra copia do helper rodando (ou a porta esta ocupada).
     exit 0
 }
 
@@ -105,7 +105,7 @@ while ($listener.IsListening) {
     try {
         Handle-Request $context
     } catch {
-        # Um pedido com problema não derruba o serviço.
+        # Um pedido com problema nao derruba o servico.
     } finally {
         $context.Response.Close()
     }

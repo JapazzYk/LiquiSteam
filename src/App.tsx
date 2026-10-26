@@ -6,6 +6,7 @@ import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
 import InstallButton from '@/components/InstallButton';
 import OpenSteamButton from '@/components/OpenSteamButton';
+import HelperInstall from '@/components/HelperInstall';
 import GameDetail from '@/components/GameDetail';
 import UpdateToast from '@/components/UpdateToast';
 import CustomizationPanel from '@/components/CustomizationPanel';
@@ -42,7 +43,13 @@ export default function App() {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePreferences>(() => loadTheme());
   const [customizationOpen, setCustomizationOpen] = useState(false);
-  const { status: steamStatus, helper: steamHelper, open: openSteam, stop: stopSteam } = useSteamStatus();
+  const {
+    status: steamStatus,
+    helper: steamHelper,
+    source: steamSource,
+    open: openSteam,
+    stop: stopSteam,
+  } = useSteamStatus(!!user && hasKey);
   const skin = getSkin(theme.skin);
 
   // Grava na conta com um pequeno atraso, para não salvar a cada movimento de um controle.
@@ -217,8 +224,9 @@ export default function App() {
               </div>
             )}
             {view === 'library' && (
-              <div className="hidden md:block">
-                <OpenSteamButton status={steamStatus} helper={steamHelper} onOpen={openSteam} onStop={stopSteam} />
+              <div className="hidden items-center gap-2 md:flex">
+                <OpenSteamButton status={steamStatus} source={steamSource} onOpen={openSteam} onStop={stopSteam} />
+                {steamHelper === 'offline' && <HelperInstall />}
               </div>
             )}
             {view === 'library' && !usingDemo && (

@@ -71,6 +71,17 @@ export async function fetchPlaytime(appid?: number): Promise<Playtime | null> {
   }
 }
 
+// Estado da conta na Steam (online/offline). null se não der para saber
+// (sem login, sem chave de API ou erro de rede).
+export async function fetchPresence(): Promise<'running' | 'not-running' | null> {
+  try {
+    const data = await callSteamGame<{ online: boolean }>('presence');
+    return data.online ? 'running' : 'not-running';
+  } catch {
+    return null;
+  }
+}
+
 export interface ValidationResult {
   ok: boolean;
   error?: string;

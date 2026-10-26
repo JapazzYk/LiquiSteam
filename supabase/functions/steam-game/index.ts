@@ -84,6 +84,15 @@ Deno.serve(async (req: Request) => {
       return json({ hasKey: key !== null });
     }
 
+    // Pessoal: se a conta Steam está online (a Steam aberta e logada, fora do modo invisível).
+    if (action === 'presence' && req.method === 'GET') {
+      const caller = await currentCaller(req);
+      if (!caller) return jsonError(401, 'Faça login com a Steam.');
+      const key = await storedApiKey(caller.userId);
+      if (!key) return jsonError(400, 'Cadastre sua chave da Steam Web API.');
+      return await handlePresence(key, caller.steamId);
+    }
+
     if (action === 'save-key' && req.method === 'POST') {
       const caller = await currentCaller(req);
       if (!caller) return jsonError(401, 'Faça login com a Steam.');
@@ -290,6 +299,19 @@ async function handlePlaytime(
     playtime_forever: g.playtime_forever ?? 0,
   }));
   return json({ games: map });
+}
+
+// Estado da conta na Steam. personastate 0 = offline; qualquer outro valor = online.
+async function handlePresence(apiKey: string, steamId: string): Promise<Response> {
+  const endpoint =
+    `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=${apiKey}` +
+    `&steamids=${steamId}&format=json`;
+  const res = await fetch(endpoint);
+  if (!res.ok) return jsonError(res.status, `Steam API returned ${res.status}`);
+  const data = await res.json().catch(() => null);
+  const player = data?.response?.players?.[0];
+  const state = Number(player?.personastate ?? 0);
+  return json({ online: state !== 0, personastate: state });
 }
 
 // Confirma que a chave é válida para aquele SteamID antes de salvar.

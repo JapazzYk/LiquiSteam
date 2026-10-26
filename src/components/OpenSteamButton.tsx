@@ -1,9 +1,9 @@
 import { Gamepad2 as SteamIcon, Loader2, CheckCircle2, Power } from 'lucide-react';
-import type { HelperLink, SteamStatus } from '@/lib/useSteamStatus';
+import type { StatusSource, SteamStatus } from '@/lib/useSteamStatus';
 
 interface OpenSteamButtonProps {
   status: SteamStatus;
-  helper: HelperLink;
+  source: StatusSource;
   onOpen: () => void;
   onStop: () => void;
 }
@@ -11,15 +11,20 @@ interface OpenSteamButtonProps {
 // Abre o cliente da Steam. Quando a Steam está aberta, o botão vira um indicador de
 // status que também permite encerrá-la. Com o LiquiSteam Helper rodando, o status
 // é lido do Windows (ponto verde); sem ele, é uma estimativa.
-export default function OpenSteamButton({ status, helper, onOpen, onStop }: OpenSteamButtonProps) {
+export default function OpenSteamButton({ status, source, onOpen, onStop }: OpenSteamButtonProps) {
   const running = status === 'running';
   const starting = status === 'starting';
-  const live = helper === 'online';
 
   const handleClick = () => (running ? onStop() : onOpen());
 
   const title = running ? 'Encerrar a Steam' : 'Abrir a Steam';
-  const hint = live ? 'Status lido direto do computador' : 'Status estimado (instale o LiquiSteam Helper para sincronizar)';
+  const hint =
+    source === 'helper'
+      ? 'Status lido direto do computador'
+      : source === 'account'
+        ? 'Status da sua conta na Steam (pode demorar alguns segundos; instale o LiquiSteam Helper para ficar exato)'
+        : 'Status estimado (instale o LiquiSteam Helper para sincronizar)';
+  const dot = source === 'helper' ? 'bg-ok' : source === 'account' ? 'bg-[rgb(var(--accent-rgb))]' : 'bg-white/25';
 
   return (
     <button
@@ -45,7 +50,7 @@ export default function OpenSteamButton({ status, helper, onOpen, onStop }: Open
       {running && <Power className="ml-1 h-3.5 w-3.5 opacity-60" />}
       <span
         aria-hidden
-        className={`absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full ${live ? 'bg-ok' : 'bg-white/25'}`}
+        className={`absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full ${dot}`}
       />
     </button>
   );
