@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   ExternalLink,
   Info,
-  Gamepad2,
   KeyRound,
   Trash2,
 } from 'lucide-react';
@@ -150,7 +149,7 @@ export default function AccountPanel({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <Gamepad2 className="h-7 w-7 text-white/70" />
+                <img src="/logo.png" alt="" className="h-10 w-10 object-contain" />
               )}
             </div>
             <div className="min-w-0 flex-1">
@@ -191,7 +190,7 @@ export default function AccountPanel({
                     'linear-gradient(90deg, rgba(102,192,244,0.0) 0%, rgba(102,192,244,0.15) 50%, rgba(102,192,244,0.0) 100%)',
                 }}
               />
-              <SteamLogo className="h-6 w-6" />
+              <img src="/steam-logo.png" alt="" width={24} height={24} className="h-6 w-6" />
               <span className="text-[15px] font-medium tracking-tight">
                 Entrar com sua conta Steam
               </span>
@@ -345,19 +344,5 @@ export default function AccountPanel({
         <ExternalLink className="h-3.5 w-3.5" />
       </a>
     </div>
-  );
-}
-
-// Minimal official-ish Steam logo (wordmark + circle) drawn inline so we
-// don’t ship binary assets. Uses Steam’s brand blue (#66c0f4 / #1b2838).
-function SteamLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={className} fill="none" aria-hidden>
-      <circle cx="16" cy="16" r="15" fill="#66c0f4" />
-      <path
-        fill="#171a21"
-        d="M21.6 8.2a4.4 4.4 0 0 0-4.36 5.02l-3.3 4.78a3.4 3.4 0 0 0-.18-.01 3.4 3.4 0 0 0-1.13.2l-1.6-1.17a3.4 3.4 0 0 1 2.73-3.31 3.4 3.4 0 0 1 3.86 2.86 3.4 3.4 0 0 1-2.86 3.86 3.4 3.4 0 0 1-2.14-.45l-1.6-1.17a3.4 3.4 0 0 0-.56 1.84 3.4 3.4 0 0 0 3.4 3.4 3.4 3.4 0 0 0 3.36-2.94l3.3-4.78a3.4 3.4 0 0 0 .13.01 4.4 4.4 0 0 0 4.4-4.4 4.4 4.4 0 0 0-4.4-4.4Z"
-      />
-    </svg>
   );
 }

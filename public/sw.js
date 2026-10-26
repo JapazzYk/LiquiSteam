@@ -12,8 +12,8 @@
 // for all tabs to close), and it posts 'SW_UPDATED' to clients so the app can
 // reload into the new version. No uninstall needed.
 
-const CACHE = 'liquid-steam-v2';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'liquisteam-v3';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.png', '/logo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Settings as SettingsIcon, Gamepad2, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen } from 'lucide-react';
+import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
@@ -189,9 +189,13 @@ export default function App() {
       <header className="app-header theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 md:gap-4">
           <div className="flex shrink-0 items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.08]">
-              <Gamepad2 className="theme-accent h-5 w-5" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="LiquiSteam"
+              width={40}
+              height={40}
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_2px_10px_rgba(var(--accent-rgb),0.35)]"
+            />
             <div className="hidden sm:block">
               <h1 className="brand-title text-[15px] font-semibold leading-none tracking-tight">LiquiSteam</h1>
               <p className="mt-1 text-[11px] text-white/50">
