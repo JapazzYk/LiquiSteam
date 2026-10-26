@@ -10,7 +10,7 @@ import {
 
 // Two related but distinct problems this banner solves:
 //  1) The app needs to be installable (PWA) to feel like a desktop launcher.
-//  2) The File System Access API can't run inside Bolt's preview iframe, so
+//  2) The File System Access API can't run inside an embedded preview iframe, so
 //     "Select steamapps folder" silently fails there. Installing the app opens
 //     it in its own window where the API works.
 export default function InstallBanner() {
@@ -59,7 +59,7 @@ export default function InstallBanner() {
           </p>
           <p className="mt-1 text-[13px] font-light leading-relaxed text-white/60">
             {blockedByIframe
-              ? 'O preview do Bolt roda numa moldura (iframe) que bloqueia a seleção de pasta. Instale o app para abri-lo numa janela própria, onde a leitura dos seus jogos da Steam funciona.'
+              ? 'O preview embutido roda numa moldura (iframe) que bloqueia a seleção de pasta. Instale o app para abri-lo numa janela própria, onde a leitura dos seus jogos da Steam funciona.'
               : 'Abra o Liquid Steam na própria janela, fora do navegador, como um launcher de verdade.'}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">

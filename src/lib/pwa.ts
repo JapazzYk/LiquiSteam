@@ -1,5 +1,5 @@
 // Detects whether the File System Access API (needed to read the local Steam
-// folder) can actually run in the current context. Bolt's preview runs the app
+// folder) can actually run in the current context. An embedded preview runs the app
 // inside an iframe, and browsers block showDirectoryPicker() in iframed
 // documents unless the allow="local-folders" permission is set. We surface a
 // clear, actionable message when that's the case.

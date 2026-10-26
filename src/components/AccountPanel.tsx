@@ -280,7 +280,7 @@ export default function AccountPanel({
           <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-300/25 bg-sky-500/10 p-4 text-sm font-light text-sky-100">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Você está vendo o app numa moldura (preview do Bolt). A seleção da pasta da Steam
+              Você está vendo o app numa moldura (preview embutido). A seleção da pasta da Steam
               só funciona com o app instalado e aberto numa janela própria. Use o banner
               “Instalar app” no topo da tela, abra em nova aba, ou publique o projeto e instale a partir do link publicado.
             </p>
