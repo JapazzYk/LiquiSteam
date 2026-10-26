@@ -1,32 +1,25 @@
 import { Gamepad2 as SteamIcon, Loader2, CheckCircle2, Power } from 'lucide-react';
-import type { SteamStatus } from '@/lib/useSteamStatus';
-import { openSteamClient, stopSteamClient } from '@/lib/steamLaunch';
+import type { HelperLink, SteamStatus } from '@/lib/useSteamStatus';
 
 interface OpenSteamButtonProps {
   status: SteamStatus;
+  helper: HelperLink;
   onOpen: () => void;
-  onToggle: () => void;
+  onStop: () => void;
 }
 
-// Abre o cliente da Steam pelo protocolo steam://. Quando a Steam está aberta,
-// o botão vira um indicador de status que também permite encerrá-la.
-export default function OpenSteamButton({
-  status,
-  onOpen,
-  onToggle,
-}: OpenSteamButtonProps) {
-  const handleClick = () => {
-    if (status === 'running') {
-      stopSteamClient();
-      onToggle();
-    } else {
-      openSteamClient();
-      onOpen();
-    }
-  };
-
+// Abre o cliente da Steam. Quando a Steam está aberta, o botão vira um indicador de
+// status que também permite encerrá-la. Com o LiquiSteam Helper rodando, o status
+// é lido do Windows (ponto verde); sem ele, é uma estimativa.
+export default function OpenSteamButton({ status, helper, onOpen, onStop }: OpenSteamButtonProps) {
   const running = status === 'running';
   const starting = status === 'starting';
+  const live = helper === 'online';
+
+  const handleClick = () => (running ? onStop() : onOpen());
+
+  const title = running ? 'Encerrar a Steam' : 'Abrir a Steam';
+  const hint = live ? 'Status lido direto do computador' : 'Status estimado (instale o LiquiSteam Helper para sincronizar)';
 
   return (
     <button
@@ -37,7 +30,7 @@ export default function OpenSteamButton({
           ? 'border-ok/40 bg-ok/15 text-white hover:bg-ok/20'
           : 'border-white/15 bg-white/[0.07] text-white hover:border-[rgba(var(--accent-rgb),0.55)]'
       }`}
-      title={running ? 'Encerrar a Steam' : 'Abrir a Steam'}
+      title={`${title}. ${hint}.`}
     >
       {starting ? (
         <Loader2 className="theme-accent h-4 w-4 animate-spin" />
@@ -50,6 +43,10 @@ export default function OpenSteamButton({
         {starting ? 'Iniciando Steam…' : running ? 'Encerrar Steam' : 'Abrir Steam'}
       </span>
       {running && <Power className="ml-1 h-3.5 w-3.5 opacity-60" />}
+      <span
+        aria-hidden
+        className={`absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full ${live ? 'bg-ok' : 'bg-white/25'}`}
+      />
     </button>
   );
 }

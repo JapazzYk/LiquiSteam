@@ -42,7 +42,7 @@ export default function App() {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePreferences>(() => loadTheme());
   const [customizationOpen, setCustomizationOpen] = useState(false);
-  const { status: steamStatus, markStarting, toggle: toggleSteam } = useSteamStatus();
+  const { status: steamStatus, helper: steamHelper, open: openSteam, stop: stopSteam } = useSteamStatus();
   const skin = getSkin(theme.skin);
 
   // Grava na conta com um pequeno atraso, para não salvar a cada movimento de um controle.
@@ -218,7 +218,7 @@ export default function App() {
             )}
             {view === 'library' && (
               <div className="hidden md:block">
-                <OpenSteamButton status={steamStatus} onOpen={markStarting} onToggle={toggleSteam} />
+                <OpenSteamButton status={steamStatus} helper={steamHelper} onOpen={openSteam} onStop={stopSteam} />
               </div>
             )}
             {view === 'library' && !usingDemo && (
