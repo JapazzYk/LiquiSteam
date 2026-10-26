@@ -217,7 +217,7 @@ async function handleAchievements(
           : undefined;
         const stats: any[] = pd?.playerstats?.achievements ?? [];
         for (const s of stats) {
-          personal.set(s.name, {
+          personal.set(s.apiname ?? s.name, {
             achieved: s.achieved === 1,
             unlockTime: s.unlocktime ?? 0,
           });
