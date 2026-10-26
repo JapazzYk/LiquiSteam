@@ -1,0 +1,24 @@
+# dependências instaladas
+node_modules
+
+# build gerado (a Vercel recria a partir do src)
+dist
+
+# segredos locais: nunca subir para o GitHub
+.env
+.env.*
+!.env.example
+
+# configuração local da Vercel
+.vercel
+
+# arquivos do sistema operacional e do editor
+.DS_Store
+Thumbs.txt
+desktop.ini
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*
