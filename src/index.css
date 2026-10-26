@@ -1287,6 +1287,17 @@ body {
   border-radius: 3px !important;
 }
 
+/* Seletor de layout: nos temas de quinas vivas os botões ficam quadrados,
+   então a moldura precisa acompanhar para o botão ativo não bater na borda. */
+[data-skin='steam'] .layout-switch {
+  border-radius: 4px;
+}
+
+[data-skin='arcade'] .layout-switch,
+[data-skin='graphite'] .layout-switch {
+  border-radius: 2px;
+}
+
 /* Arcade: painéis e cartões de apoio também de quinas vivas. */
 [data-skin='arcade'] [class*='rounded-']:not([class*='rounded-full']) {
   border-radius: 0 !important;
