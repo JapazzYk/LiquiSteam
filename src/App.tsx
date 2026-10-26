@@ -154,10 +154,12 @@ export default function App() {
     void idbClearHandle();
   };
 
-  const handleGamesLoaded = (g: InstalledGame[]) => {
+  const handleGamesLoaded = (g: InstalledGame[], dir?: FileSystemDirectoryHandle) => {
     if (g.length > 0) {
       setGames(g);
       setUsingDemo(false);
+      // Jogos sem tamanho no manifesto têm o tamanho calculado pela pasta.
+      if (dir) hydrateSizes(dir, g);
     } else {
       setGames([]);
     }

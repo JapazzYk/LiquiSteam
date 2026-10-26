@@ -132,13 +132,19 @@ function parseAcf(text: string): AcfManifest | null {
       appid: String(state.appid ?? ''),
       name: String(state.name ?? uc.name ?? ''),
       installdir: String(state.installdir ?? ''),
-      size_on_disk: state.size_on_disk ? String(state.size_on_disk) : undefined,
+      // O manifesto da Steam grava o tamanho como "SizeOnDisk" (com letras maiúsculas).
+      size_on_disk: pickSize(state),
       StateFlags: state.StateFlags ? String(state.StateFlags) : undefined,
       UserConfig: uc,
     };
   } catch {
     return null;
   }
+}
+
+function pickSize(state: Record<string, unknown>): string | undefined {
+  const value = state.SizeOnDisk ?? state.sizeondisk ?? state.size_on_disk;
+  return value ? String(value) : undefined;
 }
 
 function tokenizeVdf(text: string): string[] {

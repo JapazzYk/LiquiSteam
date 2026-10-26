@@ -24,7 +24,7 @@ import { saveSteamKey, removeSteamKey } from '@/lib/steamMeta';
 interface AccountPanelProps {
   user: SteamUser | null;
   onUserChange: (user: SteamUser | null) => void;
-  onGamesLoaded: (games: InstalledGame[]) => void;
+  onGamesLoaded: (games: InstalledGame[], dir?: FileSystemDirectoryHandle) => void;
   onApiKeyChange: (has: boolean) => void;
   hasKey: boolean;
   onBack: () => void;
@@ -94,7 +94,7 @@ export default function AccountPanel({
       const dir = await pickSteamappsDir();
       if (!dir) return;
       const games = await scanInstalledGames(dir);
-      onGamesLoaded(games);
+      onGamesLoaded(games, dir);
       setLastCount(games.length);
       if (games.length === 0) {
         setScanError(
