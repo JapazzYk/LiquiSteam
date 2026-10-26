@@ -1,14 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" data-skin="liquid">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Liquid Steam — Game Launcher</title>
-    <meta name="description" content="A minimalist Liquid Glass launcher for your Steam library." />
+    <title>LiquiSteam</title>
+    <meta name="description" content="Sua biblioteca da Steam em um launcher com temas e layouts." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Uma fonte por tema: Sora (Liquid Glass), Archivo (Steam escuro), Instrument Sans (Minimalista claro), Chakra Petch (Arcade), Geist (Grafite) -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -17,7 +18,14 @@
     <meta name="theme-color" content="#05060a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Liquid Steam" />
+    <meta name="apple-mobile-web-app-title" content="LiquiSteam" />
+    <script>
+      // Aplica o tema salvo antes da primeira pintura, para não piscar o tema padrão.
+      try {
+        var saved = JSON.parse(localStorage.getItem('liquid_steam_theme') || '{}');
+        if (saved && typeof saved.skin === 'string') document.documentElement.dataset.skin = saved.skin;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

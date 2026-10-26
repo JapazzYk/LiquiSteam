@@ -8,9 +8,8 @@ interface OpenSteamButtonProps {
   onToggle: () => void;
 }
 
-// Shown prominently when the app opens. Clicking attempts to launch the Steam
-// client via the steam:// protocol. Once Steam is "running", the button
-// becomes a status pill the user can toggle off.
+// Abre o cliente da Steam pelo protocolo steam://. Quando a Steam está aberta,
+// o botão vira um indicador de status que também permite encerrá-la.
 export default function OpenSteamButton({
   status,
   onOpen,
@@ -31,20 +30,21 @@ export default function OpenSteamButton({
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       className={`group relative flex h-10 items-center gap-2.5 overflow-hidden rounded-full border px-5 text-sm font-medium backdrop-blur-xl transition-all ${
         running
-          ? 'border-emerald-300/40 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/20'
-          : 'border-[#2a475e]/60 bg-[#1b2838]/70 text-white hover:border-[#66c0f4]/60 hover:bg-[#22344a]/80'
+          ? 'border-ok/40 bg-ok/15 text-white hover:bg-ok/20'
+          : 'border-white/15 bg-white/[0.07] text-white hover:border-[rgba(var(--accent-rgb),0.55)]'
       }`}
       title={running ? 'Encerrar a Steam' : 'Abrir a Steam'}
     >
       {starting ? (
-        <Loader2 className="h-4 w-4 animate-spin text-sky-300" />
+        <Loader2 className="theme-accent h-4 w-4 animate-spin" />
       ) : running ? (
-        <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+        <CheckCircle2 className="h-4 w-4 text-ok" />
       ) : (
-        <SteamIcon className="h-4 w-4 text-sky-300" />
+        <SteamIcon className="theme-accent h-4 w-4" />
       )}
       <span className="tracking-tight">
         {starting ? 'Iniciando Steam…' : running ? 'Encerrar Steam' : 'Abrir Steam'}

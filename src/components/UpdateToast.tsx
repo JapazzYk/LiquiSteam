@@ -37,9 +37,9 @@ export default function UpdateToast() {
 
   return (
     <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2 px-4">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-sky-300/30 bg-[#0a0f1a]/90 px-5 py-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-sky-400/15">
-          <RefreshCw className="h-4 w-4 text-sky-300" />
+      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-[rgba(var(--accent-rgb),0.35)] bg-surface/95 px-5 py-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full theme-accent-surface">
+          <RefreshCw className="h-4 w-4 theme-accent" />
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium tracking-tight text-white">Nova versão disponível</p>
@@ -47,7 +47,7 @@ export default function UpdateToast() {
         </div>
         <button
           onClick={reload}
-          className="ml-1 flex h-8 items-center rounded-full bg-sky-400 px-4 text-sm font-medium text-[#04101f] transition-colors hover:bg-sky-300"
+          className="ml-1 flex h-8 items-center rounded-full bg-[var(--accent-color)] px-4 text-sm font-medium text-[color:var(--on-accent)] transition-colors hover:brightness-110"
         >
           Atualizar
         </button>

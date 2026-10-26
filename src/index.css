@@ -2,7 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/*
+  Temas. Cada tema define as mesmas variáveis; as cores ficam em "R G B" para
+  aceitar opacidade, por exemplo rgb(var(--ink) / 0.5).
+  --bg       fundo da página
+  --surface  painéis sólidos (detalhe do jogo, personalização)
+  --ink      cor do texto (é o "white" do Tailwind)
+  --glass    cor base dos vidros; --glass-gain multiplica a opacidade escolhida
+*/
+:root,
+[data-skin='liquid'] {
+  --bg: 5 6 10;
+  --surface: 10 14 22;
+  --ink: 255 255 255;
+  --shade: 0 0 0;
+  --glass: 255 255 255;
+  --glass-gain: 1;
+  --ok: 110 231 183;
+  --bad: 253 164 175;
+  --warn: 252 211 77;
+  --font: 'Sora';
+  --hero-shadow: 0 2px 24px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+[data-skin='steam'] {
+  --bg: 23 26 33;
+  --surface: 27 40 56;
+  --ink: 199 213 224;
+  --glass: 42 71 94;
+  --glass-gain: 3.5;
+  --ok: 164 208 7;
+  --bad: 255 128 128;
+  --warn: 232 196 92;
+  --font: 'Archivo';
+  --hero-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+[data-skin='paper'] {
+  --bg: 238 240 243;
+  --surface: 250 250 251;
+  --ink: 24 27 33;
+  --glass: 255 255 255;
+  --glass-gain: 12;
+  --ok: 4 120 87;
+  --bad: 190 18 60;
+  --warn: 146 64 14;
+  --font: 'Instrument Sans';
+  --hero-shadow: none;
+  color-scheme: light;
+}
+
+[data-skin='arcade'] {
+  --bg: 13 6 24;
+  --surface: 24 10 42;
+  --ink: 244 238 255;
+  --glass: 190 140 255;
+  --glass-gain: 1.4;
+  --ok: 94 234 212;
+  --bad: 255 113 168;
+  --warn: 255 214 102;
+  --font: 'Chakra Petch';
+  --hero-shadow: 0 0 28px rgba(232, 121, 249, 0.45);
+  color-scheme: dark;
+}
+
+[data-skin='graphite'] {
+  --bg: 0 0 0;
+  --surface: 12 12 12;
+  --ink: 236 236 236;
+  --glass: 255 255 255;
+  --glass-gain: 0.9;
+  --ok: 134 239 172;
+  --bad: 252 165 165;
+  --warn: 253 224 71;
+  --font: 'Geist';
+  --hero-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
   color-scheme: dark;
 }
 
@@ -14,14 +90,14 @@ body,
 }
 
 body {
-  background: #05060a;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-family: var(--font), system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
 }
 
-/* slim glassy scrollbars */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -30,19 +106,25 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgb(var(--ink) / 0.14);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgb(var(--ink) / 0.24);
   background-clip: padding-box;
 }
 
 ::selection {
   background: rgba(var(--accent-rgb), 0.35);
-  color: #fff;
+  color: rgb(var(--ink));
+}
+
+/* Foco visível em todos os temas, na cor de destaque. */
+:focus-visible {
+  outline: 2px solid var(--accent-color, #38bdf8);
+  outline-offset: 3px;
 }
 
 .cursor-glow {
@@ -72,7 +154,7 @@ body {
 }
 
 .theme-glass {
-  background: rgba(255, 255, 255, var(--glass-opacity));
+  background: rgb(var(--glass) / calc(var(--glass-opacity, 0.06) * var(--glass-gain)));
   border-color: rgba(var(--accent-rgb), 0.2);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(var(--accent-rgb), 0.08);
 }
@@ -89,8 +171,121 @@ body {
   background: rgba(var(--accent-rgb), 0.16);
 }
 
+.hero-title {
+  text-shadow: var(--hero-shadow);
+}
+
+/* Avisos que seguem as cores do tema. */
+.notice-warn {
+  border-color: rgb(var(--warn) / 0.3);
+  background: rgb(var(--warn) / 0.1);
+  color: rgb(var(--warn));
+}
+
+.notice-info {
+  border-color: rgba(var(--accent-rgb), 0.3);
+  background: rgba(var(--accent-rgb), 0.1);
+  color: rgb(var(--ink) / 0.85);
+}
+
+/* Fundos animados ou estáticos de cada tema. */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-steam {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(102, 192, 244, 0.1), transparent 70%),
+    linear-gradient(180deg, #1b2838 0%, #171a21 60%);
+}
+
+.ambient-arcade {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(var(--accent-rgb), 0.3), transparent 70%),
+    linear-gradient(180deg, #0d0618 0%, #1a0832 100%);
+}
+
+/* Grade em perspectiva do tema Arcade. */
+.ambient-arcade::after {
+  content: '';
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: -8%;
+  height: 58%;
+  background-image:
+    linear-gradient(rgba(var(--accent-rgb), 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(420px) rotateX(62deg);
+  transform-origin: bottom;
+  -webkit-mask-image: linear-gradient(to top, black 25%, transparent);
+  mask-image: linear-gradient(to top, black 25%, transparent);
+  animation: arcade-scroll 6s linear infinite;
+}
+
+@keyframes arcade-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 48px;
+  }
+}
+
+/* Tema claro: cartões brancos com sombra suave e destaque um pouco mais escuro para leitura. */
+[data-skin='paper'] .theme-glass {
+  border-color: rgb(var(--ink) / 0.08);
+  box-shadow: 0 1px 2px rgba(24, 27, 33, 0.06), 0 10px 28px -14px rgba(24, 27, 33, 0.22);
+}
+
+[data-skin='paper'] .glass-reflection {
+  box-shadow: 0 1px 0 rgb(var(--ink) / 0.06);
+}
+
+[data-skin='paper'] .theme-accent {
+  color: color-mix(in srgb, var(--accent-color) 72%, black);
+}
+
+/* Temas sólidos: sem desfoque de vidro, sem brilho do cursor e sem reflexo nas capas. */
+[data-skin='steam'] [class*='backdrop-blur'],
+[data-skin='paper'] [class*='backdrop-blur'],
+[data-skin='graphite'] [class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-skin='steam'] .card-sheen,
+[data-skin='paper'] .card-sheen,
+[data-skin='graphite'] .card-sheen {
+  display: none;
+}
+
+/* Steam escuro e Grafite: cantos retos, como em um cliente de desktop. */
+[data-skin='steam'] [class*='rounded-']:not([class*='rounded-full']),
+[data-skin='graphite'] [class*='rounded-']:not([class*='rounded-full']) {
+  border-radius: 4px !important;
+}
+
+[data-skin='steam'] button[class*='rounded-full'],
+[data-skin='steam'] a[class*='rounded-full'],
+[data-skin='graphite'] button[class*='rounded-full'],
+[data-skin='graphite'] a[class*='rounded-full'] {
+  border-radius: 3px !important;
+}
+
 @media (pointer: coarse), (prefers-reduced-motion: reduce) {
   .cursor-glow {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-arcade::after {
+    animation: none;
   }
 }

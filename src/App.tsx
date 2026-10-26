@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Settings as SettingsIcon, Gamepad2, Loader2, RefreshCw, SlidersHorizontal, UserCircle2 } from 'lucide-react';
+import { Settings as SettingsIcon, Gamepad2, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
-import GameCard from '@/components/GameCard';
 import AccountPanel from '@/components/AccountPanel';
 import InstallBanner from '@/components/InstallBanner';
 import OpenSteamButton from '@/components/OpenSteamButton';
@@ -11,6 +10,8 @@ import GameDetail from '@/components/GameDetail';
 import UpdateToast from '@/components/UpdateToast';
 import CustomizationPanel from '@/components/CustomizationPanel';
 import CursorGlow from '@/components/CursorGlow';
+import LibraryView from '@/components/LibraryView';
+import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
 import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
@@ -23,7 +24,8 @@ import {
 import { readOpenIdParams, cleanAuthFromUrl, completeSteamLogin } from '@/lib/steamAuth';
 import { loadAccount, saveRemoteTheme, signOutAccount } from '@/lib/account';
 import { demoGames } from '@/lib/demoGames';
-import { defaultTheme, loadTheme, saveTheme, type ThemePreferences } from '@/lib/theme';
+import { defaultTheme, loadTheme, saveTheme, onAccentColor, type ThemePreferences } from '@/lib/theme';
+import { getSkin } from '@/lib/skins';
 import type { SteamUser, InstalledGame, View } from '@/types';
 
 export default function App() {
@@ -39,16 +41,32 @@ export default function App() {
   const [theme, setTheme] = useState<ThemePreferences>(() => loadTheme());
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const { status: steamStatus, markStarting, toggle: toggleSteam } = useSteamStatus();
+  const skin = getSkin(theme.skin);
 
+  // Grava na conta com um pequeno atraso, para não salvar a cada movimento de um controle.
+  const remoteSaveTimer = useRef<number | null>(null);
   const updateTheme = (nextTheme: ThemePreferences) => {
     setTheme(nextTheme);
     saveTheme(nextTheme);
-    if (user) void saveRemoteTheme(nextTheme).catch(() => undefined);
-  }; 
+    if (!user) return;
+    if (remoteSaveTimer.current !== null) window.clearTimeout(remoteSaveTimer.current);
+    remoteSaveTimer.current = window.setTimeout(() => {
+      void saveRemoteTheme(nextTheme).catch(() => undefined);
+    }, 600);
+  };
+
+  // O tema vale para a página inteira: fundo, barra de rolagem e cor da barra do navegador.
+  useEffect(() => {
+    document.documentElement.dataset.skin = theme.skin;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', getSkin(theme.skin).preview.bg);
+  }, [theme.skin]);
 
   const rootStyle = {
     '--accent-rgb': theme.accentRgb,
     '--accent-color': theme.accent,
+    '--on-accent': onAccentColor(theme.accentRgb),
     '--glow-intensity': theme.glowIntensity,
     '--glass-opacity': theme.glassOpacity,
   } as CSSProperties;
@@ -91,7 +109,7 @@ export default function App() {
     void run().finally(() => setLoading(false));
   }, []);
 
-  // Auto-load games if we already have a stored steamapps handle.
+  // Carrega os jogos automaticamente se a pasta steamapps já foi escolhida neste navegador.
   useEffect(() => {
     if (!isFileSystemAccessSupported()) return;
     getStoredSteamappsDir().then((dir) => {
@@ -151,90 +169,84 @@ export default function App() {
     }
   };
 
-  const filtered = query.trim()
-    ? games.filter((g) => g.name.toLowerCase().includes(query.toLowerCase()))
-    : games;
+  const source = usingDemo ? demoGames : games;
+  const search = query.trim().toLowerCase();
+  const visible = search ? source.filter((g) => g.name.toLowerCase().includes(search)) : source;
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden font-sans text-white" style={rootStyle}>
-      <LiquidBackground />
-      <CursorGlow />
+      <LiquidBackground ambient={skin.ambient} />
+      {skin.glow && <CursorGlow />}
       <InstallBanner />
 
-      {/* top bar */}
-      <header className="theme-glass glass-reflection sticky top-0 z-20 px-6 py-5 backdrop-blur-md md:px-10">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-4">
+      <header className="theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
+        <div className="mx-auto flex max-w-[1400px] items-center gap-3 md:gap-4">
           <div className="flex shrink-0 items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.10] backdrop-blur-xl">
-              <Gamepad2 className="h-5 w-5 text-white" />
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.08]">
+              <Gamepad2 className="theme-accent h-5 w-5" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-[15px] font-semibold leading-none tracking-tight">
-                Liquid Steam
-              </h1>
-              <p className="mt-1 text-[11px] font-light text-white/45">
-                {usingDemo ? 'Demo library' : `${games.length} games`}
+              <h1 className="text-[15px] font-semibold leading-none tracking-tight">LiquiSteam</h1>
+              <p className="mt-1 text-[11px] text-white/50">
+                {usingDemo ? 'Biblioteca de exemplo' : `${games.length} jogos`}
               </p>
             </div>
           </div>
 
           {view === 'library' && (
-            <div className="flex-1 px-2 md:px-6">
+            <div className="min-w-0 flex-1 md:px-4">
               <SearchBar value={query} onChange={setQuery} />
             </div>
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {view === 'library' && (
-              <OpenSteamButton
-                status={steamStatus}
-                onOpen={markStarting}
-                onToggle={toggleSteam}
-              />
+              <div className="hidden lg:block">
+                <LayoutSwitch value={theme.layout} onChange={(layout) => updateTheme({ ...theme, layout })} />
+              </div>
+            )}
+            {view === 'library' && (
+              <div className="hidden md:block">
+                <OpenSteamButton status={steamStatus} onOpen={markStarting} onToggle={toggleSteam} />
+              </div>
             )}
             {view === 'library' && !usingDemo && (
               <button
+                type="button"
                 onClick={handleRefresh}
                 disabled={loading}
                 className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
-                aria-label="Refresh library"
-                title="Refresh"
+                aria-label="Atualizar biblioteca"
+                title="Atualizar biblioteca"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
               </button>
             )}
             <button
+              type="button"
               onClick={() => setCustomizationOpen(true)}
               className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
-              aria-label="Personalizar launcher"
-              title="Personalizar launcher"
+              aria-label="Aparência"
+              title="Aparência"
             >
               <SlidersHorizontal className="h-4 w-4" />
             </button>
             <button
+              type="button"
               onClick={() => setView(view === 'account' ? 'library' : 'account')}
-              className={`theme-glass flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
+              className={`flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
                 view === 'account'
                   ? 'theme-accent-border theme-accent-surface text-white'
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
               }`}
-              aria-label="Account"
+              aria-label="Conta"
+              title="Conta"
             >
               {user?.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.personaName}
-                  className="h-8 w-8 rounded-full object-cover"
-                />
+                <img src={user.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
               ) : (
                 <span className="grid h-10 w-10 place-items-center">
-                  {view === 'account' ? (
-                    <SettingsIcon className="h-4 w-4" />
-                  ) : user ? (
-                    <UserCircle2 className="h-5 w-5" />
-                  ) : (
-                    <SettingsIcon className="h-4 w-4" />
-                  )}
+                  {user ? <UserCircle2 className="h-5 w-5" /> : <SettingsIcon className="h-4 w-4" />}
                 </span>
               )}
             </button>
@@ -243,13 +255,14 @@ export default function App() {
       </header>
 
       {accountError && (
-        <div className="px-6 md:px-10">
-          <p className="mx-auto mb-4 max-w-[1400px] text-sm font-light text-rose-300/90">{accountError}</p>
+        <div className="px-4 pt-4 sm:px-6 md:px-10">
+          <p role="alert" className="mx-auto max-w-[1400px] text-sm text-bad">
+            {accountError}
+          </p>
         </div>
       )}
 
-      {/* content */}
-      <main className="px-6 pb-16 md:px-10">
+      <main className="px-4 pb-16 pt-6 sm:px-6 md:px-10 md:pt-8">
         {view === 'account' ? (
           <AccountPanel
             user={user}
@@ -261,41 +274,34 @@ export default function App() {
           />
         ) : (
           <div className="mx-auto max-w-[1400px]">
-            {loading && games.length === 0 && (
-              <div className="flex items-center justify-center py-32 text-white/70">
-                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                <span className="font-light tracking-tight">Loading…</span>
-              </div>
-            )}
-
-            {!loading && filtered.length === 0 && !usingDemo && (
-              <div className="py-32 text-center">
-                <p className="text-lg font-light text-white/60">
-                  {query ? `No games match “${query}”.` : 'No games found yet.'}
-                </p>
-                <button
-                  onClick={() => setView('account')}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.10] px-5 py-2 text-sm font-light text-white backdrop-blur-xl transition-all hover:border-white/40"
-                >
-                  <SettingsIcon className="h-4 w-4" />
-                  Connect your Steam library
-                </button>
-              </div>
-            )}
-
-            {(usingDemo || filtered.length > 0) && (
-              <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {(filtered.length > 0 ? filtered : demoGames).map((g) => (
-                  <GameCard key={g.appid} game={g} onOpen={setSelectedGame} />
-                ))}
-              </div>
-            )}
-
             {usingDemo && (
-              <p className="mt-10 text-center text-sm font-light text-white/35">
-                Showing a demo library — sign in with Steam and pick your steamapps folder in
-                account settings to load your real installed games.
+              <p className="notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
+                Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e escolha a
+                pasta steamapps na{' '}
+                <button
+                  type="button"
+                  onClick={() => setView('account')}
+                  className="font-medium underline underline-offset-4"
+                >
+                  tela de conta
+                </button>
+                .
               </p>
+            )}
+
+            {visible.length === 0 && !loading ? (
+              <EmptyLibrary
+                query={query}
+                onClear={() => setQuery('')}
+                onPickFolder={() => setView('account')}
+              />
+            ) : (
+              <LibraryView
+                games={visible}
+                layout={theme.layout}
+                loading={loading}
+                onOpen={setSelectedGame}
+              />
             )}
           </div>
         )}
@@ -321,6 +327,40 @@ export default function App() {
       )}
 
       <UpdateToast />
+    </div>
+  );
+}
+
+function EmptyLibrary({
+  query,
+  onClear,
+  onPickFolder,
+}: {
+  query: string;
+  onClear: () => void;
+  onPickFolder: () => void;
+}) {
+  const searching = query.trim().length > 0;
+  return (
+    <div className="flex flex-col items-center py-24 text-center">
+      <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/40">
+        {searching ? <SearchX className="h-6 w-6" /> : <FolderOpen className="h-6 w-6" />}
+      </div>
+      <p className="text-lg font-medium tracking-tight text-white">
+        {searching ? `Nenhum jogo com “${query.trim()}”` : 'Nenhum jogo encontrado nessa pasta'}
+      </p>
+      <p className="mt-2 max-w-sm text-sm text-white/50">
+        {searching
+          ? 'Confira a grafia ou limpe a busca para ver a biblioteca inteira.'
+          : 'Escolha a pasta steamapps de outra biblioteca da Steam na tela de conta.'}
+      </p>
+      <button
+        type="button"
+        onClick={searching ? onClear : onPickFolder}
+        className="mt-6 inline-flex h-10 items-center rounded-full border border-white/20 bg-white/[0.08] px-5 text-sm font-medium text-white transition-all hover:border-white/40"
+      >
+        {searching ? 'Limpar busca' : 'Escolher pasta'}
+      </button>
     </div>
   );
 }

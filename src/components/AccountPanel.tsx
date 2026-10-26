@@ -99,12 +99,12 @@ export default function AccountPanel({
       setLastCount(games.length);
       if (games.length === 0) {
         setScanError(
-          'No installed games found in that folder. Make sure you picked the "steamapps" folder.'
+          'Nenhum jogo instalado nessa pasta. Confira se você escolheu a pasta "steamapps".'
         );
       }
     } catch (e) {
       setScanError(
-        e instanceof Error ? e.message : 'Could not read your Steam folder.'
+        e instanceof Error ? e.message : 'Não foi possível ler a pasta da Steam.'
       );
     } finally {
       setScanning(false);
@@ -121,14 +121,14 @@ export default function AccountPanel({
         <button
           onClick={onBack}
           className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
-          aria-label="Back to library"
+          aria-label="Voltar para a biblioteca"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-white">Account</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-white">Conta</h2>
           <p className="text-sm font-light text-white/50">
-            Sign in with Steam and connect your local library
+            Entre com a Steam e conecte sua biblioteca local
           </p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export default function AccountPanel({
       <div className="relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
         <div
           className="pointer-events-none absolute inset-0 rounded-[28px] opacity-60"
-          style={{ boxShadow: 'inset 0 0 60px 10px rgba(56,189,248,0.10)' }}
+          style={{ boxShadow: 'inset 0 0 60px 10px rgba(var(--accent-rgb),0.10)' }}
         />
 
         {user ? (
@@ -162,27 +162,27 @@ export default function AccountPanel({
               </p>
               <button
                 onClick={handleSignOut}
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-1.5 text-xs font-light text-white/60 transition-all hover:border-rose-300/30 hover:text-rose-200"
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-1.5 text-xs font-light text-white/60 transition-all hover:border-bad/40 hover:text-bad"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Sign out
+                Sair
               </button>
             </div>
           </div>
         ) : (
           <div className="relative">
             <h3 className="mb-1 text-lg font-semibold tracking-tight text-white">
-              Sign in with Steam
+              Entrar com a Steam
             </h3>
             <p className="mb-5 text-sm font-light leading-relaxed text-white/55">
-              Authenticate with Steam via their secure OpenID login. We only receive your
-              public SteamID and profile name — no password, no tokens.
+              O login acontece no site da Steam. O LiquiSteam recebe só o seu SteamID público
+              e o nome do perfil, nunca a sua senha.
             </p>
 
             {/* Official-styled Steam login button */}
             <button
               onClick={handleSteamLogin}
-              className="group relative flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-[#171a21] px-6 text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:bg-[#1b2838] active:scale-[0.99]"
+              className="group relative flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-[#171a21] px-6 text-snow shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-all hover:bg-[#1b2838] active:scale-[0.99]"
             >
               <span
                 className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
@@ -220,10 +220,10 @@ export default function AccountPanel({
             placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             spellCheck={false}
             autoComplete="off"
-            className="h-12 w-full rounded-2xl border border-white/12 bg-white/[0.05] px-4 font-mono text-sm text-white placeholder:text-white/30 backdrop-blur-xl transition-all focus:border-sky-300/40 focus:bg-white/[0.08] focus:outline-none"
+            className="h-12 w-full rounded-2xl border border-white/12 bg-white/[0.05] px-4 font-mono text-sm text-white placeholder:text-white/30 backdrop-blur-xl transition-all focus:border-[rgba(var(--accent-rgb),0.5)] focus:bg-white/[0.08] focus:outline-none"
           />
           {apiKeyError && (
-            <p className="mt-3 flex items-start gap-2 text-sm font-light text-rose-300/90">
+            <p className="mt-3 flex items-start gap-2 text-sm font-light text-bad">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               {apiKeyError}
             </p>
@@ -237,7 +237,7 @@ export default function AccountPanel({
               {apiKeyBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : apiKeySaved ? (
-                <Check className="h-4 w-4 text-emerald-300" />
+                <Check className="h-4 w-4 text-ok" />
               ) : (
                 <KeyRound className="h-4 w-4" />
               )}
@@ -246,7 +246,7 @@ export default function AccountPanel({
             {hasKey && (
               <button
                 onClick={handleClearApiKey}
-                className="flex h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-light text-white/60 transition-all hover:border-rose-300/30 hover:text-rose-200"
+                className="flex h-10 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-light text-white/60 transition-all hover:border-bad/40 hover:text-bad"
               >
                 <Trash2 className="h-4 w-4" />
                 Remover
@@ -268,16 +268,16 @@ export default function AccountPanel({
       {/* Local library connection */}
       <div className="theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
         <h3 className="mb-1 text-lg font-semibold tracking-tight text-white">
-          Your installed games
+          Jogos instalados
         </h3>
         <p className="mb-5 text-sm font-light leading-relaxed text-white/55">
-          Pick your Steam <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
-          folder to read your installed games locally — no API key, no 401s. Cover art loads
-          from Steam’s CDN.
+          Escolha a pasta <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
+          da Steam para listar os jogos instalados neste computador. As capas vêm do servidor de
+          imagens da Steam.
         </p>
 
         {blockedByIframe && (
-          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-300/25 bg-sky-500/10 p-4 text-sm font-light text-sky-100">
+          <div className="mb-4 flex items-start gap-3 rounded-2xl notice-info border p-4 text-sm font-light">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Você está vendo o app numa moldura (preview embutido). A seleção da pasta da Steam
@@ -288,7 +288,7 @@ export default function AccountPanel({
         )}
 
         {!fsSupported && !blockedByIframe && (
-          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm font-light text-amber-100">
+          <div className="mb-4 flex items-start gap-3 rounded-2xl notice-warn border p-4 text-sm font-light">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               Seu navegador não suporta a API de acesso a arquivos. Para a experiência completa,
@@ -308,19 +308,19 @@ export default function AccountPanel({
             ) : (
               <FolderOpen className="h-4 w-4" />
             )}
-            {scanning ? 'Scanning…' : 'Choose steamapps folder'}
+            {scanning ? 'Lendo a pasta…' : 'Escolher pasta steamapps'}
           </button>
 
           {lastCount !== null && lastCount > 0 && !scanError && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-light text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 text-sm font-light text-ok">
               <Check className="h-4 w-4" />
-              {lastCount} games found
+              {lastCount} jogos encontrados
             </span>
           )}
         </div>
 
         {scanError && (
-          <p className="mt-4 flex items-start gap-2 text-sm font-light text-rose-300/90">
+          <p className="mt-4 flex items-start gap-2 text-sm font-light text-bad">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             {scanError}
           </p>
@@ -330,9 +330,8 @@ export default function AccountPanel({
       <div className="theme-glass mb-3 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm font-light leading-relaxed text-white/55 backdrop-blur-xl">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-white/40" />
         <p>
-          You only need to grant folder access once — it’s remembered on this device. To
-          refresh after installing new games, come back here and scan again (or use the refresh
-          button in the top bar).
+          O acesso à pasta é pedido uma vez e fica salvo neste navegador. Depois de instalar
+          jogos novos, use o botão de atualizar no topo da tela.
         </p>
       </div>
 
@@ -340,9 +339,9 @@ export default function AccountPanel({
         href="https://help.steampowered.com/en/faqs/view/57A7-6F22-D5C7-7D38"
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm font-light text-sky-300/80 transition-colors hover:text-sky-200"
+        className="theme-accent inline-flex items-center gap-1.5 text-sm font-light transition-colors hover:brightness-125"
       >
-        Where is my steamapps folder?
+        Onde fica a pasta steamapps?
         <ExternalLink className="h-3.5 w-3.5" />
       </a>
     </div>

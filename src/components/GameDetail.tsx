@@ -140,11 +140,11 @@ export default function GameDetail({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-stretch justify-center bg-[#020407]/78 p-0 backdrop-blur-md md:p-5"
+      className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
       onClick={onClose}
     >
       <div
-        className="relative flex h-full w-full max-w-6xl flex-col overflow-y-auto bg-[#080c12]/90 shadow-2xl md:h-[calc(100vh-40px)] md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
+        className="relative flex h-full w-full max-w-6xl flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:h-[calc(100vh-40px)] md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
         ref={scrollRef}
         onClick={(e) => e.stopPropagation()}
       >
@@ -158,17 +158,17 @@ export default function GameDetail({
               onError={() => setArtworkIndex((index) => index + 1)}
             />
           ) : (
-            <div className="grid h-full w-full place-items-center bg-gradient-to-br from-[#1b2838] to-[#0b1220]">
+            <div className="grid h-full w-full place-items-center bg-gradient-to-br from-surface to-canvas">
               <SteamIcon className="h-16 w-16 text-white/25" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05060a] via-[#05060a]/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#05060a]/80 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-canvas/80 via-transparent to-transparent" />
 
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/40 text-white backdrop-blur-xl transition-all hover:border-white/30 hover:bg-black/60"
+            className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-snow/20 bg-black/40 text-snow backdrop-blur-xl transition-all hover:border-snow/40 hover:bg-black/60"
             aria-label="Fechar"
           >
             <X className="h-5 w-5" />
@@ -176,7 +176,7 @@ export default function GameDetail({
 
           {/* Title + run */}
           <div className="absolute inset-x-0 bottom-0 px-6 pb-6 md:px-10 md:pb-8">
-            <h2 className="mb-4 max-w-3xl text-3xl font-semibold tracking-[-0.03em] text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)] md:text-5xl">
+            <h2 className="mb-4 max-w-3xl text-3xl font-semibold tracking-[-0.03em] hero-title text-white md:text-5xl">
               {game.name}
             </h2>
             <div className="flex flex-wrap items-center gap-3">
@@ -185,7 +185,7 @@ export default function GameDetail({
                 disabled={!steamRunning}
                 className={`group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
                   steamRunning
-                    ? 'bg-[var(--accent-color)] text-[#04101f] hover:brightness-110 active:scale-[0.98]'
+                    ? 'bg-[var(--accent-color)] text-[color:var(--on-accent)] hover:brightness-110 active:scale-[0.98]'
                     : 'cursor-not-allowed border border-white/15 bg-white/[0.06] text-white/40'
                 }`}
               >
@@ -301,7 +301,7 @@ function StatCard({
     <div className="theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
       <div className="mb-2 flex items-center gap-2 text-white/50">
         {icon}
-        <span className="text-xs font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium">{label}</span>
       </div>
       <p className={`text-2xl font-semibold tracking-tight ${accent ?? 'text-white'}`}>
         {value}
@@ -374,7 +374,7 @@ function OverviewTab({
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-300 transition-all"
+              className="h-full rounded-full bg-[var(--accent-color)] transition-all"
               style={{ width: `${achPct}%` }}
             />
           </div>
@@ -382,13 +382,13 @@ function OverviewTab({
       )}
 
       {!hasSync && (
-        <div className="rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm font-light leading-relaxed text-amber-100">
+        <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
           Tempo de jogo e conquistas pessoais não sincronizados. Adicione uma chave da Steam Web API
           na tela de conta para sincronizar com sua conta Steam.
         </div>
       )}
       {hasSync && achievements && !achievements.hasPersonal && (
-        <div className="rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm font-light leading-relaxed text-amber-100">
+        <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
           A Steam não liberou suas conquistas pessoais. Verifique se seu perfil e os detalhes dos jogos
           estão públicos nas configurações de privacidade da Steam.
         </div>
@@ -452,7 +452,7 @@ function AchievementsTab({
               key={a.id}
               className={`flex items-center gap-4 rounded-2xl border p-3 backdrop-blur-xl transition-colors ${
                 a.achieved
-                  ? 'border-emerald-300/20 bg-emerald-500/[0.06]'
+                  ? 'border-ok/25 bg-ok/[0.08]'
                   : 'border-white/10 bg-white/[0.03]'
               }`}
             >
@@ -474,11 +474,11 @@ function AchievementsTab({
               <div className="shrink-0 text-right">
                 {a.achieved ? (
                   a.unlockTime ? (
-                    <span className="text-xs font-light text-emerald-300/80">
+                    <span className="text-xs font-light text-ok/80">
                       {new Date(a.unlockTime * 1000).toLocaleDateString('pt-BR')}
                     </span>
                   ) : (
-                    <CheckCircle2 className="ml-auto h-4 w-4 text-emerald-300" />
+                    <CheckCircle2 className="ml-auto h-4 w-4 text-ok" />
                   )
                 ) : (
                   a.globalPercent != null && (
@@ -512,7 +512,7 @@ function AchievementImage({
 
   if (!source) {
     return achieved ? (
-      <CheckCircle2 className="h-6 w-6 text-emerald-300" />
+      <CheckCircle2 className="h-6 w-6 text-ok" />
     ) : (
       <Circle className="h-6 w-6 text-white/30" />
     );
@@ -595,7 +595,7 @@ function NotesTab({
   return (
     <div className="space-y-4">
       {!hasUser && (
-        <div className="rounded-2xl border border-amber-300/25 bg-amber-500/10 p-4 text-sm font-light text-amber-100">
+        <div className="rounded-2xl notice-warn border p-4 text-sm font-light">
           Entre com sua conta Steam (na tela de conta) para salvar anotações que persistem entre sessões.
         </div>
       )}
@@ -614,7 +614,7 @@ function NotesTab({
           disabled={saving || !hasUser}
           className="flex h-10 items-center gap-2 rounded-full border border-white/20 bg-white/[0.12] px-5 text-sm font-medium text-white backdrop-blur-xl transition-all hover:border-white/40 hover:bg-white/[0.18] disabled:opacity-40"
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <CheckCircle2 className="h-4 w-4 text-emerald-300" /> : <Save className="h-4 w-4" />}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <CheckCircle2 className="h-4 w-4 text-ok" /> : <Save className="h-4 w-4" />}
           {saving ? 'Salvando…' : saved ? 'Salvo' : 'Salvar anotação'}
         </button>
         {updatedAt && (

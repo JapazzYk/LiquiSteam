@@ -1,6 +1,6 @@
 {
-  "name": "Liquid Steam",
-  "short_name": "Liquid Steam",
+  "name": "LiquiSteam",
+  "short_name": "LiquiSteam",
   "description": "A minimalist Liquid Glass launcher for your Steam library.",
   "start_url": "/",
   "scope": "/",
