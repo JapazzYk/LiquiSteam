@@ -7,7 +7,7 @@ interface SearchBarProps {
 
 export default function SearchBar({ value, onChange }: SearchBarProps) {
   return (
-    <div className="relative flex h-11 w-full items-center rounded-full border border-white/15 bg-white/[0.07] pl-4 pr-2 backdrop-blur-2xl transition-all duration-300 focus-within:border-[rgba(var(--accent-rgb),0.55)] focus-within:bg-white/[0.10] md:h-12 md:pl-5">
+    <div className="search-shell relative flex h-11 w-full items-center rounded-full border border-white/15 bg-white/[0.07] pl-4 pr-2 backdrop-blur-2xl transition-all duration-300 focus-within:border-[rgba(var(--accent-rgb),0.55)] focus-within:bg-white/[0.10] md:h-12 md:pl-5">
       <Search className="mr-3 h-4 w-4 shrink-0 text-white/50" strokeWidth={2} aria-hidden />
       <input
         type="search"

@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { InstalledGame } from '@/types';
 import { formatSize, uniqueUrls } from '@/lib/format';
+import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 
 interface FeaturedGameProps {
   game: InstalledGame;
-  onOpen: (game: InstalledGame) => void;
+  onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
 }
 
 // Banner do layout "Destaque". Usa a arte larga da biblioteca da Steam
 // (library_hero) e cai para a imagem da loja quando o jogo não tem essa arte.
+// A moldura de cada tema está em src/index.css (.featured-banner).
 export default function FeaturedGame({ game, onOpen }: FeaturedGameProps) {
   const artwork = uniqueUrls([
     `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
@@ -16,19 +18,17 @@ export default function FeaturedGame({ game, onOpen }: FeaturedGameProps) {
     game.header_image,
   ]);
   const [artworkIndex, setArtworkIndex] = useState(0);
+  const sectionRef = useRef<HTMLElement>(null);
   const src = artwork[artworkIndex];
 
   return (
-    <section
-      aria-label="Sugestão de hoje"
-      className="theme-glass relative mb-8 overflow-hidden rounded-[28px] border border-white/12"
-    >
+    <section ref={sectionRef} aria-label="Sugestão de hoje" className="featured-banner">
       <div className="relative h-[280px] sm:h-[330px] md:h-[390px]">
         {src && (
           <img
             src={src}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover"
+            className="featured-art absolute inset-0 h-full w-full object-cover"
             onError={() => setArtworkIndex((index) => index + 1)}
           />
         )}
@@ -46,7 +46,7 @@ export default function FeaturedGame({ game, onOpen }: FeaturedGameProps) {
           <div className="mt-6">
             <button
               type="button"
-              onClick={() => onOpen(game)}
+              onClick={() => onOpen(game, readOrigin(sectionRef.current))}
               className="inline-flex h-11 items-center rounded-full bg-[var(--accent-color)] px-6 text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
             >
               Ver jogo

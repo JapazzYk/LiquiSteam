@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   X,
   Play,
@@ -22,9 +23,12 @@ import { launchGame } from '@/lib/steamLaunch';
 import { fetchAchievements, fetchNews, fetchPlaytime } from '@/lib/steamMeta';
 import { loadNote, saveNote } from '@/lib/notes';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
+import type { OpenOrigin } from '@/lib/openOrigin';
 
 interface GameDetailProps {
   game: InstalledGame;
+  // Capa de onde o detalhe nasce; sem ela, abre a partir do centro da tela.
+  origin?: OpenOrigin | null;
   user: SteamUser | null;
   hasKey: boolean;
   steamStatus: SteamStatus;
@@ -33,8 +37,50 @@ interface GameDetailProps {
 
 type Tab = 'overview' | 'achievements' | 'news' | 'notes';
 
+// Tempo e curva da abertura de cada tema. O fechamento é sempre um pouco mais rápido.
+const OPEN_MOTION: Record<string, { duration: number; easing: string }> = {
+  liquid: { duration: 560, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+  steam: { duration: 380, easing: 'cubic-bezier(0.25, 0.9, 0.3, 1)' },
+  paper: { duration: 480, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' },
+  arcade: { duration: 420, easing: 'cubic-bezier(0.3, 1.3, 0.5, 1)' },
+  graphite: { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+};
+const CLOSE_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)';
+// Margem extra no recorte final, para a sombra do painel não ser cortada.
+const CLIP_PAD = 60;
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function openMotion() {
+  const skin = document.documentElement.dataset.skin ?? 'liquid';
+  return OPEN_MOTION[skin] ?? OPEN_MOTION.liquid;
+}
+
+// Recorte que mostra só a região "rect" de dentro do painel "target".
+function insetFor(rect: DOMRect, target: DOMRect, radius: number): string {
+  const top = rect.top - target.top;
+  const right = target.right - rect.right;
+  const bottom = target.bottom - rect.bottom;
+  const left = rect.left - target.left;
+  return `inset(${top}px ${right}px ${bottom}px ${left}px round ${radius}px)`;
+}
+
+function startShape(origin: OpenOrigin | null | undefined, target: DOMRect): { rect: DOMRect; radius: number } {
+  if (origin) return origin;
+  const width = target.width * 0.4;
+  const height = target.height * 0.4;
+  const left = target.left + (target.width - width) / 2;
+  const top = target.top + (target.height - height) / 2;
+  return { rect: new DOMRect(left, top, width, height), radius: 24 };
+}
+
+const stagger = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties;
+
 export default function GameDetail({
   game,
+  origin,
   user,
   hasKey,
   steamStatus,
@@ -53,9 +99,22 @@ export default function GameDetail({
   const [noteSaved, setNoteSaved] = useState(false);
   const [artworkIndex, setArtworkIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const artwork = [game.library_image, ...gameArtworkUrls(game.appid), game.header_image].filter(
-    (url, index, urls) => url && urls.indexOf(url) === index
-  );
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const closingRef = useRef(false);
+  const originRef = useRef(origin);
+  originRef.current = origin;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // A faixa do topo é larga, então usa a arte horizontal (library_hero) e deixa a capa vertical por último.
+  const headerArt = gameArtworkUrls(game.appid).filter((url) => url.endsWith('/header.jpg'));
+  const artwork = [
+    `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
+    `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/library_hero.jpg`,
+    game.header_image,
+    ...headerArt,
+    game.library_image,
+    ...gameArtworkUrls(game.appid),
+  ].filter((url, index, urls) => url && urls.indexOf(url) === index);
   const artworkSource = artwork[artworkIndex];
 
   const steamRunning = steamStatus === 'running' || steamStatus === 'starting';
@@ -101,10 +160,66 @@ export default function GameDetail({
     };
   }, [game.appid, game.name, user?.steamId, hasKey]);
 
-  // Esc closes, scroll lock on body.
+  // Abertura: o painel se expande a partir da capa clicada e o fundo escurece.
+  useLayoutEffect(() => {
+    const panel = scrollRef.current;
+    const backdrop = backdropRef.current;
+    if (!panel || !backdrop || prefersReducedMotion()) return;
+
+    const motion = openMotion();
+    const target = panel.getBoundingClientRect();
+    const start = startShape(originRef.current, target);
+    const finalRadius = (parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 0) + CLIP_PAD;
+
+    panel.animate(
+      [
+        { clipPath: insetFor(start.rect, target, start.radius) },
+        { clipPath: `inset(-${CLIP_PAD}px round ${finalRadius}px)` },
+      ],
+      { duration: motion.duration, easing: motion.easing, fill: 'backwards' }
+    );
+    backdrop.animate([{ opacity: 0 }, { opacity: 1 }], {
+      duration: motion.duration * 0.7,
+      easing: 'ease-out',
+      fill: 'backwards',
+    });
+  }, []);
+
+  // Fechamento: faz o caminho inverso, encolhendo de volta para a capa, e só então desmonta.
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+
+    const panel = scrollRef.current;
+    const backdrop = backdropRef.current;
+    if (!panel || !backdrop || prefersReducedMotion()) {
+      onCloseRef.current();
+      return;
+    }
+
+    const duration = Math.round(openMotion().duration * 0.65);
+    const target = panel.getBoundingClientRect();
+    const end = startShape(originRef.current, target);
+    const startRadius = (parseFloat(getComputedStyle(panel).borderTopLeftRadius) || 0) + CLIP_PAD;
+
+    const closing = panel.animate(
+      [
+        { clipPath: `inset(-${CLIP_PAD}px round ${startRadius}px)` },
+        { clipPath: insetFor(end.rect, target, end.radius) },
+      ],
+      { duration, easing: CLOSE_EASING, fill: 'forwards' }
+    );
+    backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: 'ease-in', fill: 'forwards' });
+    closing.finished.then(
+      () => onCloseRef.current(),
+      () => onCloseRef.current()
+    );
+  }, []);
+
+  // Esc fecha; a página de trás não rola enquanto o detalhe está aberto.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -113,7 +228,7 @@ export default function GameDetail({
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, [requestClose]);
 
   const handleSaveNote = async () => {
     if (!user?.steamId) return;
@@ -140,16 +255,20 @@ export default function GameDetail({
 
   return (
     <div
+      ref={backdropRef}
       className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
-        className="relative flex h-full w-full max-w-6xl flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:h-[calc(100vh-40px)] md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
+        className="detail-panel relative flex h-full w-full max-w-6xl flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:h-[calc(100vh-40px)] md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
         ref={scrollRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={game.name}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Hero: full game art */}
-        <div className="relative h-[42vh] min-h-[300px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]">
+        <div className="detail-hero relative h-[42vh] min-h-[300px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]">
           {artworkSource ? (
             <img
               src={artworkSource}
@@ -167,7 +286,7 @@ export default function GameDetail({
 
           {/* Close */}
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-snow/20 bg-black/40 text-snow backdrop-blur-xl transition-all hover:border-snow/40 hover:bg-black/60"
             aria-label="Fechar"
           >
@@ -176,10 +295,13 @@ export default function GameDetail({
 
           {/* Title + run */}
           <div className="absolute inset-x-0 bottom-0 px-6 pb-6 md:px-10 md:pb-8">
-            <h2 className="mb-4 max-w-3xl text-3xl font-semibold tracking-[-0.03em] hero-title text-white md:text-5xl">
+            <h2
+              className="detail-rise mb-4 max-w-3xl text-3xl font-semibold tracking-[-0.03em] hero-title text-white md:text-5xl"
+              style={stagger(180)}
+            >
               {game.name}
             </h2>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="detail-rise flex flex-wrap items-center gap-3" style={stagger(260)}>
               <button
                 onClick={handleRun}
                 disabled={!steamRunning}
@@ -216,7 +338,10 @@ export default function GameDetail({
 
         {/* Tabs + content */}
         <div className="mx-auto w-full flex-1 px-6 py-6 md:px-10 md:py-8">
-          <div className="mb-7 flex gap-5 overflow-x-auto border-b border-white/10 pb-px">
+          <div
+            className="detail-rise mb-7 flex gap-5 overflow-x-auto border-b border-white/10 pb-px"
+            style={stagger(340)}
+          >
             <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={<HardDrive className="h-4 w-4" />}>
               Visão geral
             </TabButton>
@@ -231,6 +356,7 @@ export default function GameDetail({
             </TabButton>
           </div>
 
+          <div key={tab} className="detail-fade">
           {tab === 'overview' && (
             <OverviewTab
               game={game}
@@ -256,6 +382,7 @@ export default function GameDetail({
               updatedAt={note?.updatedAt}
             />
           )}
+          </div>
         </div>
       </div>
     </div>

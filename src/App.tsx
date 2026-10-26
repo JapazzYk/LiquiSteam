@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Settings as SettingsIcon, Gamepad2, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
-import InstallBanner from '@/components/InstallBanner';
+import InstallButton from '@/components/InstallButton';
 import OpenSteamButton from '@/components/OpenSteamButton';
 import GameDetail from '@/components/GameDetail';
 import UpdateToast from '@/components/UpdateToast';
@@ -26,6 +26,7 @@ import { loadAccount, saveRemoteTheme, signOutAccount } from '@/lib/account';
 import { demoGames } from '@/lib/demoGames';
 import { defaultTheme, loadTheme, saveTheme, onAccentColor, type ThemePreferences } from '@/lib/theme';
 import { getSkin } from '@/lib/skins';
+import type { OpenOrigin } from '@/lib/openOrigin';
 import type { SteamUser, InstalledGame, View } from '@/types';
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
   const [usingDemo, setUsingDemo] = useState(true);
   const [query, setQuery] = useState('');
   const [selectedGame, setSelectedGame] = useState<InstalledGame | null>(null);
+  const [openOrigin, setOpenOrigin] = useState<OpenOrigin | null>(null);
   const [hasKey, setHasKey] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePreferences>(() => loadTheme());
@@ -55,8 +57,14 @@ export default function App() {
     }, 600);
   };
 
+  const openGame = (game: InstalledGame, origin?: OpenOrigin) => {
+    setOpenOrigin(origin ?? null);
+    setSelectedGame(game);
+  };
+
   // O tema vale para a página inteira: fundo, barra de rolagem e cor da barra do navegador.
-  useEffect(() => {
+  // Roda antes da pintura para que a troca de tema com transição já encontre o DOM novo.
+  useLayoutEffect(() => {
     document.documentElement.dataset.skin = theme.skin;
     document
       .querySelector('meta[name="theme-color"]')
@@ -177,16 +185,15 @@ export default function App() {
     <div className="relative min-h-screen w-full overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} />
       {skin.glow && <CursorGlow />}
-      <InstallBanner />
 
-      <header className="theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
+      <header className="app-header theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 md:gap-4">
           <div className="flex shrink-0 items-center gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/15 bg-white/[0.08]">
               <Gamepad2 className="theme-accent h-5 w-5" />
             </div>
             <div className="hidden sm:block">
-              <h1 className="text-[15px] font-semibold leading-none tracking-tight">LiquiSteam</h1>
+              <h1 className="brand-title text-[15px] font-semibold leading-none tracking-tight">LiquiSteam</h1>
               <p className="mt-1 text-[11px] text-white/50">
                 {usingDemo ? 'Biblioteca de exemplo' : `${games.length} jogos`}
               </p>
@@ -222,6 +229,7 @@ export default function App() {
                 <RefreshCw className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
               </button>
             )}
+            <InstallButton />
             <button
               type="button"
               onClick={() => setCustomizationOpen(true)}
@@ -297,10 +305,11 @@ export default function App() {
               />
             ) : (
               <LibraryView
+                key={`${theme.skin}-${theme.layout}`}
                 games={visible}
                 layout={theme.layout}
                 loading={loading}
-                onOpen={setSelectedGame}
+                onOpen={openGame}
               />
             )}
           </div>
@@ -310,6 +319,7 @@ export default function App() {
       {selectedGame && (
         <GameDetail
           game={selectedGame}
+          origin={openOrigin}
           user={user}
           hasKey={hasKey}
           steamStatus={steamStatus}

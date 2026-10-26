@@ -6,6 +6,17 @@ import type { Ambient } from '@/lib/skins';
 export default function LiquidBackground({ ambient }: { ambient: Ambient }) {
   if (ambient === 'liquid') return <LiquidCanvas />;
   if (ambient === 'none') return null;
+  if (ambient === 'arcade') {
+    return (
+      <div className="ambient ambient-arcade" aria-hidden>
+        <div className="arcade-stars" />
+        <div className="arcade-sun" />
+        <div className="arcade-floor">
+          <div className="arcade-grid" />
+        </div>
+      </div>
+    );
+  }
   return <div className={`ambient ambient-${ambient}`} aria-hidden />;
 }
 

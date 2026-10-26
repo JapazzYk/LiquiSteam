@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
 import type { InstalledGame } from '@/types';
 import type { LayoutId } from '@/lib/theme';
+import type { OpenOrigin } from '@/lib/openOrigin';
 import GameCard from '@/components/GameCard';
 import GameRow from '@/components/GameRow';
 import FeaturedGame from '@/components/FeaturedGame';
@@ -8,10 +10,8 @@ interface LibraryViewProps {
   games: InstalledGame[];
   layout: LayoutId;
   loading: boolean;
-  onOpen: (game: InstalledGame) => void;
+  onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
 }
-
-const gridClass = 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6';
 
 export default function LibraryView({ games, layout, loading, onOpen }: LibraryViewProps) {
   if (loading && games.length === 0) return <LibrarySkeleton layout={layout} />;
@@ -19,8 +19,8 @@ export default function LibraryView({ games, layout, loading, onOpen }: LibraryV
   if (layout === 'list') {
     return (
       <ul className="grid gap-2">
-        {games.map((game) => (
-          <li key={game.appid}>
+        {games.map((game, index) => (
+          <li key={game.appid} className="game-row-wrap" style={{ '--i': index } as CSSProperties}>
             <GameRow game={game} onOpen={onOpen} />
           </li>
         ))}
@@ -35,9 +35,9 @@ export default function LibraryView({ games, layout, loading, onOpen }: LibraryV
       <>
         <FeaturedGame key={featured.appid} game={featured} onOpen={onOpen} />
         {rest.length > 0 && (
-          <div className={gridClass}>
-            {rest.map((game) => (
-              <GameCard key={game.appid} game={game} onOpen={onOpen} />
+          <div className="library-grid">
+            {rest.map((game, index) => (
+              <GameCard key={game.appid} game={game} index={index} onOpen={onOpen} />
             ))}
           </div>
         )}
@@ -46,9 +46,9 @@ export default function LibraryView({ games, layout, loading, onOpen }: LibraryV
   }
 
   return (
-    <div className={gridClass}>
-      {games.map((game) => (
-        <GameCard key={game.appid} game={game} onOpen={onOpen} />
+    <div className="library-grid">
+      {games.map((game, index) => (
+        <GameCard key={game.appid} game={game} index={index} onOpen={onOpen} />
       ))}
     </div>
   );
@@ -65,7 +65,7 @@ function LibrarySkeleton({ layout }: { layout: LayoutId }) {
     return (
       <div className="grid gap-2" aria-busy="true" aria-label="Carregando jogos">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-[70px] rounded-2xl bg-white/[0.05] motion-safe:animate-pulse sm:h-[86px]" />
+          <div key={i} className="game-card-skeleton h-[70px] motion-safe:animate-pulse sm:h-[86px]" style={{ aspectRatio: 'auto' }} />
         ))}
       </div>
     );
@@ -73,15 +73,11 @@ function LibrarySkeleton({ layout }: { layout: LayoutId }) {
   return (
     <div aria-busy="true" aria-label="Carregando jogos">
       {layout === 'featured' && (
-        <div className="mb-8 h-[280px] rounded-[28px] bg-white/[0.05] motion-safe:animate-pulse sm:h-[330px] md:h-[390px]" />
+        <div className="game-card-skeleton mb-8 h-[280px] motion-safe:animate-pulse sm:h-[330px] md:h-[390px]" style={{ aspectRatio: 'auto' }} />
       )}
-      <div className={gridClass}>
+      <div className="library-grid">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-[18px] bg-white/[0.05] motion-safe:animate-pulse"
-            style={{ aspectRatio: '4 / 5' }}
-          />
+          <div key={i} className="game-card-skeleton motion-safe:animate-pulse" />
         ))}
       </div>
     </div>

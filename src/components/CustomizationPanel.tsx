@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
 import { onAccentColor, type ThemePreferences } from '@/lib/theme';
 import { ACCENTS, LAYOUTS, SKINS, getSkin, type SkinDefinition } from '@/lib/skins';
 import { layoutIcons } from '@/components/LayoutSwitch';
+import { runThemeTransition } from '@/lib/viewTransition';
 
 interface CustomizationPanelProps {
   theme: ThemePreferences;
@@ -65,14 +66,20 @@ export default function CustomizationPanel({
                   key={option.id}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() =>
-                    onChange({
-                      ...theme,
-                      skin: option.id,
-                      accent: option.accent.value,
-                      accentRgb: option.accent.rgb,
-                    })
-                  }
+                  onClick={(event) => {
+                    if (selected) return;
+                    // A troca nasce no ponto clicado e se espalha pela tela.
+                    runThemeTransition(
+                      () =>
+                        onChange({
+                          ...theme,
+                          skin: option.id,
+                          accent: option.accent.value,
+                          accentRgb: option.accent.rgb,
+                        }),
+                      { x: event.clientX, y: event.clientY }
+                    );
+                  }}
                   className={`flex items-center gap-4 rounded-2xl border p-3 text-left transition-colors ${
                     selected
                       ? 'border-[rgba(var(--accent-rgb),0.6)] bg-[rgba(var(--accent-rgb),0.08)]'
@@ -206,7 +213,30 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-// Miniatura do tema: fundo, dois cartões, a fonte do tema e a cor de destaque sugerida.
+// Formato dos dois cartões na miniatura de cada tema, para dar para ver a diferença sem aplicar.
+function previewCardStyle(skin: SkinDefinition): CSSProperties {
+  const base: CSSProperties = { background: skin.preview.card };
+  switch (skin.id) {
+    case 'steam':
+      return { ...base, borderRadius: 2, boxShadow: `0 0 0 1px ${skin.accent.value}` };
+    case 'paper':
+      return { ...base, borderRadius: 6, boxShadow: '0 3px 6px rgba(24,27,33,0.18)' };
+    case 'arcade':
+      return {
+        ...base,
+        borderRadius: 0,
+        border: `1px solid ${skin.accent.value}`,
+        clipPath: 'polygon(0 0, 78% 0, 100% 22%, 100% 100%, 22% 100%, 0 78%)',
+        boxShadow: `2px 2px 0 ${skin.accent.value}`,
+      };
+    case 'graphite':
+      return { ...base, borderRadius: 1, border: '1px solid rgba(255,255,255,0.18)' };
+    default:
+      return { ...base, borderRadius: 7, border: '1px solid rgba(255,255,255,0.22)' };
+  }
+}
+
+// Miniatura do tema: fundo, dois cartões no formato do tema, a fonte e a cor de destaque sugerida.
 function SkinPreview({ skin }: { skin: SkinDefinition }) {
   return (
     <span
@@ -214,8 +244,8 @@ function SkinPreview({ skin }: { skin: SkinDefinition }) {
       className="relative block h-14 w-20 shrink-0 overflow-hidden rounded-xl border border-white/10"
       style={{ background: skin.preview.bg, fontFamily: `'${skin.font}', system-ui, sans-serif` }}
     >
-      <span className="absolute left-2 top-2 h-6 w-7 rounded-md" style={{ background: skin.preview.card }} />
-      <span className="absolute left-10 top-2 h-6 w-7 rounded-md" style={{ background: skin.preview.card }} />
+      <span className="absolute left-2 top-2 h-6 w-7" style={previewCardStyle(skin)} />
+      <span className="absolute left-10 top-2 h-6 w-7" style={previewCardStyle(skin)} />
       <span
         className="absolute bottom-1.5 left-2 text-[13px] font-semibold leading-none"
         style={{ color: skin.preview.ink }}

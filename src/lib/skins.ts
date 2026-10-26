@@ -53,7 +53,7 @@ export const SKINS: SkinDefinition[] = [
   {
     id: 'steam',
     name: 'Steam escuro',
-    description: 'O azul-marinho do cliente da Steam, sólido e de cantos retos.',
+    description: 'Cápsulas verticais do cliente da Steam, barra azul-marinho e botão verde.',
     font: 'Archivo',
     accent: accent('Steam'),
     ambient: 'steam',
@@ -64,7 +64,7 @@ export const SKINS: SkinDefinition[] = [
   {
     id: 'paper',
     name: 'Minimalista claro',
-    description: 'Fundo claro, cartões brancos e nenhum brilho.',
+    description: 'Capas soltas sobre papel, legenda embaixo, muito espaço e sombras suaves.',
     font: 'Instrument Sans',
     accent: accent('Cobalto'),
     ambient: 'none',
@@ -75,7 +75,7 @@ export const SKINS: SkinDefinition[] = [
   {
     id: 'arcade',
     name: 'Arcade',
-    description: 'Neon sobre uma grade em perspectiva, como num fliperama.',
+    description: 'Pôr do sol retrô, piso em grade, cartuchos de quinas cortadas e monitor CRT.',
     font: 'Chakra Petch',
     accent: accent('Neon'),
     ambient: 'arcade',
@@ -86,7 +86,7 @@ export const SKINS: SkinDefinition[] = [
   {
     id: 'graphite',
     name: 'Grafite',
-    description: 'Preto puro e tons de cinza, ideal para telas OLED.',
+    description: 'Preto OLED com capas em cinza que ganham cor ao passar o mouse.',
     font: 'Geist',
     accent: accent('Prata'),
     ambient: 'none',
