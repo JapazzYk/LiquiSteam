@@ -5,7 +5,7 @@ import { helperUninstall, type HelperAccess, type HelperAccessResult } from '@/l
 
 // Instalar e desinstalar o LiquiSteam Helper (Windows), ao lado do botão da Steam.
 // O helper é opcional: sem ele o site funciona, só que o status da Steam fica menos preciso.
-function installerCommand(extra = ''): string {
+export function installerCommand(extra = ''): string {
   const base = `${window.location.origin}/helper`;
   return (
     `$r = Invoke-WebRequest -UseBasicParsing '${base}/instalar.ps1'; ` +

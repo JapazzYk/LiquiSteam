@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen } from 'lucide-react';
+import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
+import UpdatesView from '@/components/UpdatesView';
 import InstallButton from '@/components/InstallButton';
 import OpenSteamButton from '@/components/OpenSteamButton';
 import HelperInstall from '@/components/HelperInstall';
@@ -16,6 +17,7 @@ import SiteFooter from '@/components/SiteFooter';
 import LibraryView from '@/components/LibraryView';
 import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
+import { useUpdates } from '@/lib/useUpdates';
 import { usePresence } from '@/lib/motion';
 import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
@@ -77,9 +79,13 @@ export default function App() {
     open: openSteam,
     stop: stopSteam,
     refresh: refreshSteam,
+    runningGame,
+    boost: boostSteam,
+    stopGame,
     requestAccess: requestHelperAccess,
     forgetHint: forgetHelperHint,
   } = useSteamStatus(!!user && hasKey);
+  const updates = useUpdates({ helperOnline: steamHelper === 'online', active: view === 'updates' });
   const skin = getSkin(theme.skin);
 
   // Grava na conta com um pequeno atraso, para não salvar a cada movimento de um controle.
@@ -378,6 +384,26 @@ export default function App() {
             <InstallButton />
             <button
               type="button"
+              onClick={() => goTo(view === 'updates' ? 'library' : 'updates')}
+              className={`reveal relative grid h-10 w-10 place-items-center rounded-full border backdrop-blur-xl transition-all ${
+                view === 'updates'
+                  ? 'theme-accent-border theme-accent-surface text-white'
+                  : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
+              }`}
+              aria-label={
+                updates.pendingCount > 0 ? `Atualizações (${updates.pendingCount} pendentes)` : 'Atualizações'
+              }
+              title="Atualizações"
+            >
+              <ArrowDownToLine className="h-4 w-4" />
+              {updates.pendingCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--accent-color)] px-1 text-[10px] font-semibold leading-none text-[color:var(--on-accent)]">
+                  {updates.pendingCount > 99 ? '99+' : updates.pendingCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => setCustomizationOpen(true)}
               className="reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               aria-label="Aparência"
@@ -418,7 +444,15 @@ export default function App() {
 
       <main className="flex-1 px-4 pb-10 pt-6 sm:px-6 md:px-10 md:pt-8">
         <div key={view} className={leaving ? 'fx-out' : 'fx-soft'}>
-          {view === 'account' ? (
+          {view === 'updates' ? (
+            <UpdatesView
+              updates={updates}
+              helper={steamHelper}
+              steamStatus={steamStatus}
+              onOpenSteam={openSteam}
+              onBack={() => goTo('library')}
+            />
+          ) : view === 'account' ? (
             <AccountPanel
               user={user}
               onUserChange={handleUserChange}
@@ -483,6 +517,9 @@ export default function App() {
           user={user}
           hasKey={hasKey}
           steamStatus={steamStatus}
+          runningAppId={runningGame}
+          onBoost={boostSteam}
+          onStopGame={stopGame}
           onClose={() => setSelectedGame(null)}
         />
       )}

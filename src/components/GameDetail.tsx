@@ -16,6 +16,7 @@ import {
   Circle,
   Save,
   Gamepad2 as SteamIcon,
+  Power,
 } from 'lucide-react';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
@@ -33,6 +34,10 @@ interface GameDetailProps {
   user: SteamUser | null;
   hasKey: boolean;
   steamStatus: SteamStatus;
+  // Jogo em execução (0 = nenhum); null quando não dá para saber (sem helper, ou helper antigo).
+  runningAppId: number | null;
+  onBoost: () => void; // depois de iniciar/encerrar: confere o estado com mais frequência
+  onStopGame: (appid: number) => Promise<'ok' | 'no-process' | 'unsupported'>;
   onClose: () => void;
 }
 
@@ -107,6 +112,9 @@ export default function GameDetail({
   user,
   hasKey,
   steamStatus,
+  runningAppId,
+  onBoost,
+  onStopGame,
   onClose,
 }: GameDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
@@ -295,9 +303,61 @@ export default function GameDetail({
     }
   };
 
+  // Estado do jogo, como no botão da Steam: executar, iniciando, em execução (encerrar) e encerrando.
+  // Só com o helper (ele informa o jogo em execução); sem ele o botão só executa.
+  const gameAware = runningAppId !== null;
+  const thisRunning = gameAware && runningAppId === game.appid;
+  const otherRunning = gameAware && runningAppId > 0 && runningAppId !== game.appid;
+  const [gameBusy, setGameBusy] = useState<'launching' | 'stopping' | null>(null);
+  const [confirmStop, setConfirmStop] = useState(false);
+  const [stopError, setStopError] = useState<string | null>(null);
+
+  // O estado real chegou: o jogo abriu ou fechou.
+  useEffect(() => {
+    if (gameBusy === 'launching' && thisRunning) setGameBusy(null);
+    if (gameBusy === 'stopping' && !thisRunning) setGameBusy(null);
+  }, [gameBusy, thisRunning]);
+
+  // Se o estado não mudar a tempo, volta ao normal.
+  useEffect(() => {
+    if (!gameBusy) return;
+    const timer = window.setTimeout(() => setGameBusy(null), gameBusy === 'launching' ? 40000 : 15000);
+    return () => window.clearTimeout(timer);
+  }, [gameBusy]);
+
+  // Encerrar pede uma segunda confirmação rápida: finalizar o jogo pode perder o que não foi salvo.
+  useEffect(() => {
+    if (!confirmStop) return;
+    const timer = window.setTimeout(() => setConfirmStop(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmStop]);
+
   const handleRun = () => {
-    if (!steamRunning) return;
+    if (!steamRunning || gameBusy) return;
+    setStopError(null);
+    if (gameAware) setGameBusy('launching');
     launchGame(game.appid);
+    onBoost();
+  };
+
+  const handleStop = async () => {
+    if (gameBusy) return;
+    if (!confirmStop) {
+      setConfirmStop(true);
+      return;
+    }
+    setConfirmStop(false);
+    setStopError(null);
+    setGameBusy('stopping');
+    const result = await onStopGame(game.appid);
+    if (result !== 'ok') {
+      setGameBusy(null);
+      setStopError(
+        result === 'no-process'
+          ? 'Não achei o processo do jogo para encerrar. Feche-o pela própria janela.'
+          : 'Não consegui encerrar. Atualize o LiquiSteam Helper e tente de novo.'
+      );
+    }
   };
 
   const achPct =
@@ -361,27 +421,59 @@ export default function GameDetail({
               {game.name}
             </h2>
             <div className="detail-rise flex flex-wrap items-center gap-3" style={stagger(260)}>
-              <button
-                onClick={handleRun}
-                disabled={!steamRunning}
-                className={`reveal group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
-                  steamRunning
-                    ? 'bg-[var(--accent-color)] text-[color:var(--on-accent)] hover:brightness-110 active:scale-[0.98]'
-                    : 'cursor-not-allowed border border-white/15 bg-white/[0.06] text-white/40'
-                }`}
-              >
-                {steamRunning ? (
-                  <>
-                    <Play className="h-5 w-5 fill-current" />
-                    Executar
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-4 w-4" />
-                    Abra a Steam para executar
-                  </>
-                )}
-              </button>
+              {gameAware && thisRunning && gameBusy !== 'stopping' ? (
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  title={confirmStop ? 'Clique de novo para encerrar' : 'Em execução. Clique para encerrar o jogo.'}
+                  className="reveal group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full border border-ok/40 bg-ok/15 px-6 text-sm font-semibold text-white transition-all hover:bg-ok/20 active:scale-[0.98]"
+                >
+                  <CheckCircle2 className="h-5 w-5 text-ok" />
+                  <span className="tracking-tight">{confirmStop ? 'Confirmar encerramento' : 'Encerrar jogo'}</span>
+                  <Power className="ml-1 h-4 w-4 opacity-60" />
+                </button>
+              ) : gameAware && gameBusy ? (
+                <button
+                  type="button"
+                  disabled
+                  className="relative flex h-11 cursor-wait items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] px-6 text-sm font-semibold text-white/70"
+                >
+                  <Loader2 className="theme-accent h-4 w-4 animate-spin" />
+                  {gameBusy === 'launching' ? 'Iniciando…' : 'Encerrando…'}
+                </button>
+              ) : otherRunning ? (
+                <button
+                  type="button"
+                  disabled
+                  title="A Steam executa um jogo por vez. Encerre o outro jogo primeiro."
+                  className="relative flex h-11 cursor-not-allowed items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] px-6 text-sm font-semibold text-white/40"
+                >
+                  <Lock className="h-4 w-4" />
+                  Outro jogo em execução
+                </button>
+              ) : (
+                <button
+                  onClick={handleRun}
+                  disabled={!steamRunning}
+                  className={`reveal group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
+                    steamRunning
+                      ? 'bg-[var(--accent-color)] text-[color:var(--on-accent)] hover:brightness-110 active:scale-[0.98]'
+                      : 'cursor-not-allowed border border-white/15 bg-white/[0.06] text-white/40'
+                  }`}
+                >
+                  {steamRunning ? (
+                    <>
+                      <Play className="h-5 w-5 fill-current" />
+                      Executar
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4" />
+                      Abra a Steam para executar
+                    </>
+                  )}
+                </button>
+              )}
               <a
                 href={storeUrl}
                 target="_blank"
@@ -391,6 +483,17 @@ export default function GameDetail({
                 <ExternalLink className="h-4 w-4" />
                 Loja
               </a>
+              {thisRunning && (
+                <span className="flex items-center gap-2 text-xs font-medium text-ok">
+                  <span className="h-1.5 w-1.5 rounded-full bg-ok motion-safe:animate-pulse" />
+                  Em execução
+                </span>
+              )}
+              {stopError && (
+                <p role="alert" className="basis-full text-xs text-bad">
+                  {stopError}
+                </p>
+              )}
             </div>
           </div>
         </div>

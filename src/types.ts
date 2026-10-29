@@ -13,7 +13,7 @@ export interface InstalledGame {
   header_image: string;
 }
 
-export type View = 'library' | 'account';
+export type View = 'library' | 'account' | 'updates';
 
 export interface GameNote {
   id: string;

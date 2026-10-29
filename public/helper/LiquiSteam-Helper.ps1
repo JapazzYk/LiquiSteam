@@ -1,6 +1,6 @@
 # LiquiSteam Helper (Windows)
-# Pequeno servico local que deixa o site LiquiSteam saber se a Steam esta aberta
-# e abrir/encerrar o cliente. Escuta so em 127.0.0.1 e so aceita pedidos vindos do
+# Pequeno servico local que deixa o site LiquiSteam saber se a Steam esta aberta,
+# qual jogo esta rodando e o que esta atualizando, e abrir/encerrar o cliente e os jogos. Escuta so em 127.0.0.1 e so aceita pedidos vindos do
 # seu site. Fica parado ate alguem perguntar, entao nao consome processador.
 #
 # Se um dia voce usar um dominio proprio, acrescente-o em $AllowedOrigin.
@@ -21,6 +21,15 @@ function Get-SteamState {
     } catch { }
     if ($user -ne 0) { return 'running' }
     return 'starting'
+}
+
+# AppID do jogo em execucao (0 = nenhum). A Steam grava isso no registro enquanto o jogo roda.
+function Get-RunningAppId {
+    try {
+        $value = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction Stop).RunningAppID
+        if ($null -ne $value) { return [int64]$value }
+    } catch { }
+    return 0
 }
 
 function Get-SteamExe {
@@ -131,31 +140,117 @@ function Get-AcfValue([string]$text, [string]$key) {
     return $null
 }
 
+# Le o arquivo mesmo que a Steam esteja gravando nele agora.
+function Read-SharedText([string]$path) {
+    $stream = New-Object System.IO.FileStream($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+    try {
+        $reader = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+        return $reader.ReadToEnd()
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-AcfNumber([string]$text, [string]$key) {
+    $raw = Get-AcfValue $text $key
+    if ($raw -match '^\d+$') { return [int64]$raw }
+    return [int64]0
+}
+
 # So le os manifestos (appmanifest_*.acf): nao abre nem altera nada nos jogos.
-function Get-InstalledGames {
+# Cada manifesto traz o estado do jogo (instalado, atualizando...) e os bytes do download.
+function Get-GameManifests {
     $games = @{}
     foreach ($dir in (Get-SteamLibraryDirs)) {
         $files = @()
         try { $files = Get-ChildItem -LiteralPath $dir -Filter 'appmanifest_*.acf' -File -ErrorAction Stop } catch { }
         foreach ($file in $files) {
             try {
-                $text = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
+                $text = Read-SharedText $file.FullName
                 $appid = Get-AcfValue $text 'appid'
                 if (-not $appid -or $appid -notmatch '^\d+$') { continue }
                 if ($games.ContainsKey($appid)) { continue }
-                $size = 0
-                $rawSize = Get-AcfValue $text 'SizeOnDisk'
-                if ($rawSize -match '^\d+$') { $size = [int64]$rawSize }
+                $installdir = Get-AcfValue $text 'installdir'
+                $gamePath = $null
+                if ($installdir) { $gamePath = Join-Path (Join-Path $dir 'common') $installdir }
                 $games[$appid] = [pscustomobject]@{
-                    appid      = [int64]$appid
-                    name       = (Get-AcfValue $text 'name')
-                    installdir = (Get-AcfValue $text 'installdir')
-                    size       = $size
+                    appid           = [int64]$appid
+                    name            = (Get-AcfValue $text 'name')
+                    installdir      = $installdir
+                    path            = $gamePath
+                    size            = (Get-AcfNumber $text 'SizeOnDisk')
+                    stateFlags      = (Get-AcfNumber $text 'StateFlags')
+                    buildId         = (Get-AcfNumber $text 'buildid')
+                    targetBuildId   = (Get-AcfNumber $text 'TargetBuildID')
+                    bytesToDownload = (Get-AcfNumber $text 'BytesToDownload')
+                    bytesDownloaded = (Get-AcfNumber $text 'BytesDownloaded')
+                    bytesToStage    = (Get-AcfNumber $text 'BytesToStage')
+                    bytesStaged     = (Get-AcfNumber $text 'BytesStaged')
+                    autoUpdate      = (Get-AcfNumber $text 'AutoUpdateBehavior')
                 }
             } catch { }
         }
     }
     return @($games.Values | Sort-Object name)
+}
+
+function Get-InstalledGames {
+    return @(Get-GameManifests | Select-Object appid, name, installdir, size)
+}
+
+# Estado de atualizacao de cada jogo (sem o caminho da pasta).
+function Get-GameUpdates {
+    return @(Get-GameManifests | Select-Object appid, name, size, stateFlags, buildId, targetBuildId, bytesToDownload, bytesDownloaded, bytesToStage, bytesStaged, autoUpdate)
+}
+
+# Envia um comando steam:// (por exemplo steam://install/123). Se a Steam esta fechada, abre ela em
+# segundo plano, espera terminar de iniciar e so entao envia o comando.
+function Invoke-SteamUrl([string]$url) {
+    if ((Get-SteamState) -eq 'running') {
+        Start-Process $url
+        return
+    }
+    $exe = Get-SteamExe
+    if ($exe) { Start-Process -FilePath $exe -ArgumentList '-silent' } else { Start-Process 'steam://open/main' }
+    Start-Stealth
+    $wait = @'
+for ($i = 0; $i -lt 60; $i++) {
+    Start-Sleep -Seconds 1
+    $u = 0
+    try { $u = [int](Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction Stop).ActiveUser } catch { }
+    if ($u -ne 0) { break }
+}
+Start-Sleep -Seconds 2
+Start-Process '__URL__'
+'@
+    $wait = $wait.Replace('__URL__', $url)
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($wait))
+    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
+}
+
+# Encerra o jogo: pede para fechar as janelas dos processos que rodam da pasta do jogo e, se ainda
+# estiverem de pe depois de alguns segundos, finaliza. Responde na hora (a finalizacao roda a parte).
+function Stop-GameProcesses([string]$appid) {
+    $game = Get-GameManifests | Where-Object { "$($_.appid)" -eq $appid } | Select-Object -First 1
+    if (-not $game -or -not $game.path) { return 'unknown-game' }
+    $root = $game.path.TrimEnd('\') + '\'
+    $targets = New-Object System.Collections.ArrayList
+    foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
+        $exe = $null
+        try { $exe = $p.Path } catch { }
+        if ($exe -and $exe.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) { [void]$targets.Add($p) }
+    }
+    if ($targets.Count -eq 0) { return 'no-process' }
+    $ids = New-Object System.Collections.ArrayList
+    foreach ($p in $targets) {
+        [void]$ids.Add([int]$p.Id)
+        try { [void]$p.CloseMainWindow() } catch { }
+    }
+    $list = ($ids.ToArray() -join ',')
+    $kill = "Start-Sleep -Seconds 4; foreach (`$id in @($list)) { Stop-Process -Id `$id -Force -ErrorAction SilentlyContinue }"
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($kill))
+    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
+    return 'ok'
 }
 
 function Send-Json($response, [int]$code, $body) {
@@ -199,13 +294,52 @@ function Handle-Request($context) {
     }
 
     if ($method -eq 'GET' -and $path -eq '/status') {
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 4; steam = (Get-SteamState) }
+        $steamState = Get-SteamState
+        $game = 0
+        if ($steamState -eq 'running') { $game = Get-RunningAppId }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 5; steam = $steamState; game = $game }
         return
     }
 
     # Lista de jogos instalados: so para o seu site (precisa de Origin).
     if ($method -eq 'GET' -and $origin -and $path -eq '/library') {
         Send-Json $response 200 @{ games = @(Get-InstalledGames) }
+        return
+    }
+
+    # Estado das atualizacoes (lido dos manifestos): so para o seu site.
+    if ($method -eq 'GET' -and $origin -and $path -eq '/updates') {
+        Send-Json $response 200 @{ games = @(Get-GameUpdates) }
+        return
+    }
+
+    # Pede a Steam para atualizar um jogo (a Steam e quem baixa). mode=validate verifica os arquivos.
+    if ($method -eq 'POST' -and $origin -and $path -eq '/update') {
+        $appid = $request.QueryString['appid']
+        if ($appid -notmatch '^\d{1,10}$') {
+            Send-Json $response 400 @{ error = 'appid' }
+            return
+        }
+        $verb = 'install'
+        if ($request.QueryString['mode'] -eq 'validate') { $verb = 'validate' }
+        Invoke-SteamUrl "steam://$verb/$appid"
+        Send-Json $response 202 @{ ok = $true }
+        return
+    }
+
+    # Encerra o jogo em execucao.
+    if ($method -eq 'POST' -and $origin -and $path -eq '/stop-game') {
+        $appid = $request.QueryString['appid']
+        if ($appid -notmatch '^\d{1,10}$') {
+            Send-Json $response 400 @{ error = 'appid' }
+            return
+        }
+        $result = Stop-GameProcesses $appid
+        if ($result -eq 'ok') {
+            Send-Json $response 202 @{ ok = $true }
+        } else {
+            Send-Json $response 404 @{ error = $result }
+        }
         return
     }
 

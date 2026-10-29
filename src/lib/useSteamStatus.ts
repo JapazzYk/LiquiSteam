@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   helperAccessState,
   helperAction,
-  helperSteamState,
+  helperStatus,
+  helperStopGame,
   isFirefox,
   readHelperHint,
   watchHelperAccess,
@@ -55,6 +56,8 @@ export function useSteamStatus(accountAvailable: boolean) {
   const [source, setSource] = useState<StatusSource>('estimate');
   const [access, setAccess] = useState<HelperAccess>('unsupported');
   const [hint, setHint] = useState<boolean>(() => readHelperHint());
+  // Jogo em execução: AppID (0 = nenhum). null = sem helper, ou helper antigo que não informa.
+  const [runningGame, setRunningGame] = useState<number | null>(null);
 
   const helperOnline = useRef(false);
   const accountRef = useRef(accountAvailable);
@@ -108,7 +111,8 @@ export function useSteamStatus(accountAvailable: boolean) {
       setAccess(nextAccess);
       const canProbe =
         nextAccess === 'granted' || (nextAccess === 'unsupported' && (!isFirefox() || readHelperHint()));
-      const fromHelper = canProbe ? await helperSteamState() : null;
+      const status = canProbe ? await helperStatus() : null;
+      const fromHelper = status ? status.steam : null;
       if (stopped) return;
 
       if (fromHelper !== null) {
@@ -119,6 +123,7 @@ export function useSteamStatus(accountAvailable: boolean) {
         helperOnline.current = true;
         setHelper('online');
         setSource('helper');
+        setRunningGame(status ? status.game : null);
         apply(fromHelper);
         schedule(Date.now() < fastUntil.current ? POLL_FAST_MS : POLL_NORMAL_MS);
         return;
@@ -126,6 +131,7 @@ export function useSteamStatus(accountAvailable: boolean) {
 
       helperOnline.current = false;
       setHelper('offline');
+      setRunningGame(null);
 
       if (accountRef.current) {
         const fromAccount = await fetchPresence();
@@ -216,11 +222,27 @@ export function useSteamStatus(accountAvailable: boolean) {
   // Confere de novo agora (por exemplo, depois de instalar ou desinstalar o helper).
   const refresh = useCallback(() => tickRef.current(), []);
 
+  // Depois de iniciar ou encerrar um jogo: confere o estado com mais frequência por um tempo.
+  const boost = useCallback(() => {
+    fastUntil.current = Date.now() + FAST_WINDOW_MS;
+    tickRef.current();
+  }, []);
+
+  // Encerra o jogo pelo helper. ok = pedido enviado.
+  const stopGame = useCallback(
+    async (appid: number) => {
+      const result = await helperStopGame(appid);
+      boost();
+      return result;
+    },
+    [boost]
+  );
+
   // Pedido explícito, vindo de um clique: é aqui que o navegador mostra o pop-up de permissão.
   const requestAccess = useCallback(async (): Promise<HelperAccessResult> => {
     writeHelperHint(true);
     setHint(true);
-    const result = await helperSteamState(ACCESS_PROMPT_MS);
+    const result = (await helperStatus(ACCESS_PROMPT_MS))?.steam ?? null;
     const nextAccess = await helperAccessState();
     setAccess(nextAccess);
     tickRef.current();
@@ -236,5 +258,19 @@ export function useSteamStatus(accountAvailable: boolean) {
     setHint(false);
   }, []);
 
-  return { status, helper, source, access, hint, open, stop, refresh, requestAccess, forgetHint };
+  return {
+    status,
+    helper,
+    source,
+    access,
+    hint,
+    runningGame,
+    open,
+    stop,
+    refresh,
+    boost,
+    stopGame,
+    requestAccess,
+    forgetHint,
+  };
 }

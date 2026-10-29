@@ -70,7 +70,12 @@ export function isFirefox(): boolean {
   return typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
 }
 
-async function call(path: string, method: 'GET' | 'POST', timeoutMs: number): Promise<Response | null> {
+async function call(
+  path: string,
+  method: 'GET' | 'POST',
+  timeoutMs: number,
+  requireOk = true
+): Promise<Response | null> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -83,7 +88,7 @@ async function call(path: string, method: 'GET' | 'POST', timeoutMs: number): Pr
       targetAddressSpace: 'loopback',
     } as RequestInit;
     const response = await fetch(`${BASE}${path}`, init);
-    return response.ok ? response : null;
+    return response.ok || !requireOk ? response : null;
   } catch {
     return null;
   } finally {
@@ -91,19 +96,33 @@ async function call(path: string, method: 'GET' | 'POST', timeoutMs: number): Pr
   }
 }
 
+// Estado lido do helper. game = AppID do jogo em execução (0 = nenhum); null quando o helper é de uma
+// versão antiga, que ainda não informa o jogo.
+export interface HelperStatus {
+  steam: HelperSteamState;
+  game: number | null;
+}
+
 // null = helper não está rodando (ou o navegador bloqueou o acesso).
 // timeoutMs maior só em pedidos explícitos: com o pop-up de permissão aberto a resposta espera o usuário.
-export async function helperSteamState(timeoutMs = 1500): Promise<HelperSteamState | null> {
+export async function helperStatus(timeoutMs = 1500): Promise<HelperStatus | null> {
   const response = await call('/status', 'GET', timeoutMs);
   if (!response) return null;
   try {
-    const data = (await response.json()) as { app?: string; steam?: string };
+    const data = (await response.json()) as { app?: string; steam?: string; game?: unknown };
     if (data.app !== 'liquisteam-helper') return null;
-    if (data.steam === 'running' || data.steam === 'starting' || data.steam === 'not-running') return data.steam;
+    if (data.steam === 'running' || data.steam === 'starting' || data.steam === 'not-running') {
+      return { steam: data.steam, game: typeof data.game === 'number' ? data.game : null };
+    }
   } catch {
     // resposta inválida
   }
   return null;
+}
+
+export async function helperSteamState(timeoutMs = 1500): Promise<HelperSteamState | null> {
+  const status = await helperStatus(timeoutMs);
+  return status ? status.steam : null;
 }
 
 export async function helperAction(action: 'open' | 'exit'): Promise<boolean> {
@@ -139,4 +158,66 @@ export async function helperLibrary(): Promise<InstalledGame[] | null> {
   } catch {
     return null;
   }
+}
+
+// Estado de atualização de um jogo, como a Steam grava no manifesto (appmanifest_*.acf).
+export interface HelperGameUpdate {
+  appid: number;
+  name: string;
+  size: number;
+  stateFlags: number;
+  buildId: number;
+  targetBuildId: number;
+  bytesToDownload: number;
+  bytesDownloaded: number;
+  bytesToStage: number;
+  bytesStaged: number;
+  autoUpdate: number;
+}
+
+// null = helper desligado ou de uma versão antiga, sem essa função.
+export async function helperUpdates(): Promise<HelperGameUpdate[] | null> {
+  const response = await call('/updates', 'GET', 8000);
+  if (!response) return null;
+  try {
+    const data = (await response.json()) as { games?: Partial<HelperGameUpdate>[] };
+    if (!Array.isArray(data.games)) return null;
+    const num = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+    return data.games
+      .filter((g) => typeof g.appid === 'number' && g.appid > 0)
+      .map((g) => ({
+        appid: g.appid as number,
+        name: g.name || `App ${g.appid}`,
+        size: num(g.size),
+        stateFlags: num(g.stateFlags),
+        buildId: num(g.buildId),
+        targetBuildId: num(g.targetBuildId),
+        bytesToDownload: num(g.bytesToDownload),
+        bytesDownloaded: num(g.bytesDownloaded),
+        bytesToStage: num(g.bytesToStage),
+        bytesStaged: num(g.bytesStaged),
+        autoUpdate: num(g.autoUpdate),
+      }));
+  } catch {
+    return null;
+  }
+}
+
+// Pede à Steam para atualizar o jogo (quem baixa é a Steam). "validate" verifica os arquivos.
+export async function helperUpdateGame(appid: number, mode: 'install' | 'validate' = 'install'): Promise<boolean> {
+  return (await call(`/update?appid=${appid}&mode=${mode}`, 'POST', 6000)) !== null;
+}
+
+// ok = pedido enviado; no-process = não achei o jogo rodando; unsupported = helper antigo ou falha.
+export async function helperStopGame(appid: number): Promise<'ok' | 'no-process' | 'unsupported'> {
+  const response = await call(`/stop-game?appid=${appid}`, 'POST', 10000, false);
+  if (!response) return 'unsupported';
+  if (response.ok) return 'ok';
+  try {
+    const data = (await response.json()) as { error?: string };
+    if (data.error === 'no-process' || data.error === 'unknown-game') return 'no-process';
+  } catch {
+    // resposta inválida
+  }
+  return 'unsupported';
 }
