@@ -1,58 +1,75 @@
 import type { InstalledGame } from '@/types';
 
+// As pastas "steamapps" escolhidas ficam guardadas neste navegador (IndexedDB). O usuário
+// pode ter várias: uma por biblioteca da Steam (cada HD ou pasta de jogos).
 const IDB_DB = 'liquid_steam';
 const IDB_STORE = 'handles';
-const IDB_KEY = 'steamapps_handle';
+const IDB_KEY_LIST = 'steamapps_handles';
+const IDB_KEY_LEGACY = 'steamapps_handle'; // versão antiga: uma pasta só
 
-async function idbGetHandle(): Promise<FileSystemDirectoryHandle | null> {
+function openDb(): Promise<IDBDatabase | null> {
   return new Promise((resolve) => {
-    const req = indexedDB.open(IDB_DB, 1);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(IDB_STORE);
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const get = tx.objectStore(IDB_STORE).get(IDB_KEY);
-      get.onsuccess = () => resolve((get.result as FileSystemDirectoryHandle) ?? null);
-      get.onerror = () => resolve(null);
-    };
-    req.onerror = () => resolve(null);
+    try {
+      const req = indexedDB.open(IDB_DB, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
   });
 }
 
-async function idbSaveHandle(handle: FileSystemDirectoryHandle): Promise<void> {
+async function idbGet<T>(key: string): Promise<T | null> {
+  const db = await openDb();
+  if (!db) return null;
   return new Promise((resolve) => {
-    const req = indexedDB.open(IDB_DB, 1);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(IDB_STORE);
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    };
-    req.onerror = () => resolve();
+    const get = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+    get.onsuccess = () => resolve((get.result as T) ?? null);
+    get.onerror = () => resolve(null);
   });
 }
 
-export async function idbClearHandle(): Promise<void> {
+async function idbPut(key: string, value: unknown): Promise<void> {
+  const db = await openDb();
+  if (!db) return;
   return new Promise((resolve) => {
-    const req = indexedDB.open(IDB_DB, 1);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(IDB_STORE);
-    };
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).delete(IDB_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    };
-    req.onerror = () => resolve();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
   });
+}
+
+async function idbDelete(key: string): Promise<void> {
+  const db = await openDb();
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+async function readHandles(): Promise<FileSystemDirectoryHandle[]> {
+  const list = await idbGet<FileSystemDirectoryHandle[]>(IDB_KEY_LIST);
+  if (Array.isArray(list)) return list;
+  // Migra a pasta única da versão anterior.
+  const legacy = await idbGet<FileSystemDirectoryHandle>(IDB_KEY_LEGACY);
+  if (legacy) {
+    await idbPut(IDB_KEY_LIST, [legacy]);
+    await idbDelete(IDB_KEY_LEGACY);
+    return [legacy];
+  }
+  return [];
+}
+
+export async function clearStoredSteamappsDirs(): Promise<void> {
+  await idbDelete(IDB_KEY_LIST);
+  await idbDelete(IDB_KEY_LEGACY);
 }
 
 export async function verifyPermission(
@@ -61,36 +78,121 @@ export async function verifyPermission(
   request = false
 ): Promise<boolean> {
   const descriptor = { mode };
-  // @ts-expect-error - queryPermission/requestPermission are not in stable TS lib types
-  if ((await handle.queryPermission?.(descriptor)) === 'granted') return true;
-  if (!request) return false;
-  // @ts-expect-error - requestPermission must run from a user gesture
-  return (await handle.requestPermission?.(descriptor)) === 'granted';
+  try {
+    // @ts-expect-error - queryPermission/requestPermission are not in stable TS lib types
+    if ((await handle.queryPermission?.(descriptor)) === 'granted') return true;
+    if (!request) return false;
+    // @ts-expect-error - requestPermission must run from a user gesture
+    return (await handle.requestPermission?.(descriptor)) === 'granted';
+  } catch {
+    return false;
+  }
 }
 
-export async function getStoredSteamappsDir(): Promise<FileSystemDirectoryHandle | null> {
-  const handle = await idbGetHandle();
-  if (!handle) return null;
-  const ok = await verifyPermission(handle, 'read');
-  return ok ? handle : null;
+export interface StoredDir {
+  index: number;
+  handle: FileSystemDirectoryHandle;
+  name: string;
+  granted: boolean; // o navegador ainda permite ler (depois de reiniciar, pode pedir de novo)
 }
 
-export async function pickSteamappsDir(): Promise<FileSystemDirectoryHandle | null> {
-  if (!('showDirectoryPicker' in window)) return null;
+export async function listStoredSteamappsDirs(): Promise<StoredDir[]> {
+  const handles = await readHandles();
+  return Promise.all(
+    handles.map(async (handle, index) => ({
+      index,
+      handle,
+      name: handle.name,
+      granted: await verifyPermission(handle, 'read'),
+    }))
+  );
+}
+
+// Pede de novo a permissão de uma pasta já guardada (precisa de um clique do usuário).
+export async function regrantSteamappsDir(index: number): Promise<boolean> {
+  const handles = await readHandles();
+  const handle = handles[index];
+  if (!handle) return false;
+  return verifyPermission(handle, 'read', true);
+}
+
+export async function removeSteamappsDir(index: number): Promise<void> {
+  const handles = await readHandles();
+  handles.splice(index, 1);
+  if (handles.length === 0) await idbDelete(IDB_KEY_LIST);
+  else await idbPut(IDB_KEY_LIST, handles);
+}
+
+// Aceita a pasta "steamapps" ou a pasta da biblioteca que a contém (por exemplo D:\SteamLibrary).
+async function resolveSteamapps(dir: FileSystemDirectoryHandle): Promise<FileSystemDirectoryHandle> {
+  if (dir.name.toLowerCase() === 'steamapps') return dir;
+  try {
+    return await dir.getDirectoryHandle('steamapps');
+  } catch {
+    return dir;
+  }
+}
+
+export type AddDirResult =
+  | { status: 'added'; name: string }
+  | { status: 'duplicate'; name: string }
+  | { status: 'cancelled' }
+  | { status: 'denied' };
+
+// Abre o seletor de pasta e acrescenta a escolhida às que já existem.
+export async function addSteamappsDir(): Promise<AddDirResult> {
+  if (!('showDirectoryPicker' in window)) return { status: 'cancelled' };
+  let picked: FileSystemDirectoryHandle;
   try {
     // @ts-expect-error - showDirectoryPicker types vary across TS lib versions
-    const handle: FileSystemDirectoryHandle = await window.showDirectoryPicker({
-      id: 'steamapps',
-      mode: 'read',
-      startIn: 'documents',
-    });
-    const granted = await verifyPermission(handle, 'read', true);
-    if (!granted) return null;
-    await idbSaveHandle(handle);
-    return handle;
+    picked = await window.showDirectoryPicker({ id: 'steamapps', mode: 'read', startIn: 'documents' });
   } catch {
-    return null;
+    return { status: 'cancelled' };
   }
+  if (!(await verifyPermission(picked, 'read', true))) return { status: 'denied' };
+
+  const dir = await resolveSteamapps(picked);
+  const handles = await readHandles();
+  for (const existing of handles) {
+    try {
+      if (await (existing as unknown as { isSameEntry(other: FileSystemHandle): Promise<boolean> }).isSameEntry(dir)) return { status: 'duplicate', name: dir.name };
+    } catch {
+      // segue em frente
+    }
+  }
+  await idbPut(IDB_KEY_LIST, [...handles, dir]);
+  return { status: 'added', name: dir.name };
+}
+
+export interface ScannedLibrary {
+  dir: FileSystemDirectoryHandle;
+  games: InstalledGame[];
+}
+
+// Lê todas as pastas e junta os jogos (o mesmo jogo em duas pastas aparece uma vez).
+export async function scanLibraries(
+  dirs: FileSystemDirectoryHandle[]
+): Promise<{ games: InstalledGame[]; libraries: ScannedLibrary[] }> {
+  const libraries: ScannedLibrary[] = [];
+  for (const dir of dirs) {
+    try {
+      libraries.push({ dir, games: await scanInstalledGames(dir) });
+    } catch {
+      // pasta que sumiu ou perdeu a permissão
+    }
+  }
+  return { games: mergeGames(libraries.flatMap((l) => l.games)), libraries };
+}
+
+// Junta listas de jogos por appid; a primeira ocorrência vence, mas completa o tamanho que faltar.
+export function mergeGames(...lists: InstalledGame[][]): InstalledGame[] {
+  const byId = new Map<number, InstalledGame>();
+  for (const game of lists.flat()) {
+    const current = byId.get(game.appid);
+    if (!current) byId.set(game.appid, game);
+    else if (!current.size_on_disk && game.size_on_disk) byId.set(game.appid, { ...current, size_on_disk: game.size_on_disk });
+  }
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 interface AcfManifest {

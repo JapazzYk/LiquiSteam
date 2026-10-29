@@ -125,6 +125,13 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
                 O helper está ativo neste computador: o status da Steam é lido direto do Windows e o botão abre a Steam
                 em segundo plano (na bandeja, sem a janela da loja) e a encerra. Ele só responde ao LiquiSteam e inicia junto com o Windows.
               </p>
+              <button
+                type="button"
+                onClick={() => copy('install')}
+                className="mt-2 text-[13px] text-white/60 underline underline-offset-2 transition-colors hover:text-white"
+              >
+                {copied === 'install' ? 'Comando copiado' : 'Copiar comando de atualização'}
+              </button>
 
               {removeState === 'idle' && (
                 <button

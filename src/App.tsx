@@ -16,12 +16,14 @@ import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
 import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
-  getStoredSteamappsDir,
-  scanInstalledGames,
+  listStoredSteamappsDirs,
+  scanLibraries,
+  mergeGames,
   hydrateInstalledSizes,
   isFileSystemAccessSupported,
-  idbClearHandle,
+  clearStoredSteamappsDirs,
 } from '@/lib/steamLibrary';
+import { helperLibrary } from '@/lib/steamHelper';
 import { readOpenIdParams, cleanAuthFromUrl, completeSteamLogin } from '@/lib/steamAuth';
 import { loadAccount, saveRemoteTheme, signOutAccount } from '@/lib/account';
 import { demoGames } from '@/lib/demoGames';
@@ -125,20 +127,52 @@ export default function App() {
     void run().finally(() => setLoading(false));
   }, []);
 
-  // Carrega os jogos automaticamente se a pasta steamapps já foi escolhida neste navegador.
-  useEffect(() => {
-    if (!isFileSystemAccessSupported()) return;
-    getStoredSteamappsDir().then((dir) => {
-      if (!dir) return;
-      scanInstalledGames(dir).then((g) => {
-        if (g.length > 0) {
-          setGames(g);
-          setUsingDemo(false);
-          hydrateSizes(dir, g);
-        }
-      });
+  // Junta os jogos de todas as pastas steamapps escolhidas neste navegador com os que o
+  // LiquiSteam Helper enxerga no computador (todas as bibliotecas, inclusive em Arquivos de Programas).
+  const loadId = useRef(0);
+  const helperOnlineRef = useRef(false);
+  helperOnlineRef.current = steamHelper === 'online';
+  const [helperGames, setHelperGames] = useState<number | null>(null);
+
+  const hydrateSizes = (dir: FileSystemDirectoryHandle, loadedGames: InstalledGame[]) => {
+    void hydrateInstalledSizes(dir, loadedGames, (appid, size) => {
+      setGames((current) => current.map((game) => (game.appid === appid ? { ...game, size_on_disk: size } : game)));
+      setSelectedGame((current) =>
+        current?.appid === appid ? { ...current, size_on_disk: size } : current
+      );
     });
+  };
+
+  const loadLibrary = async () => {
+    const id = ++loadId.current;
+    let folderGames: InstalledGame[] = [];
+    let libraries: Awaited<ReturnType<typeof scanLibraries>>['libraries'] = [];
+    if (isFileSystemAccessSupported()) {
+      const stored = await listStoredSteamappsDirs();
+      const scanned = await scanLibraries(stored.filter((d) => d.granted).map((d) => d.handle));
+      folderGames = scanned.games;
+      libraries = scanned.libraries;
+    }
+    const fromHelper = helperOnlineRef.current ? await helperLibrary() : null;
+    if (id !== loadId.current) return; // chegou uma leitura mais nova
+    setHelperGames(fromHelper ? fromHelper.length : null);
+    const merged = mergeGames(folderGames, fromHelper ?? []);
+    setGames(merged);
+    setUsingDemo(merged.length === 0);
+    // Jogos sem tamanho no manifesto têm o tamanho calculado pela pasta.
+    for (const library of libraries) hydrateSizes(library.dir, library.games);
+  };
+
+  useEffect(() => {
+    void loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Quando o helper passa a responder, lê os jogos por ele também.
+  useEffect(() => {
+    if (steamHelper === 'online') void loadLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steamHelper]);
 
   const handleUserChange = (u: SteamUser | null) => {
     if (u) {
@@ -150,38 +184,14 @@ export default function App() {
     setUser(null);
     clearUser();
     setHasKey(false);
-    // A pasta da Steam escolhida fica no navegador, então é removida ao sair.
-    void idbClearHandle();
-  };
-
-  const handleGamesLoaded = (g: InstalledGame[], dir?: FileSystemDirectoryHandle) => {
-    if (g.length > 0) {
-      setGames(g);
-      setUsingDemo(false);
-      // Jogos sem tamanho no manifesto têm o tamanho calculado pela pasta.
-      if (dir) hydrateSizes(dir, g);
-    } else {
-      setGames([]);
-    }
-  };
-
-  const hydrateSizes = (dir: FileSystemDirectoryHandle, loadedGames: InstalledGame[]) => {
-    void hydrateInstalledSizes(dir, loadedGames, (appid, size) => {
-      setGames((current) => current.map((game) => (game.appid === appid ? { ...game, size_on_disk: size } : game)));
-      setSelectedGame((current) =>
-        current?.appid === appid ? { ...current, size_on_disk: size } : current
-      );
-    });
+    // As pastas da Steam escolhidas ficam no navegador, então são removidas ao sair.
+    void clearStoredSteamappsDirs().then(() => loadLibrary());
   };
 
   const handleRefresh = async () => {
-    const dir = await getStoredSteamappsDir();
-    if (!dir) return;
     setLoading(true);
     try {
-      const g = await scanInstalledGames(dir);
-      handleGamesLoaded(g);
-      hydrateSizes(dir, g);
+      await loadLibrary();
     } finally {
       setLoading(false);
     }
@@ -292,7 +302,9 @@ export default function App() {
           <AccountPanel
             user={user}
             onUserChange={handleUserChange}
-            onGamesLoaded={handleGamesLoaded}
+            onLibraryChanged={() => void loadLibrary()}
+            helper={steamHelper}
+            helperGames={helperGames}
             hasKey={hasKey}
             onApiKeyChange={(has) => setHasKey(has)}
             onBack={() => setView('library')}
@@ -301,8 +313,8 @@ export default function App() {
           <div className="mx-auto max-w-[1400px]">
             {usingDemo && (
               <p className="notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
-                Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e escolha a
-                pasta steamapps na{' '}
+                Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e adicione as
+                pastas steamapps (ou instale o Helper, que acha tudo sozinho) na{' '}
                 <button
                   type="button"
                   onClick={() => setView('account')}
@@ -379,7 +391,7 @@ function EmptyLibrary({
       <p className="mt-2 max-w-sm text-sm text-white/50">
         {searching
           ? 'Confira a grafia ou limpe a busca para ver a biblioteca inteira.'
-          : 'Escolha a pasta steamapps de outra biblioteca da Steam na tela de conta.'}
+          : 'Adicione outra pasta steamapps da Steam na tela de conta.'}
       </p>
       <button
         type="button"

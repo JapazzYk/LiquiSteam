@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ArrowLeft,
   LogOut,
-  FolderOpen,
+  FolderPlus,
+  MonitorCheck,
   Check,
   Loader2,
   AlertTriangle,
@@ -11,12 +12,16 @@ import {
   KeyRound,
   Trash2,
 } from 'lucide-react';
-import type { SteamUser, InstalledGame } from '@/types';
+import type { SteamUser } from '@/types';
+import type { HelperLink } from '@/lib/useSteamStatus';
 import { steamLoginUrl } from '@/lib/steamAuth';
 import {
-  pickSteamappsDir,
-  scanInstalledGames,
+  addSteamappsDir,
+  listStoredSteamappsDirs,
+  regrantSteamappsDir,
+  removeSteamappsDir,
   isFileSystemAccessSupported,
+  type StoredDir,
 } from '@/lib/steamLibrary';
 import { fileSystemAccessBlockedByIframe } from '@/lib/pwa';
 import { saveSteamKey, removeSteamKey } from '@/lib/steamMeta';
@@ -24,7 +29,9 @@ import { saveSteamKey, removeSteamKey } from '@/lib/steamMeta';
 interface AccountPanelProps {
   user: SteamUser | null;
   onUserChange: (user: SteamUser | null) => void;
-  onGamesLoaded: (games: InstalledGame[], dir?: FileSystemDirectoryHandle) => void;
+  onLibraryChanged: () => void; // as pastas mudaram: o app lê a biblioteca de novo
+  helper: HelperLink;
+  helperGames: number | null; // jogos que o helper enxergou (null = sem helper ou versão antiga)
   onApiKeyChange: (has: boolean) => void;
   hasKey: boolean;
   onBack: () => void;
@@ -33,14 +40,17 @@ interface AccountPanelProps {
 export default function AccountPanel({
   user,
   onUserChange,
-  onGamesLoaded,
+  onLibraryChanged,
+  helper,
+  helperGames,
   onApiKeyChange,
   hasKey,
   onBack,
 }: AccountPanelProps) {
-  const [scanning, setScanning] = useState(false);
+  const [dirs, setDirs] = useState<StoredDir[]>([]);
+  const [adding, setAdding] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [lastCount, setLastCount] = useState<number | null>(null);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string>('');
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
@@ -54,8 +64,7 @@ export default function AccountPanel({
     onUserChange(null);
     onApiKeyChange(false);
     setApiKey('');
-    onGamesLoaded([]);
-    setLastCount(null);
+    setDirs([]);
   };
 
   const handleSaveApiKey = async () => {
@@ -84,30 +93,48 @@ export default function AccountPanel({
     onApiKeyChange(false);
   };
 
-  const handleScan = async () => {
+  const refreshDirs = useCallback(async () => {
+    setDirs(await listStoredSteamappsDirs());
+  }, []);
+
+  useEffect(() => {
+    void refreshDirs();
+  }, [refreshDirs]);
+
+  // Acrescenta uma pasta às que já estão salvas (dá para ter várias bibliotecas).
+  const handleAddDir = async () => {
     setScanError(null);
-    setScanning(true);
+    setScanNotice(null);
+    setAdding(true);
     try {
-      // Always open the picker so the user can switch between Steam libraries.
-      // The selected handle replaces the previously saved one only after the
-      // user confirms a new folder.
-      const dir = await pickSteamappsDir();
-      if (!dir) return;
-      const games = await scanInstalledGames(dir);
-      onGamesLoaded(games, dir);
-      setLastCount(games.length);
-      if (games.length === 0) {
-        setScanError(
-          'Nenhum jogo instalado nessa pasta. Confira se você escolheu a pasta "steamapps".'
-        );
+      const result = await addSteamappsDir();
+      if (result.status === 'duplicate') {
+        setScanNotice(`A pasta "${result.name}" já estava na lista.`);
+      } else if (result.status === 'denied') {
+        setScanError('O navegador não liberou a leitura dessa pasta.');
+      }
+      if (result.status === 'added') {
+        await refreshDirs();
+        onLibraryChanged();
       }
     } catch (e) {
-      setScanError(
-        e instanceof Error ? e.message : 'Não foi possível ler a pasta da Steam.'
-      );
+      setScanError(e instanceof Error ? e.message : 'Não foi possível ler a pasta da Steam.');
     } finally {
-      setScanning(false);
+      setAdding(false);
     }
+  };
+
+  const handleRemoveDir = async (index: number) => {
+    await removeSteamappsDir(index);
+    await refreshDirs();
+    onLibraryChanged();
+  };
+
+  // Depois de reiniciar o navegador, ele pode pedir a permissão de novo.
+  const handleRegrantDir = async (index: number) => {
+    await regrantSteamappsDir(index);
+    await refreshDirs();
+    onLibraryChanged();
   };
 
   const fsSupported = isFileSystemAccessSupported();
@@ -270,9 +297,9 @@ export default function AccountPanel({
           Jogos instalados
         </h3>
         <p className="mb-5 text-sm font-light leading-relaxed text-white/55">
-          Escolha a pasta <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
-          da Steam para listar os jogos instalados neste computador. As capas vêm do servidor de
-          imagens da Steam.
+          Adicione a pasta <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
+          de cada biblioteca da Steam (uma por HD ou pasta de jogos) para listar os jogos instalados
+          neste computador. As capas vêm do servidor de imagens da Steam.
         </p>
 
         {blockedByIframe && (
@@ -296,26 +323,61 @@ export default function AccountPanel({
           </div>
         )}
 
+        {helper === 'online' && (
+          <div className="mb-4 flex items-start gap-3 rounded-2xl notice-info border p-4 text-sm font-light">
+            <MonitorCheck className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
+            <p>
+              {helperGames === null
+                ? 'O LiquiSteam Helper está ativo, mas é de uma versão antiga que ainda não lista os jogos. Atualize-o pelo botão "Helper ativo" na biblioteca (Copiar comando de atualização).'
+                : `O LiquiSteam Helper está ativo e lê todas as bibliotecas da Steam sozinho, inclusive em Arquivos de Programas (${helperGames} ${helperGames === 1 ? 'jogo' : 'jogos'}). Você não precisa escolher pastas.`}
+            </p>
+          </div>
+        )}
+
+        {dirs.length > 0 && (
+          <ul className="mb-4 grid gap-2">
+            {dirs.map((dir) => (
+              <li
+                key={`${dir.index}-${dir.name}`}
+                className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/[0.05] px-4 py-3 text-sm"
+              >
+                <FolderPlus className="h-4 w-4 shrink-0 text-white/45" />
+                <span className="min-w-0 flex-1 truncate font-mono text-white/85">{dir.name}</span>
+                {dir.granted ? (
+                  <Check className="h-4 w-4 shrink-0 text-ok" aria-label="Acesso liberado" />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleRegrantDir(dir.index)}
+                    className="theme-accent shrink-0 text-xs font-medium underline underline-offset-4"
+                  >
+                    Permitir acesso
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDir(dir.index)}
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/45 transition-colors hover:text-white"
+                  aria-label={`Remover a pasta ${dir.name}`}
+                  title="Remover pasta"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={handleScan}
-            disabled={scanning || folderBlocked}
+            onClick={handleAddDir}
+            disabled={adding || folderBlocked}
             className="flex h-11 items-center gap-2 rounded-full border border-white/20 bg-white/[0.12] px-6 text-sm font-medium text-white backdrop-blur-xl transition-all hover:border-white/40 hover:bg-white/[0.18] disabled:opacity-40"
           >
-            {scanning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <FolderOpen className="h-4 w-4" />
-            )}
-            {scanning ? 'Lendo a pasta…' : 'Escolher pasta steamapps'}
+            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderPlus className="h-4 w-4" />}
+            {adding ? 'Lendo a pasta…' : dirs.length > 0 ? 'Adicionar outra pasta' : 'Adicionar pasta steamapps'}
           </button>
-
-          {lastCount !== null && lastCount > 0 && !scanError && (
-            <span className="inline-flex items-center gap-1.5 text-sm font-light text-ok">
-              <Check className="h-4 w-4" />
-              {lastCount} jogos encontrados
-            </span>
-          )}
+          {scanNotice && <span className="text-sm font-light text-white/60">{scanNotice}</span>}
         </div>
 
         {scanError && (
@@ -329,8 +391,11 @@ export default function AccountPanel({
       <div className="theme-glass mb-3 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm font-light leading-relaxed text-white/55 backdrop-blur-xl">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-white/40" />
         <p>
-          O acesso à pasta é pedido uma vez e fica salvo neste navegador. Depois de instalar
-          jogos novos, use o botão de atualizar no topo da tela.
+          O acesso às pastas é pedido uma vez e fica salvo neste navegador. Depois de instalar
+          jogos novos, use o botão de atualizar no topo da tela. O Chrome e o Edge não deixam
+          escolher pastas dentro de "Arquivos de Programas"; se a sua Steam estiver lá, instale o
+          Helper (botão ao lado de "Abrir Steam" na biblioteca), que lê os jogos sozinho, ou
+          adicione uma biblioteca em outro local pela própria Steam (Configurações, Armazenamento).
         </p>
       </div>
 
