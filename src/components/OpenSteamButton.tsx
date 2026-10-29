@@ -30,7 +30,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
     <button
       type="button"
       onClick={handleClick}
-      className={`group relative flex h-10 items-center gap-2.5 overflow-hidden rounded-full border px-5 text-sm font-medium backdrop-blur-xl transition-all ${
+      className={`reveal group relative flex h-10 items-center gap-2.5 overflow-hidden rounded-full border px-5 text-sm font-medium backdrop-blur-xl transition-all ${
         running
           ? 'border-ok/40 bg-ok/15 text-white hover:bg-ok/20'
           : 'border-white/15 bg-white/[0.07] text-white hover:border-[rgba(var(--accent-rgb),0.55)]'

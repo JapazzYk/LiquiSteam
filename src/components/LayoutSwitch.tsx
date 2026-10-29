@@ -19,7 +19,7 @@ export default function LayoutSwitch({ value, onChange }: LayoutSwitchProps) {
     <div
       role="group"
       aria-label="Layout da biblioteca"
-      className="layout-switch flex h-10 items-center gap-0.5 rounded-full border border-white/15 bg-white/[0.06] p-1"
+      className="layout-switch reveal relative flex h-10 items-center gap-0.5 rounded-full border border-white/15 bg-white/[0.06] p-1"
     >
       {LAYOUTS.map((layout) => {
         const Icon = layoutIcons[layout.id];

@@ -160,7 +160,7 @@ export default function AccountPanel({
       </div>
 
       {/* Steam identity card */}
-      <div className="relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
+      <div className="reveal relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
         <div
           className="pointer-events-none absolute inset-0 rounded-[28px] opacity-60"
           style={{ boxShadow: 'inset 0 0 60px 10px rgba(var(--accent-rgb),0.10)' }}
@@ -228,7 +228,7 @@ export default function AccountPanel({
 
       {/* Steam Web API key — only after login, since the SteamID comes from OpenID */}
       {user && (
-        <div className="theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
+        <div className="reveal theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
           <div className="mb-1 flex items-center gap-2">
             <KeyRound className="theme-accent h-4 w-4" />
             <h3 className="text-lg font-semibold tracking-tight text-white">
@@ -292,7 +292,7 @@ export default function AccountPanel({
       )}
 
       {/* Local library connection */}
-      <div className="theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
+      <div className="reveal theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
         <h3 className="mb-1 text-lg font-semibold tracking-tight text-white">
           Jogos instalados
         </h3>

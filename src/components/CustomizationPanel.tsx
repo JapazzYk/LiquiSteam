@@ -126,7 +126,7 @@ export default function CustomizationPanel({
                       { x: event.clientX, y: event.clientY }
                     );
                   }}
-                  className={`flex items-center gap-4 rounded-2xl border p-3 text-left transition-colors ${
+                  className={`reveal relative flex items-center gap-4 rounded-2xl border p-3 text-left transition-colors ${
                     selected
                       ? 'border-[rgba(var(--accent-rgb),0.6)] bg-[rgba(var(--accent-rgb),0.08)]'
                       : 'border-white/10 hover:border-white/25'
@@ -157,7 +157,7 @@ export default function CustomizationPanel({
                   type="button"
                   aria-pressed={selected}
                   onClick={() => onChange({ ...theme, layout: layout.id })}
-                  className={`flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-colors ${
+                  className={`reveal relative flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-colors ${
                     selected
                       ? 'border-[rgba(var(--accent-rgb),0.6)] bg-[rgba(var(--accent-rgb),0.08)]'
                       : 'border-white/10 hover:border-white/25'
@@ -261,7 +261,7 @@ export default function CustomizationPanel({
                   type="button"
                   aria-pressed={selected}
                   onClick={() => onChange({ ...theme, motion: motion.id })}
-                  className={`flex items-start justify-between gap-2 rounded-2xl border p-3 text-left transition-colors ${
+                  className={`reveal relative flex items-start justify-between gap-2 rounded-2xl border p-3 text-left transition-colors ${
                     selected
                       ? 'border-[rgba(var(--accent-rgb),0.6)] bg-[rgba(var(--accent-rgb),0.08)]'
                       : 'border-white/10 hover:border-white/25'
@@ -292,7 +292,7 @@ export default function CustomizationPanel({
         <Section title="Efeitos" order={5}>
           <div className="grid gap-3">
             <Slider
-              label="Brilho do cursor"
+              label="Luz do cursor"
               value={theme.glowIntensity}
               min={0}
               max={1}

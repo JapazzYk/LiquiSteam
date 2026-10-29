@@ -75,7 +75,7 @@ export default function InstallButton() {
         disabled={busy}
         aria-expanded={help}
         title="Instalar o LiquiSteam como app"
-        className="install-btn flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium text-white backdrop-blur-xl transition-all disabled:opacity-60 md:px-4"
+        className="install-btn reveal relative flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium text-white backdrop-blur-xl transition-all disabled:opacity-60 md:px-4"
       >
         <Download className="theme-accent h-4 w-4" />
         <span className="hidden md:inline">{busy ? 'Instalando…' : 'Instalar app'}</span>

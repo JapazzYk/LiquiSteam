@@ -11,9 +11,11 @@ import GameDetail from '@/components/GameDetail';
 import UpdateToast from '@/components/UpdateToast';
 import CustomizationPanel from '@/components/CustomizationPanel';
 import CursorGlow from '@/components/CursorGlow';
+import WelcomeScreen from '@/components/WelcomeScreen';
 import LibraryView from '@/components/LibraryView';
 import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
+import { usePresence } from '@/lib/motion';
 import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
   listStoredSteamappsDirs,
@@ -32,12 +34,27 @@ import { getSkin } from '@/lib/skins';
 import type { OpenOrigin } from '@/lib/openOrigin';
 import type { SteamUser, InstalledGame, View } from '@/types';
 
+// Boas-vindas: aparece para quem não está logado, uma vez por visita (sessionStorage) e nunca mais se a
+// pessoa pedir (localStorage).
+const WELCOME_SEEN_KEY = 'liquid_welcome_seen';
+const WELCOME_OFF_KEY = 'liquid_welcome_off';
+
+function welcomeAllowed(): boolean {
+  try {
+    return !localStorage.getItem(WELCOME_OFF_KEY) && !sessionStorage.getItem(WELCOME_SEEN_KEY);
+  } catch {
+    return true;
+  }
+}
+
 // Duração da saída ao trocar de tela (mesmo valor de .fx-out no index.css).
 const VIEW_LEAVE_MS = 180;
 
 export default function App() {
   const [view, setView] = useState<View>('library');
   const [leaving, setLeaving] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(welcomeAllowed);
+  const [sessionReady, setSessionReady] = useState(false);
   const leaveTimer = useRef<number | null>(null);
   const [user, setUser] = useState<SteamUser | null>(() => loadUser());
   const [games, setGames] = useState<InstalledGame[]>([]);
@@ -192,7 +209,10 @@ export default function App() {
       }
     };
 
-    void run().finally(() => setLoading(false));
+    void run().finally(() => {
+      setLoading(false);
+      setSessionReady(true);
+    });
   }, []);
 
   // Junta os jogos de todas as pastas steamapps escolhidas neste navegador com os que o
@@ -265,6 +285,18 @@ export default function App() {
     }
   };
 
+  // Só depois de conferir a sessão (senão quem está logado veria a tela por um instante).
+  const welcome = usePresence(welcomeOpen && sessionReady && !user && view === 'library', 220);
+  const dismissWelcome = (forever: boolean) => {
+    try {
+      sessionStorage.setItem(WELCOME_SEEN_KEY, '1');
+      if (forever) localStorage.setItem(WELCOME_OFF_KEY, '1');
+    } catch {
+      // ignore
+    }
+    setWelcomeOpen(false);
+  };
+
   const source = usingDemo ? demoGames : games;
   const search = query.trim().toLowerCase();
   const visible = search ? source.filter((g) => g.name.toLowerCase().includes(search)) : source;
@@ -335,7 +367,7 @@ export default function App() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={loading}
-                className="fx-soft grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
+                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
                 aria-label="Atualizar biblioteca"
                 title="Atualizar biblioteca"
               >
@@ -346,7 +378,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setCustomizationOpen(true)}
-              className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+              className="reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               aria-label="Aparência"
               title="Aparência"
             >
@@ -355,7 +387,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => goTo(view === 'account' ? 'library' : 'account')}
-              className={`flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
+              className={`reveal relative flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
                 view === 'account'
                   ? 'theme-accent-border theme-accent-surface text-white'
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
@@ -421,7 +453,7 @@ export default function App() {
                 />
               ) : (
                 <LibraryView
-                  key={`${theme.skin}-${theme.layout}-${theme.motion}`}
+                  key={`${theme.skin}-${theme.layout}-${theme.motion}-${search}`}
                   games={visible}
                   layout={theme.layout}
                   loading={loading}
@@ -432,6 +464,14 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {welcome.mounted && (
+        <WelcomeScreen
+          closing={welcome.closing}
+          onContinue={() => dismissWelcome(false)}
+          onNeverShow={() => dismissWelcome(true)}
+        />
+      )}
 
       {selectedGame && (
         <GameDetail

@@ -14,15 +14,18 @@ interface GameCardProps {
   onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
 }
 
+// Qual imagem de cada jogo funcionou: quando o cartão é recriado (busca, troca de layout), não repete as tentativas.
+const artworkIndexCache = new Map<number, number>();
+
 // A aparência do cartão (moldura, capa, legenda, movimento) vem do tema ativo,
 // em src/index.css. Aqui fica só a estrutura.
 export default function GameCard({ game, index, onOpen }: GameCardProps) {
   const artwork = uniqueUrls([game.library_image, ...gameArtworkUrls(game.appid), game.header_image]);
-  const [artworkIndex, setArtworkIndex] = useState(0);
+  const [artworkIndex, setArtworkIndex] = useState(() => artworkIndexCache.get(game.appid) ?? 0);
   const artRef = useRef<HTMLDivElement>(null);
   const cover = artwork[artworkIndex];
   // Capa vertical 2:3 preenche a moldura; qualquer outra proporção aparece inteira, sem corte.
-  const { fit, onLoad } = useArtFit(2 / 3, 0.08);
+  const { fit, onLoad } = useArtFit(2 / 3, 0.08, `card-${game.appid}-${artworkIndex}`);
 
   return (
     <div className="game-card-wrap" style={{ '--i': index } as CSSProperties}>
@@ -41,7 +44,10 @@ export default function GameCard({ game, index, onOpen }: GameCardProps) {
               alt=""
               loading="lazy"
               onLoad={onLoad}
-              onError={() => setArtworkIndex((current) => current + 1)}
+              onError={() => {
+                artworkIndexCache.set(game.appid, artworkIndex + 1);
+                setArtworkIndex((current) => current + 1);
+              }}
             />
           ) : (
             <div className="game-card-empty">

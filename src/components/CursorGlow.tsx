@@ -1,37 +1,106 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+
+// Luz do cursor no estilo "Reveal" do menu do Windows 10/11: em vez de uma bola de luz solta, o cursor
+// acende a interface. Cartões, linhas, busca e botões marcados com a classe "reveal" recebem a posição
+// do cursor (--rx, --ry, em pixels, relativa a cada elemento) e desenham, pelo CSS, um brilho na borda e
+// um clarão suave na superfície. Elementos vizinhos também acendem a borda, mesmo sem o cursor em cima.
+// Só os elementos perto do cursor são atualizados; o resto não é tocado.
+const REVEAL_SELECTOR = '.reveal, .game-card, .game-row, .search-shell';
+// Distância (px) além da borda de um elemento em que ele ainda recebe a luz.
+const RANGE = 200;
 
 export default function CursorGlow() {
-  const glowRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<number | null>(null);
-  const target = useRef({ x: -200, y: -200 });
-  const current = useRef({ x: -200, y: -200 });
-
   useEffect(() => {
-    const onPointerMove = (event: PointerEvent) => {
-      target.current = { x: event.clientX, y: event.clientY };
+    let elements: HTMLElement[] = [];
+    let stale = true;
+    let x = -9999;
+    let y = -9999;
+    let frame = 0;
+    const lit = new Set<HTMLElement>();
+
+    const clear = (el: HTMLElement) => {
+      el.style.removeProperty('--rx');
+      el.style.removeProperty('--ry');
+      el.style.removeProperty('--ra');
     };
 
-    const render = () => {
-      current.current.x += (target.current.x - current.current.x) * 0.16;
-      current.current.y += (target.current.y - current.current.y) * 0.16;
-      if (glowRef.current) {
-        glowRef.current.style.transform = `translate3d(${current.current.x}px, ${current.current.y}px, 0)`;
+    const update = () => {
+      frame = 0;
+      if (stale) {
+        elements = Array.from(document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR));
+        stale = false;
       }
-      frameRef.current = requestAnimationFrame(render);
+
+      // Primeiro lê todas as posições, depois escreve: uma única passagem de layout por quadro.
+      const near: { el: HTMLElement; rx: number; ry: number }[] = [];
+      for (const el of elements) {
+        if (!el.isConnected) continue;
+        const rect = el.getBoundingClientRect();
+        const dx = Math.max(rect.left - x, 0, x - rect.right);
+        const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+        if (dx * dx + dy * dy <= RANGE * RANGE) near.push({ el, rx: x - rect.left, ry: y - rect.top });
+      }
+
+      const next = new Set<HTMLElement>();
+      for (const { el, rx, ry } of near) {
+        el.style.setProperty('--rx', rx.toFixed(1));
+        el.style.setProperty('--ry', ry.toFixed(1));
+        el.style.setProperty('--ra', '1');
+        next.add(el);
+      }
+      for (const el of lit) if (!next.has(el)) clear(el);
+      lit.clear();
+      next.forEach((el) => lit.add(el));
     };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') return;
+      x = event.clientX;
+      y = event.clientY;
+      schedule();
+    };
+
+    const onLeave = () => {
+      x = -9999;
+      y = -9999;
+      schedule();
+    };
+
+    // Rolar a página move os elementos debaixo do cursor parado; novos elementos entram na lista.
+    const onScroll = () => {
+      if (x > -9000) schedule();
+    };
+
+    let mutationTimer = 0;
+    const observer = new MutationObserver(() => {
+      stale = true;
+      window.clearTimeout(mutationTimer);
+      mutationTimer = window.setTimeout(() => {
+        if (x > -9000) schedule();
+      }, 60);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
-    frameRef.current = requestAnimationFrame(render);
+    document.documentElement.addEventListener('pointerleave', onLeave);
+    window.addEventListener('blur', onLeave);
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      document.documentElement.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('blur', onLeave);
+      window.removeEventListener('scroll', onScroll, true);
+      observer.disconnect();
+      window.clearTimeout(mutationTimer);
+      if (frame) cancelAnimationFrame(frame);
+      lit.forEach(clear);
     };
   }, []);
 
-  return (
-    <div ref={glowRef} className="cursor-glow" aria-hidden>
-      <div className="cursor-glow-core" />
-      <div className="cursor-glow-spot" />
-    </div>
-  );
+  return null;
 }

@@ -8,16 +8,21 @@ export type ArtFit = 'cover' | 'contain';
 // (por exemplo, a imagem horizontal da loja no lugar de uma capa vertical), fica inteira e centralizada
 // sobre um fundo desfocado da própria imagem (ver [data-fit='contain'] em src/index.css).
 // target = largura / altura esperada; tolerance = diferença relativa aceita.
-export function useArtFit(target: number, tolerance: number) {
-  const [fit, setFit] = useState<ArtFit>('cover');
+// cacheKey: lembra o resultado por jogo, para a capa não "piscar" quando o cartão é recriado (ex.: busca).
+const fitCache = new Map<string, ArtFit>();
+
+export function useArtFit(target: number, tolerance: number, cacheKey?: string) {
+  const [fit, setFit] = useState<ArtFit>(() => (cacheKey ? fitCache.get(cacheKey) : undefined) ?? 'cover');
   const onLoad = useCallback(
     (event: SyntheticEvent<HTMLImageElement>) => {
       const image = event.currentTarget;
       if (!image.naturalWidth || !image.naturalHeight) return;
       const ratio = image.naturalWidth / image.naturalHeight;
-      setFit(Math.abs(ratio - target) / target > tolerance ? 'contain' : 'cover');
+      const next: ArtFit = Math.abs(ratio - target) / target > tolerance ? 'contain' : 'cover';
+      if (cacheKey) fitCache.set(cacheKey, next);
+      setFit(next);
     },
-    [target, tolerance]
+    [target, tolerance, cacheKey]
   );
   return { fit, onLoad };
 }
