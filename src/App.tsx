@@ -448,8 +448,6 @@ export default function App() {
             <UpdatesView
               updates={updates}
               helper={steamHelper}
-              steamStatus={steamStatus}
-              onOpenSteam={openSteam}
               onBack={() => goTo('library')}
             />
           ) : view === 'account' ? (

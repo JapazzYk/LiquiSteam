@@ -164,15 +164,10 @@ export async function helperLibrary(): Promise<InstalledGame[] | null> {
 export interface HelperGameUpdate {
   appid: number;
   name: string;
-  size: number;
   stateFlags: number;
   buildId: number;
   targetBuildId: number;
   bytesToDownload: number;
-  bytesDownloaded: number;
-  bytesToStage: number;
-  bytesStaged: number;
-  autoUpdate: number;
 }
 
 // null = helper desligado ou de uma versão antiga, sem essa função.
@@ -188,24 +183,14 @@ export async function helperUpdates(): Promise<HelperGameUpdate[] | null> {
       .map((g) => ({
         appid: g.appid as number,
         name: g.name || `App ${g.appid}`,
-        size: num(g.size),
         stateFlags: num(g.stateFlags),
         buildId: num(g.buildId),
         targetBuildId: num(g.targetBuildId),
         bytesToDownload: num(g.bytesToDownload),
-        bytesDownloaded: num(g.bytesDownloaded),
-        bytesToStage: num(g.bytesToStage),
-        bytesStaged: num(g.bytesStaged),
-        autoUpdate: num(g.autoUpdate),
       }));
   } catch {
     return null;
   }
-}
-
-// Pede à Steam para atualizar o jogo (quem baixa é a Steam). "validate" verifica os arquivos.
-export async function helperUpdateGame(appid: number, mode: 'install' | 'validate' = 'install'): Promise<boolean> {
-  return (await call(`/update?appid=${appid}&mode=${mode}`, 'POST', 6000)) !== null;
 }
 
 // ok = pedido enviado; no-process = não achei o jogo rodando; unsupported = helper antigo ou falha.
