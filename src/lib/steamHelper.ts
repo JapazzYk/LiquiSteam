@@ -8,6 +8,68 @@ const BASE = 'http://127.0.0.1:47231';
 
 export type HelperSteamState = 'running' | 'starting' | 'not-running';
 
+// Permissão do navegador para o site falar com apps neste computador (Chrome: "Acessar outros
+// apps e serviços neste dispositivo"). 'unsupported' = o navegador não expõe essa permissão.
+export type HelperAccess = 'granted' | 'prompt' | 'denied' | 'unsupported';
+// Resultado de um pedido explícito de permissão (clique do usuário).
+export type HelperAccessResult = 'online' | 'no-helper' | 'dismissed' | 'blocked';
+
+// Lembra que este navegador já teve (ou vai ter) o helper, para só consultar por conta própria
+// quando faz sentido e nunca abrir o pop-up de permissão para quem não usa o helper.
+const HINT_KEY = 'liquid_helper_hint';
+
+export function readHelperHint(): boolean {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeHelperHint(value: boolean): void {
+  try {
+    if (value) localStorage.setItem(HINT_KEY, '1');
+    else localStorage.removeItem(HINT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// "loopback-network" é a permissão atual do Chrome; "local-network-access" é o nome antigo.
+const PERMISSION_NAMES = ['loopback-network', 'local-network-access'];
+
+async function queryAccess(): Promise<PermissionStatus | null> {
+  if (typeof navigator === 'undefined' || !navigator.permissions?.query) return null;
+  for (const name of PERMISSION_NAMES) {
+    try {
+      return await navigator.permissions.query({ name } as unknown as PermissionDescriptor);
+    } catch {
+      // nome desconhecido neste navegador: tenta o próximo
+    }
+  }
+  return null;
+}
+
+// Só lê o estado da permissão. Nunca abre o pop-up.
+export async function helperAccessState(): Promise<HelperAccess> {
+  const status = await queryAccess();
+  return status ? status.state : 'unsupported';
+}
+
+// Avisa quando o usuário muda a permissão (pelo pop-up ou pelas configurações do site).
+export async function watchHelperAccess(onChange: () => void): Promise<() => void> {
+  const status = await queryAccess();
+  if (!status) return () => undefined;
+  status.addEventListener('change', onChange);
+  return () => status.removeEventListener('change', onChange);
+}
+
+// O Firefox também pergunta, mas pode não expor a permissão; nele só consultamos de forma
+// automática quem já tem o helper.
+export function isFirefox(): boolean {
+  return typeof navigator !== 'undefined' && /firefox/i.test(navigator.userAgent);
+}
+
 async function call(path: string, method: 'GET' | 'POST', timeoutMs: number): Promise<Response | null> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -30,8 +92,9 @@ async function call(path: string, method: 'GET' | 'POST', timeoutMs: number): Pr
 }
 
 // null = helper não está rodando (ou o navegador bloqueou o acesso).
-export async function helperSteamState(): Promise<HelperSteamState | null> {
-  const response = await call('/status', 'GET', 1500);
+// timeoutMs maior só em pedidos explícitos: com o pop-up de permissão aberto a resposta espera o usuário.
+export async function helperSteamState(timeoutMs = 1500): Promise<HelperSteamState | null> {
+  const response = await call('/status', 'GET', timeoutMs);
   if (!response) return null;
   try {
     const data = (await response.json()) as { app?: string; steam?: string };

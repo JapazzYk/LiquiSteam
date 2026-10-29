@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, MonitorCheck, MonitorDown, Trash2, X } from 'lucide-react';
-import { helperUninstall } from '@/lib/steamHelper';
+import { Check, Copy, MonitorCheck, MonitorDown, ShieldAlert, Trash2, X } from 'lucide-react';
+import { helperUninstall, type HelperAccess, type HelperAccessResult } from '@/lib/steamHelper';
 
 // Instalar e desinstalar o LiquiSteam Helper (Windows), ao lado do botão da Steam.
 // O helper é opcional: sem ele o site funciona, só que o status da Steam fica menos preciso.
@@ -17,11 +17,25 @@ type RemoveState = 'idle' | 'confirm' | 'working' | 'done' | 'unsupported';
 
 interface HelperInstallProps {
   installed: boolean; // o helper está rodando neste computador
+  access: HelperAccess; // permissão do navegador para falar com apps neste computador
+  hint: boolean; // este navegador já teve (ou vai ter) o helper
   onChanged: () => void; // pede ao app para conferir o helper de novo
+  onRequestAccess: () => Promise<HelperAccessResult>; // abre o pop-up de permissão do navegador
+  onForget: () => void; // "não tenho o helper": esconde o botão de permissão
 }
 
-export default function HelperInstall({ installed, onChanged }: HelperInstallProps) {
+export default function HelperInstall({
+  installed,
+  access,
+  hint,
+  onChanged,
+  onRequestAccess,
+  onForget,
+}: HelperInstallProps) {
   const [open, setOpen] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [lastResult, setLastResult] = useState<HelperAccessResult | null>(null);
+  const [copiedInstall, setCopiedInstall] = useState(false); // já copiou o comando nesta visita
   const [copied, setCopied] = useState<'install' | 'remove' | null>(null);
   const [removeState, setRemoveState] = useState<RemoveState>('idle');
   const rootRef = useRef<HTMLDivElement>(null);
@@ -56,7 +70,24 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
     return () => window.clearTimeout(timer);
   }, [removeState]);
 
+  // O helper foi instalado antes (ou o comando foi copiado), mas o navegador ainda não deixou o site
+  // falar com ele. O pop-up só aparece por este botão, nunca ao abrir o site.
+  const needsAccess = !installed && hint && (access === 'prompt' || access === 'denied');
+
+  const ask = async () => {
+    setAsking(true);
+    const result = await onRequestAccess();
+    setLastResult(result);
+    setAsking(false);
+  };
+
   const copy = async (kind: 'install' | 'remove') => {
+    // Copiar o comando de instalação é o momento de baixar o helper: é aqui que o navegador
+    // pergunta sobre o acesso, para o site já enxergar o helper assim que ele iniciar.
+    if (kind === 'install' && !installed) {
+      setCopiedInstall(true);
+      void onRequestAccess();
+    }
     try {
       await navigator.clipboard.writeText(installerCommand(kind === 'remove' ? ' -Remover' : ''));
       setCopied(kind);
@@ -73,12 +104,49 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
       setRemoveState('unsupported');
       return;
     }
+    onForget();
     // O helper se encerra logo depois de responder; confere de novo em seguida.
     window.setTimeout(onChanged, 1500);
   };
 
-  const Icon = installed ? MonitorCheck : MonitorDown;
-  const label = installed ? 'Helper ativo' : 'Helper';
+  // Pedido de permissão (botão) ou, se já foi bloqueada, como liberar nas configurações do site.
+  const accessBlock = (
+    <>
+      <p className="mt-2 text-[13px] leading-relaxed text-white/65">
+        Para o helper funcionar, o navegador precisa deixar o LiquiSteam acessar apps e serviços neste
+        dispositivo. Sem isso o site não enxerga o helper, mesmo instalado. A pergunta só aparece quando
+        você clica aqui, nunca ao abrir o site.
+      </p>
+      {access === 'prompt' ? (
+        <button
+          type="button"
+          onClick={ask}
+          disabled={asking}
+          className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110 disabled:opacity-60"
+        >
+          <ShieldAlert className="h-4 w-4" />
+          {asking ? 'Aguardando você no navegador…' : 'Permitir acesso'}
+        </button>
+      ) : (
+        <div className="mt-3 grid gap-2 text-[13px] leading-relaxed text-white/65">
+          <p className="text-white/80">O acesso está bloqueado neste navegador, então a pergunta não volta a aparecer.</p>
+          <ol className="grid list-decimal gap-1.5 pl-5">
+            <li>Clique no ícone à esquerda do endereço do site (cadeado ou controles).</li>
+            <li>Em Configurações do site, ache Apps e serviços neste dispositivo e escolha Permitir.</li>
+            <li>Volte aqui: o site confere sozinho e o botão do helper fica verde.</li>
+          </ol>
+        </div>
+      )}
+      {lastResult === 'dismissed' && access === 'prompt' && (
+        <p className="mt-2 text-xs leading-relaxed text-white/50">
+          A pergunta foi fechada sem resposta. Clique em Permitir acesso de novo e escolha Permitir.
+        </p>
+      )}
+    </>
+  );
+
+  const Icon = installed ? MonitorCheck : needsAccess ? ShieldAlert : MonitorDown;
+  const label = installed ? 'Helper ativo' : needsAccess ? 'Permitir helper' : 'Helper';
 
   return (
     <div ref={rootRef} className="relative">
@@ -86,13 +154,25 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        aria-label={installed ? 'Helper ativo: gerenciar ou desinstalar' : 'Helper opcional: sincronizar o status com a Steam'}
-        title={installed ? 'LiquiSteam Helper ativo' : 'Helper opcional: deixa o status da Steam sempre exato'}
+        aria-label={
+          installed
+            ? 'Helper ativo: gerenciar ou desinstalar'
+            : needsAccess
+              ? 'Permitir que o LiquiSteam acesse o helper neste computador'
+              : 'Helper opcional: sincronizar o status com a Steam'
+        }
+        title={
+          installed
+            ? 'LiquiSteam Helper ativo'
+            : needsAccess
+              ? 'O navegador ainda não deixa o site falar com o helper'
+              : 'Helper opcional: deixa o status da Steam sempre exato'
+        }
         className="flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
       >
-        <Icon className={`h-4 w-4 ${installed ? 'text-ok' : ''}`} />
+        <Icon className={`h-4 w-4 ${installed ? 'text-ok' : needsAccess ? 'text-warn' : ''}`} />
         <span className="hidden whitespace-nowrap xl:inline">
-          {label} {!installed && <span className="text-white/45">· opcional</span>}
+          {label} {!installed && !needsAccess && <span className="text-white/45">· opcional</span>}
         </span>
       </button>
 
@@ -104,10 +184,12 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">
-              {installed ? 'LiquiSteam Helper' : 'Sincronizar com a Steam'}
-              <span className="ml-2 rounded-full border border-white/15 px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-white/55">
-                Opcional
-              </span>
+              {installed ? 'LiquiSteam Helper' : needsAccess ? 'Permitir o acesso ao helper' : 'Sincronizar com a Steam'}
+              {!needsAccess && (
+                <span className="ml-2 rounded-full border border-white/15 px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-white/55">
+                  Opcional
+                </span>
+              )}
             </p>
             <button
               type="button"
@@ -189,6 +271,20 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
                 </div>
               )}
             </>
+          ) : needsAccess && !copiedInstall ? (
+            <>
+              {accessBlock}
+              <button
+                type="button"
+                onClick={() => {
+                  onForget();
+                  setOpen(false);
+                }}
+                className="mt-3 block text-xs text-white/45 underline underline-offset-2 transition-colors hover:text-white"
+              >
+                Não instalei o helper
+              </button>
+            </>
           ) : removeState === 'done' ? (
             <p className="mt-3 text-[13px] leading-relaxed text-white/70">
               Helper removido. Se mudar de ideia, é só instalar de novo por este mesmo botão.
@@ -202,6 +298,12 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
             </p>
           ) : (
             <>
+              {lastResult === 'no-helper' && (
+                <p className="mt-2 rounded-xl border border-white/15 px-3 py-2 text-[13px] leading-relaxed text-white/75">
+                  O navegador já deixa o site falar com o helper, mas ele não respondeu. Se acabou de instalar, espere
+                  alguns segundos; senão, rode o comando de instalação de novo.
+                </p>
+              )}
               <p className="mt-2 text-[13px] leading-relaxed text-white/65">
                 Este botão é opcional e não faz parte do app. Ele aparece porque o LiquiSteam Helper não está
                 rodando neste computador. Instale-o, uma vez só, para o status da Steam bater sempre e para o
@@ -210,6 +312,7 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
               <ol className="mt-3 grid list-decimal gap-1.5 pl-5 text-[13px] leading-relaxed text-white/65">
                 <li>Abra o PowerShell (tecla Windows, digite PowerShell).</li>
                 <li>Clique em Copiar comando, cole lá e aperte Enter.</li>
+                <li>Quando o navegador perguntar se o LiquiSteam pode acessar apps e serviços neste dispositivo, escolha Permitir.</li>
                 <li>Volte aqui: o ponto no botão da Steam fica verde.</li>
               </ol>
               <button
@@ -220,6 +323,9 @@ export default function HelperInstall({ installed, onChanged }: HelperInstallPro
                 {copied === 'install' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 {copied === 'install' ? 'Comando copiado' : 'Copiar comando'}
               </button>
+              {copiedInstall && (access === 'prompt' || access === 'denied') && (
+                <div className="mt-4 border-t border-white/10 pt-3">{accessBlock}</div>
+              )}
               <p className="mt-3 text-xs leading-relaxed text-white/45">
                 O helper só responde ao LiquiSteam e inicia junto com o Windows. Sem ele, o site ainda funciona,
                 só que o status da Steam fica estimado. Dá para desinstalar por aqui a qualquer momento.

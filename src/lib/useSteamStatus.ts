@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { helperAction, helperSteamState } from '@/lib/steamHelper';
+import {
+  helperAccessState,
+  helperAction,
+  helperSteamState,
+  isFirefox,
+  readHelperHint,
+  watchHelperAccess,
+  writeHelperHint,
+  type HelperAccess,
+  type HelperAccessResult,
+} from '@/lib/steamHelper';
 import { fetchPresence } from '@/lib/steamMeta';
 import { openSteamClient, stopSteamClient } from '@/lib/steamLaunch';
 
@@ -13,6 +23,8 @@ export type HelperLink = 'checking' | 'online' | 'offline';
 export type StatusSource = 'helper' | 'account' | 'estimate';
 
 const STORAGE_KEY = 'liquid_steam_status';
+// Tempo para o usuário responder ao pop-up de permissão do navegador.
+const ACCESS_PROMPT_MS = 60000;
 
 // Intervalos de checagem: rápido logo após abrir/encerrar, lento no resto.
 // Com a aba escondida não há checagem nenhuma.
@@ -41,6 +53,8 @@ export function useSteamStatus(accountAvailable: boolean) {
   const [status, setStatus] = useState<SteamStatus>(() => readStored());
   const [helper, setHelper] = useState<HelperLink>('checking');
   const [source, setSource] = useState<StatusSource>('estimate');
+  const [access, setAccess] = useState<HelperAccess>('unsupported');
+  const [hint, setHint] = useState<boolean>(() => readHelperHint());
 
   const helperOnline = useRef(false);
   const accountRef = useRef(accountAvailable);
@@ -86,10 +100,22 @@ export function useSteamStatus(accountAvailable: boolean) {
     };
 
     const tick = async () => {
-      const fromHelper = await helperSteamState();
+      // Só consulta o helper sem abrir o pop-up de permissão: com a permissão já dada, ou em
+      // navegadores que não pedem nenhuma. Com 'prompt' ou 'denied' o pedido só acontece
+      // quando o usuário clica (requestAccess).
+      const nextAccess = await helperAccessState();
+      if (stopped) return;
+      setAccess(nextAccess);
+      const canProbe =
+        nextAccess === 'granted' || (nextAccess === 'unsupported' && (!isFirefox() || readHelperHint()));
+      const fromHelper = canProbe ? await helperSteamState() : null;
       if (stopped) return;
 
       if (fromHelper !== null) {
+        if (!helperOnline.current) {
+          writeHelperHint(true);
+          setHint(true);
+        }
         helperOnline.current = true;
         setHelper('online');
         setSource('helper');
@@ -128,8 +154,16 @@ export function useSteamStatus(accountAvailable: boolean) {
     window.addEventListener('focus', onVisible);
     void tick();
 
+    // Se o usuário mudar a permissão (pop-up ou configurações do site), confere na hora.
+    let unwatch: () => void = () => undefined;
+    void watchHelperAccess(() => tickRef.current()).then((stop) => {
+      if (stopped) stop();
+      else unwatch = stop;
+    });
+
     return () => {
       stopped = true;
+      unwatch();
       window.clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
@@ -182,5 +216,25 @@ export function useSteamStatus(accountAvailable: boolean) {
   // Confere de novo agora (por exemplo, depois de instalar ou desinstalar o helper).
   const refresh = useCallback(() => tickRef.current(), []);
 
-  return { status, helper, source, open, stop, refresh };
+  // Pedido explícito, vindo de um clique: é aqui que o navegador mostra o pop-up de permissão.
+  const requestAccess = useCallback(async (): Promise<HelperAccessResult> => {
+    writeHelperHint(true);
+    setHint(true);
+    const result = await helperSteamState(ACCESS_PROMPT_MS);
+    const nextAccess = await helperAccessState();
+    setAccess(nextAccess);
+    tickRef.current();
+    if (result !== null) return 'online';
+    if (nextAccess === 'denied') return 'blocked';
+    if (nextAccess === 'prompt') return 'dismissed';
+    return 'no-helper';
+  }, []);
+
+  // O usuário diz que não tem o helper: para de oferecer o botão de permissão.
+  const forgetHint = useCallback(() => {
+    writeHelperHint(false);
+    setHint(false);
+  }, []);
+
+  return { status, helper, source, access, hint, open, stop, refresh, requestAccess, forgetHint };
 }
