@@ -36,6 +36,11 @@ interface GameDetailProps {
   steamStatus: SteamStatus;
   // Jogo em execução (0 = nenhum); null quando não dá para saber (sem helper, ou helper antigo).
   runningAppId: number | null;
+  // Jogos de fora da Steam em execução (ids); null quando não dá para saber.
+  customRunning: string[] | null;
+  onLaunchCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
+  onStopCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
+  onEditCustom: (game: InstalledGame) => void;
   onBoost: () => void; // depois de iniciar/encerrar: confere o estado com mais frequência
   onStopGame: (appid: number) => Promise<'ok' | 'no-process' | 'unsupported'>;
   onClose: () => void;
@@ -113,6 +118,10 @@ export default function GameDetail({
   hasKey,
   steamStatus,
   runningAppId,
+  customRunning,
+  onLaunchCustom,
+  onStopCustom,
+  onEditCustom,
   onBoost,
   onStopGame,
   onClose,
@@ -138,14 +147,18 @@ export default function GameDetail({
   onCloseRef.current = onClose;
   // A faixa do topo é larga, então usa a arte horizontal (library_hero) e deixa a capa vertical por último.
   const headerArt = gameArtworkUrls(game.appid).filter((url) => url.endsWith('/header.jpg'));
-  const artwork = [
-    `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
-    `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/library_hero.jpg`,
-    game.header_image,
-    ...headerArt,
-    game.library_image,
-    ...gameArtworkUrls(game.appid),
-  ].filter((url, index, urls) => url && urls.indexOf(url) === index);
+  const artwork = (
+    game.custom
+      ? [game.library_image]
+      : [
+          `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
+          `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/library_hero.jpg`,
+          game.header_image,
+          ...headerArt,
+          game.library_image,
+          ...gameArtworkUrls(game.appid),
+        ]
+  ).filter((url, index, urls) => url && urls.indexOf(url) === index);
   const artworkSource = artwork[artworkIndex];
   // Arte larga preenche a faixa; imagens de outra proporção aparecem inteiras, sem corte.
   const { fit: heroFit, onLoad: onHeroLoad } = useArtFit(1920 / 620, 0.4);
@@ -155,6 +168,12 @@ export default function GameDetail({
 
   // Load everything in parallel when the overlay opens.
   useEffect(() => {
+    // Jogo de fora da Steam: não existe nada para pedir à Steam.
+    if (game.custom) {
+      setLoadingAch(false);
+      setLoadingNews(false);
+      return;
+    }
     let cancelled = false;
     setLoadingAch(true);
     setLoadingNews(true);
@@ -191,7 +210,7 @@ export default function GameDetail({
     return () => {
       cancelled = true;
     };
-  }, [game.appid, game.name, user?.steamId, hasKey]);
+  }, [game.appid, game.name, game.custom, user?.steamId, hasKey]);
 
   // Abertura: o painel se expande a partir da capa clicada e o fundo escurece.
   useLayoutEffect(() => {
@@ -305,9 +324,14 @@ export default function GameDetail({
 
   // Estado do jogo, como no botão da Steam: executar, iniciando, em execução (encerrar) e encerrando.
   // Só com o helper (ele informa o jogo em execução); sem ele o botão só executa.
-  const gameAware = runningAppId !== null;
-  const thisRunning = gameAware && runningAppId === game.appid;
-  const otherRunning = gameAware && runningAppId > 0 && runningAppId !== game.appid;
+  const isCustom = !!game.custom;
+  const gameAware = isCustom ? customRunning !== null : runningAppId !== null;
+  const thisRunning = isCustom
+    ? !!game.customId && !!customRunning?.includes(game.customId)
+    : gameAware && runningAppId === game.appid;
+  const otherRunning = !isCustom && gameAware && (runningAppId ?? 0) > 0 && runningAppId !== game.appid;
+  // Jogo da Steam precisa da Steam aberta; jogo de fora só precisa do helper.
+  const canRun = isCustom ? gameAware : steamRunning;
   const [gameBusy, setGameBusy] = useState<'launching' | 'stopping' | null>(null);
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopError, setStopError] = useState<string | null>(null);
@@ -332,10 +356,23 @@ export default function GameDetail({
     return () => window.clearTimeout(timer);
   }, [confirmStop]);
 
-  const handleRun = () => {
-    if (!steamRunning || gameBusy) return;
+  const handleRun = async () => {
+    if (!canRun || gameBusy) return;
     setStopError(null);
     if (gameAware) setGameBusy('launching');
+    if (isCustom && game.customId) {
+      const result = await onLaunchCustom(game.customId);
+      if (result !== 'ok') {
+        setGameBusy(null);
+        setStopError(
+          result === 'missing-file'
+            ? 'O arquivo do jogo não está mais no lugar. Edite o jogo e escolha o executável de novo.'
+            : 'Não consegui abrir o jogo. Atualize o LiquiSteam Helper e tente de novo.'
+        );
+      }
+      onBoost();
+      return;
+    }
     launchGame(game.appid);
     onBoost();
   };
@@ -349,11 +386,12 @@ export default function GameDetail({
     setConfirmStop(false);
     setStopError(null);
     setGameBusy('stopping');
-    const result = await onStopGame(game.appid);
+    const result =
+      isCustom && game.customId ? await onStopCustom(game.customId) : await onStopGame(game.appid);
     if (result !== 'ok') {
       setGameBusy(null);
       setStopError(
-        result === 'no-process'
+        result === 'no-process' || result === 'missing-file'
           ? 'Não achei o processo do jogo para encerrar. Feche-o pela própria janela.'
           : 'Não consegui encerrar. Atualize o LiquiSteam Helper e tente de novo.'
       );
@@ -453,15 +491,15 @@ export default function GameDetail({
                 </button>
               ) : (
                 <button
-                  onClick={handleRun}
-                  disabled={!steamRunning}
+                  onClick={() => void handleRun()}
+                  disabled={!canRun}
                   className={`reveal group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
-                    steamRunning
+                    canRun
                       ? 'bg-[var(--accent-color)] text-[color:var(--on-accent)] hover:brightness-110 active:scale-[0.98]'
                       : 'cursor-not-allowed border border-white/15 bg-white/[0.06] text-white/40'
                   }`}
                 >
-                  {steamRunning ? (
+                  {canRun ? (
                     <>
                       <Play className="h-5 w-5 fill-current" />
                       Executar
@@ -469,11 +507,12 @@ export default function GameDetail({
                   ) : (
                     <>
                       <Lock className="h-4 w-4" />
-                      Abra a Steam para executar
+                      {isCustom ? 'Instale o Helper para executar' : 'Abra a Steam para executar'}
                     </>
                   )}
                 </button>
               )}
+              {!isCustom && (
               <a
                 href={storeUrl}
                 target="_blank"
@@ -483,6 +522,7 @@ export default function GameDetail({
                 <ExternalLink className="h-4 w-4" />
                 Loja
               </a>
+              )}
               {thisRunning && (
                 <span className="flex items-center gap-2 text-xs font-medium text-ok">
                   <span className="h-1.5 w-1.5 rounded-full bg-ok motion-safe:animate-pulse" />
@@ -507,19 +547,24 @@ export default function GameDetail({
             <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={<HardDrive className="h-4 w-4" />}>
               Visão geral
             </TabButton>
-            <TabButton active={tab === 'achievements'} onClick={() => setTab('achievements')} icon={<Trophy className="h-4 w-4" />}>
-              Conquistas
-            </TabButton>
-            <TabButton active={tab === 'news'} onClick={() => setTab('news')} icon={<Newspaper className="h-4 w-4" />}>
-              Atualizações
-            </TabButton>
-            <TabButton active={tab === 'notes'} onClick={() => setTab('notes')} icon={<StickyNote className="h-4 w-4" />}>
-              Anotações
-            </TabButton>
+            {!isCustom && (
+              <>
+                <TabButton active={tab === 'achievements'} onClick={() => setTab('achievements')} icon={<Trophy className="h-4 w-4" />}>
+                  Conquistas
+                </TabButton>
+                <TabButton active={tab === 'news'} onClick={() => setTab('news')} icon={<Newspaper className="h-4 w-4" />}>
+                  Atualizações
+                </TabButton>
+                <TabButton active={tab === 'notes'} onClick={() => setTab('notes')} icon={<StickyNote className="h-4 w-4" />}>
+                  Anotações
+                </TabButton>
+              </>
+            )}
           </div>
 
           <div key={tab} className="fx-in">
-          {tab === 'overview' && (
+          {tab === 'overview' && isCustom && <CustomOverview game={game} onEdit={() => onEditCustom(game)} />}
+          {tab === 'overview' && !isCustom && (
             <OverviewTab
               game={game}
               achPct={achPct}
@@ -574,6 +619,31 @@ function TabButton({
       {icon}
       {children}
     </button>
+  );
+}
+
+function CustomOverview({ game, onEdit }: { game: InstalledGame; onEdit: () => void }) {
+  const added = game.added
+    ? new Date(game.added).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard icon={<SteamIcon className="h-4 w-4" />} label="Origem" value="Fora da Steam" />
+        <StatCard icon={<Calendar className="h-4 w-4" />} label="Adicionado em" value={added} />
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="reveal relative flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm text-white/85 transition hover:border-white/30 hover:text-white"
+      >
+        <StickyNote className="h-4 w-4" />
+        Editar jogo
+      </button>
+      <p className="text-xs leading-relaxed text-white/45">
+        Jogos de fora da Steam não têm conquistas, notícias nem tempo de jogo da Steam.
+      </p>
+    </div>
   );
 }
 

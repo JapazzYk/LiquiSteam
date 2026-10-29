@@ -101,6 +101,8 @@ async function call(
 export interface HelperStatus {
   steam: HelperSteamState;
   game: number | null;
+  // Ids dos jogos de fora da Steam que estão rodando; null em helper antigo, que não informa.
+  custom: string[] | null;
 }
 
 // null = helper não está rodando (ou o navegador bloqueou o acesso).
@@ -109,10 +111,11 @@ export async function helperStatus(timeoutMs = 1500): Promise<HelperStatus | nul
   const response = await call('/status', 'GET', timeoutMs);
   if (!response) return null;
   try {
-    const data = (await response.json()) as { app?: string; steam?: string; game?: unknown };
+    const data = (await response.json()) as { app?: string; steam?: string; game?: unknown; custom?: unknown };
     if (data.app !== 'liquisteam-helper') return null;
     if (data.steam === 'running' || data.steam === 'starting' || data.steam === 'not-running') {
-      return { steam: data.steam, game: typeof data.game === 'number' ? data.game : null };
+      const custom = Array.isArray(data.custom) ? data.custom.filter((id): id is string => typeof id === 'string') : null;
+      return { steam: data.steam, game: typeof data.game === 'number' ? data.game : null, custom };
     }
   } catch {
     // resposta inválida
@@ -205,4 +208,127 @@ export async function helperStopGame(appid: number): Promise<'ok' | 'no-process'
     // resposta inválida
   }
   return 'unsupported';
+}
+
+// ---------------------------------------------------------------------------------------------
+// Jogos de fora da Steam (executáveis comuns), guardados só no computador, pelo helper.
+// O site nunca envia um caminho: o helper abre uma janela de escolha de arquivo do Windows e guarda a
+// escolha; o site só confirma o nome e pede para abrir o jogo pelo identificador.
+// ---------------------------------------------------------------------------------------------
+export interface HelperCustomGame {
+  id: string;
+  name: string;
+  added: number;
+  cover: string | null; // data URL (JPEG)
+}
+
+// null = helper desligado ou de uma versão antiga, sem essa função.
+export async function helperCustomGames(): Promise<HelperCustomGame[] | null> {
+  const response = await call('/custom-games', 'GET', 10000);
+  if (!response) return null;
+  try {
+    const data = (await response.json()) as { games?: Partial<HelperCustomGame>[] };
+    if (!Array.isArray(data.games)) return null;
+    return data.games
+      .filter((g) => typeof g.id === 'string' && /^[0-9a-f]{32}$/.test(g.id))
+      .map((g) => ({
+        id: g.id as string,
+        name: g.name || 'Jogo',
+        added: typeof g.added === 'number' ? g.added : 0,
+        cover: typeof g.cover === 'string' && g.cover.startsWith('data:image/') ? g.cover : null,
+      }));
+  } catch {
+    return null;
+  }
+}
+
+export type PickKind = 'exe' | 'image';
+
+export interface PickResult {
+  status: 'pending' | 'cancelled' | 'ok' | 'unknown';
+  id?: string;
+  name?: string; // sugestão de nome (executável)
+  cover?: string; // pré-visualização (imagem)
+}
+
+// Abre a janela de escolha de arquivo no Windows. Devolve o identificador da escolha, ou null.
+export async function helperStartPick(kind: PickKind): Promise<string | null> {
+  const response = await call(`/pick?kind=${kind}`, 'POST', 6000);
+  if (!response) return null;
+  try {
+    const data = (await response.json()) as { id?: string };
+    return typeof data.id === 'string' ? data.id : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function helperPickResult(id: string): Promise<PickResult | null> {
+  const response = await call(`/pick-result?id=${id}`, 'GET', 8000);
+  if (!response) return null;
+  try {
+    const data = (await response.json()) as PickResult;
+    return data && typeof data.status === 'string' ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+// Cria um jogo (com exePick) ou atualiza um existente (com id). Devolve o id, ou null se falhou.
+export async function helperSaveCustomGame(input: {
+  id?: string;
+  name: string;
+  exePick?: string;
+  coverPick?: string;
+}): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    const init = {
+      method: 'POST',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+      targetAddressSpace: 'loopback',
+    } as RequestInit;
+    const response = await fetch(`${BASE}/custom-games`, init);
+    if (!response.ok) return null;
+    const data = (await response.json()) as { id?: string };
+    return typeof data.id === 'string' ? data.id : null;
+  } catch {
+    return null;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+export async function helperRemoveCustomGame(id: string): Promise<boolean> {
+  return (await call(`/custom-games/remove?id=${id}`, 'POST', 8000)) !== null;
+}
+
+// ok = pedido enviado; missing-file = o executável não está mais lá; no-process = não achei o jogo
+// rodando; unsupported = helper antigo ou falha.
+export type CustomCommandResult = 'ok' | 'missing-file' | 'no-process' | 'unsupported';
+
+async function customCommand(path: string): Promise<CustomCommandResult> {
+  const response = await call(path, 'POST', 10000, false);
+  if (!response) return 'unsupported';
+  if (response.ok) return 'ok';
+  try {
+    const data = (await response.json()) as { error?: string };
+    if (data.error === 'missing-file') return 'missing-file';
+    if (data.error === 'no-process' || data.error === 'unknown-game') return 'no-process';
+  } catch {
+    // resposta inválida
+  }
+  return 'unsupported';
+}
+
+export function helperLaunchCustom(id: string): Promise<CustomCommandResult> {
+  return customCommand(`/launch-custom?id=${id}`);
+}
+
+export function helperStopCustom(id: string): Promise<CustomCommandResult> {
+  return customCommand(`/stop-custom?id=${id}`);
 }

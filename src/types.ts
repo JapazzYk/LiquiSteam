@@ -11,6 +11,11 @@ export interface InstalledGame {
   size_on_disk?: number;
   library_image: string;
   header_image: string;
+  // Jogo de fora da Steam (executável comum adicionado pelo usuário). O appid é um número negativo só
+  // para identificar o jogo na tela; nada é pedido à Steam sobre ele.
+  custom?: boolean;
+  customId?: string;
+  added?: number; // ms
 }
 
 export type View = 'library' | 'account' | 'updates';

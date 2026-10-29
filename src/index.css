@@ -1558,6 +1558,7 @@ body {
 /* sobre um fundo desfocado da própria imagem.                          */
 /* ------------------------------------------------------------------ */
 .game-card-art[data-fit='contain']::before,
+.game-row-art[data-fit='contain']::before,
 .featured-stage[data-fit='contain']::before,
 .detail-hero[data-fit='contain']::before {
   content: '';
@@ -1569,14 +1570,25 @@ body {
 }
 
 .game-card-art[data-fit='contain'] img,
+.game-row-art[data-fit='contain'] img,
 .featured-stage[data-fit='contain'] .featured-art,
 .detail-hero[data-fit='contain'] img {
   object-fit: contain;
 }
 
 .game-card-art[data-fit='contain'] img,
+.game-row-art[data-fit='contain'] img,
 .detail-hero[data-fit='contain'] img {
   position: relative;
+}
+
+/* Jogo de fora da Steam sem imagem: inicial grande sobre uma cor feita do nome. */
+.custom-initial {
+  font-size: 46cqw;
+  font-weight: 700;
+  line-height: 1;
+  color: rgb(255 255 255 / 0.88);
+  text-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
 }
 
 .featured-stage[data-fit='contain'] .featured-art {
@@ -1584,6 +1596,7 @@ body {
 }
 
 [data-skin='graphite'] .game-card-art[data-fit='contain']::before,
+[data-skin='graphite'] .game-row-art[data-fit='contain']::before,
 [data-skin='graphite'] .featured-stage[data-fit='contain']::before,
 [data-skin='graphite'] .detail-hero[data-fit='contain']::before {
   filter: grayscale(1) blur(16px) brightness(0.5);

@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine } from 'lucide-react';
+import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine, Plus } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
 import UpdatesView from '@/components/UpdatesView';
+import AddGameDialog from '@/components/AddGameDialog';
 import InstallButton from '@/components/InstallButton';
 import OpenSteamButton from '@/components/OpenSteamButton';
 import HelperInstall from '@/components/HelperInstall';
@@ -28,7 +29,8 @@ import {
   isFileSystemAccessSupported,
   clearStoredSteamappsDirs,
 } from '@/lib/steamLibrary';
-import { helperLibrary } from '@/lib/steamHelper';
+import { helperLibrary, helperCustomGames, helperLaunchCustom, helperStopCustom } from '@/lib/steamHelper';
+import { customToGame } from '@/lib/customGames';
 import { readOpenIdParams, cleanAuthFromUrl, completeSteamLogin } from '@/lib/steamAuth';
 import { loadAccount, saveRemoteTheme, signOutAccount } from '@/lib/account';
 import { demoGames } from '@/lib/demoGames';
@@ -57,6 +59,8 @@ export default function App() {
   const [view, setView] = useState<View>('library');
   const [leaving, setLeaving] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(welcomeAllowed);
+  // Diálogo de jogo de fora da Steam: 'new' adiciona; um jogo edita.
+  const [customDialog, setCustomDialog] = useState<'new' | InstalledGame | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const leaveTimer = useRef<number | null>(null);
   const [user, setUser] = useState<SteamUser | null>(() => loadUser());
@@ -80,6 +84,7 @@ export default function App() {
     stop: stopSteam,
     refresh: refreshSteam,
     runningGame,
+    customRunning,
     boost: boostSteam,
     stopGame,
     requestAccess: requestHelperAccess,
@@ -249,9 +254,13 @@ export default function App() {
       libraries = scanned.libraries;
     }
     const fromHelper = helperOnlineRef.current ? await helperLibrary() : null;
+    // Jogos de fora da Steam, guardados pelo helper neste computador.
+    const customs = helperOnlineRef.current ? await helperCustomGames() : null;
     if (id !== loadId.current) return; // chegou uma leitura mais nova
     setHelperGames(fromHelper ? fromHelper.length : null);
-    const merged = mergeGames(folderGames, fromHelper ?? []);
+    const merged = [...mergeGames(folderGames, fromHelper ?? []), ...(customs ?? []).map(customToGame)].sort(
+      (a, b) => a.name.localeCompare(b.name)
+    );
     setGames(merged);
     setUsingDemo(merged.length === 0);
     // Jogos sem tamanho no manifesto têm o tamanho calculado pela pasta.
@@ -368,6 +377,17 @@ export default function App() {
                   />
                 )}
               </div>
+            )}
+            {view === 'library' && (
+              <button
+                type="button"
+                onClick={() => setCustomDialog('new')}
+                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+                aria-label="Adicionar jogo de fora da Steam"
+                title="Adicionar jogo de fora da Steam"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
             )}
             {view === 'library' && !usingDemo && (
               <button
@@ -500,6 +520,18 @@ export default function App() {
 
       <SiteFooter />
 
+      {customDialog && (
+        <AddGameDialog
+          helperOnline={steamHelper === 'online'}
+          editing={customDialog === 'new' ? null : customDialog}
+          onClose={() => setCustomDialog(null)}
+          onSaved={() => {
+            setSelectedGame(null);
+            void loadLibrary();
+          }}
+        />
+      )}
+
       {welcome.mounted && (
         <WelcomeScreen
           closing={welcome.closing}
@@ -516,6 +548,10 @@ export default function App() {
           hasKey={hasKey}
           steamStatus={steamStatus}
           runningAppId={runningGame}
+          customRunning={customRunning}
+          onLaunchCustom={helperLaunchCustom}
+          onStopCustom={helperStopCustom}
+          onEditCustom={(game) => setCustomDialog(game)}
           onBoost={boostSteam}
           onStopGame={stopGame}
           onClose={() => setSelectedGame(null)}

@@ -5,6 +5,7 @@ import type { InstalledGame } from '@/types';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import { formatSize, uniqueUrls } from '@/lib/format';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
+import { placeholderHue } from '@/lib/customGames';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 
 interface GameCardProps {
@@ -20,7 +21,10 @@ const artworkIndexCache = new Map<number, number>();
 // A aparência do cartão (moldura, capa, legenda, movimento) vem do tema ativo,
 // em src/index.css. Aqui fica só a estrutura.
 export default function GameCard({ game, index, onOpen }: GameCardProps) {
-  const artwork = uniqueUrls([game.library_image, ...gameArtworkUrls(game.appid), game.header_image]);
+  // Jogo de fora da Steam: só a capa escolhida; nada é pedido à Steam.
+  const artwork = game.custom
+    ? uniqueUrls([game.library_image])
+    : uniqueUrls([game.library_image, ...gameArtworkUrls(game.appid), game.header_image]);
   const [artworkIndex, setArtworkIndex] = useState(() => artworkIndexCache.get(game.appid) ?? 0);
   const artRef = useRef<HTMLDivElement>(null);
   const cover = artwork[artworkIndex];
@@ -50,8 +54,23 @@ export default function GameCard({ game, index, onOpen }: GameCardProps) {
               }}
             />
           ) : (
-            <div className="game-card-empty">
-              <Gamepad2 className="h-12 w-12" />
+            <div
+              className="game-card-empty"
+              style={
+                game.custom
+                  ? {
+                      background: `linear-gradient(145deg, hsl(${placeholderHue(game.name)} 55% 34%), hsl(${(placeholderHue(game.name) + 40) % 360} 60% 16%))`,
+                    }
+                  : undefined
+              }
+            >
+              {game.custom ? (
+                <span className="custom-initial" aria-hidden>
+                  {game.name.trim().charAt(0).toUpperCase() || '?'}
+                </span>
+              ) : (
+                <Gamepad2 className="h-12 w-12" />
+              )}
             </div>
           )}
           <div className="game-card-shade" />

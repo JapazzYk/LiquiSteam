@@ -14,11 +14,13 @@ interface FeaturedGameProps {
 // (library_hero) e cai para a imagem da loja quando o jogo não tem essa arte.
 // A moldura de cada tema está em src/index.css (.featured-banner).
 export default function FeaturedGame({ game, onOpen }: FeaturedGameProps) {
-  const artwork = uniqueUrls([
-    `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
-    `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/library_hero.jpg`,
-    game.header_image,
-  ]);
+  const artwork = game.custom
+    ? uniqueUrls([game.library_image])
+    : uniqueUrls([
+        `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.appid}/library_hero.jpg`,
+        `https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/${game.appid}/library_hero.jpg`,
+        game.header_image,
+      ]);
   const [artworkIndex, setArtworkIndex] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
   const src = artwork[artworkIndex];

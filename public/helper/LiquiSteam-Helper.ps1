@@ -1,6 +1,7 @@
 # LiquiSteam Helper (Windows)
 # Pequeno servico local que deixa o site LiquiSteam saber se a Steam esta aberta,
-# qual jogo esta rodando e quais tem atualizacao pendente, e abrir/encerrar o cliente e os jogos. Escuta so em 127.0.0.1 e so aceita pedidos vindos do
+# qual jogo esta rodando e quais tem atualizacao pendente, e abrir/encerrar o cliente e os jogos.
+# Tambem guarda a lista de jogos de fora da Steam (executaveis comuns) que voce adiciona pelo site. Escuta so em 127.0.0.1 e so aceita pedidos vindos do
 # seu site. Fica parado ate alguem perguntar, entao nao consome processador.
 #
 # Se um dia voce usar um dominio proprio, acrescente-o em $AllowedOrigin.
@@ -204,13 +205,23 @@ function Get-GameUpdates {
 function Stop-GameProcesses([string]$appid) {
     $game = Get-GameManifests | Where-Object { "$($_.appid)" -eq $appid } | Select-Object -First 1
     if (-not $game -or -not $game.path) { return 'unknown-game' }
-    $root = $game.path.TrimEnd('\') + '\'
-    $targets = New-Object System.Collections.ArrayList
+    return (Stop-ProcessesUnder ($game.path.TrimEnd('\') + '\'))
+}
+
+# Processos que rodam de dentro de uma pasta.
+function Find-ProcessesUnder([string]$root) {
+    $found = New-Object System.Collections.ArrayList
     foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
         $exe = $null
         try { $exe = $p.Path } catch { }
-        if ($exe -and $exe.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) { [void]$targets.Add($p) }
+        if ($exe -and $exe.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) { [void]$found.Add($p) }
     }
+    return $found
+}
+
+# Pede para fechar as janelas dos processos e, se ainda estiverem de pe depois de alguns segundos,
+# finaliza. Responde na hora (a finalizacao roda a parte).
+function Stop-ProcessList($targets) {
     if ($targets.Count -eq 0) { return 'no-process' }
     $ids = New-Object System.Collections.ArrayList
     foreach ($p in $targets) {
@@ -222,6 +233,233 @@ function Stop-GameProcesses([string]$appid) {
     $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($kill))
     Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
     return 'ok'
+}
+
+function Stop-ProcessesUnder([string]$root) {
+    return (Stop-ProcessList (Find-ProcessesUnder $root))
+}
+
+# ---------------------------------------------------------------------------------------------
+# Jogos de fora da Steam (executaveis comuns)
+# A lista fica so neste computador, em %LOCALAPPDATA%\LiquiSteam. O site nunca envia um caminho:
+# o caminho vem de uma janela de escolha de arquivo do proprio Windows e fica guardado aqui; o
+# site so pede para abrir um jogo da lista pelo identificador dele.
+# ---------------------------------------------------------------------------------------------
+$script:dataDir = Join-Path $env:LOCALAPPDATA 'LiquiSteam'
+$script:gamesFile = Join-Path $script:dataDir 'custom-games.json'
+$script:coversDir = Join-Path $script:dataDir 'covers'
+$script:picks = @{}
+
+function Get-CustomGames {
+    if (-not (Test-Path -LiteralPath $script:gamesFile)) { return @() }
+    try {
+        $raw = [System.IO.File]::ReadAllText($script:gamesFile, [System.Text.Encoding]::UTF8)
+        if (-not $raw.Trim()) { return @() }
+        return @($raw | ConvertFrom-Json)
+    } catch { return @() }
+}
+
+function Save-CustomGames($games) {
+    New-Item -ItemType Directory -Force $script:dataDir | Out-Null
+    $json = ConvertTo-Json -InputObject @($games) -Depth 4
+    [System.IO.File]::WriteAllText($script:gamesFile, $json, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+# Abre uma janela de escolha de arquivo em outro processo (nao trava o servico) e grava a escolha
+# num arquivo temporario. Devolve um identificador para consultar o resultado.
+function Start-Pick([string]$kind) {
+    $id = [guid]::NewGuid().ToString('N')
+    $out = Join-Path ([System.IO.Path]::GetTempPath()) ("liquisteam-pick-$id.txt")
+    if ($kind -eq 'exe') {
+        $title = 'Escolha o executavel do jogo'
+        $filter = 'Programas (*.exe)|*.exe'
+    } else {
+        $title = 'Escolha a imagem da capa'
+        $filter = 'Imagens (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp'
+    }
+    $template = @'
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title = '__TITLE__'
+$dialog.Filter = '__FILTER__'
+$result = ''
+if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
+[System.IO.File]::WriteAllText('__OUT__', $result, (New-Object System.Text.UTF8Encoding($false)))
+'@
+    $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''"))
+    $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($code))
+    Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
+    $script:picks[$id] = @{ kind = $kind; out = $out; path = $null; done = $false; cover = $null }
+    return $id
+}
+
+# Reduz a imagem escolhida (no maximo 900 px no lado maior) e devolve JPEG em base64.
+function ConvertTo-CoverData([string]$path) {
+    Add-Type -AssemblyName System.Drawing
+    $image = [System.Drawing.Image]::FromFile($path)
+    try {
+        $scale = [Math]::Min(1.0, 900.0 / [Math]::Max($image.Width, $image.Height))
+        $w = [Math]::Max(1, [int]($image.Width * $scale))
+        $h = [Math]::Max(1, [int]($image.Height * $scale))
+        $bitmap = New-Object System.Drawing.Bitmap($w, $h)
+        try {
+            $g = [System.Drawing.Graphics]::FromImage($bitmap)
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.DrawImage($image, 0, 0, $w, $h)
+            $g.Dispose()
+            $stream = New-Object System.IO.MemoryStream
+            $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' } | Select-Object -First 1
+            $params = New-Object System.Drawing.Imaging.EncoderParameters(1)
+            $params.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [long]86)
+            $bitmap.Save($stream, $codec, $params)
+            return [Convert]::ToBase64String($stream.ToArray())
+        } finally { $bitmap.Dispose() }
+    } finally { $image.Dispose() }
+}
+
+# Consulta uma escolha de arquivo. status: pending, cancelled ou ok.
+function Get-PickResult([string]$id) {
+    if (-not $script:picks.ContainsKey($id)) { return @{ status = 'unknown' } }
+    $pick = $script:picks[$id]
+    if ($pick.done) { return @{ status = 'ok'; id = $id } }
+    if (-not (Test-Path -LiteralPath $pick.out)) { return @{ status = 'pending' } }
+    $chosen = ''
+    try { $chosen = [System.IO.File]::ReadAllText($pick.out, [System.Text.Encoding]::UTF8).Trim() } catch { return @{ status = 'pending' } }
+    Remove-Item -LiteralPath $pick.out -Force -ErrorAction SilentlyContinue
+    if (-not $chosen -or -not (Test-Path -LiteralPath $chosen)) {
+        $script:picks.Remove($id)
+        return @{ status = 'cancelled' }
+    }
+    if ($pick.kind -eq 'exe') {
+        if (-not $chosen.EndsWith('.exe', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $script:picks.Remove($id)
+            return @{ status = 'cancelled' }
+        }
+        $name = ''
+        try { $name = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($chosen).ProductName } catch { }
+        if (-not $name -or -not $name.Trim()) { $name = [System.IO.Path]::GetFileNameWithoutExtension($chosen) }
+        $pick.path = $chosen
+        $pick.done = $true
+        return @{ status = 'ok'; id = $id; name = $name.Trim() }
+    }
+    try {
+        $pick.cover = ConvertTo-CoverData $chosen
+    } catch {
+        $script:picks.Remove($id)
+        return @{ status = 'cancelled' }
+    }
+    $pick.done = $true
+    return @{ status = 'ok'; id = $id; cover = ('data:image/jpeg;base64,' + $pick.cover) }
+}
+
+function Get-CoverDataUrl([string]$gameId) {
+    $file = Join-Path $script:coversDir ("$gameId.jpg")
+    if (-not (Test-Path -LiteralPath $file)) { return $null }
+    try { return 'data:image/jpeg;base64,' + [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($file)) } catch { return $null }
+}
+
+# Lista para o site (sem o caminho do executavel).
+function Get-CustomGamesForSite {
+    $list = @()
+    foreach ($g in (Get-CustomGames)) {
+        $list += [pscustomobject]@{
+            id    = $g.id
+            name  = $g.name
+            added = [int64]$g.added
+            cover = (Get-CoverDataUrl $g.id)
+        }
+    }
+    return $list
+}
+
+# Cria ou atualiza um jogo. exePick/coverPick sao identificadores de escolhas feitas nas janelas acima.
+function Save-CustomGame($body) {
+    $name = ('' + $body.name).Trim()
+    if (-not $name -or $name.Length -gt 120) { return $null }
+    $games = @(Get-CustomGames)
+    $existing = $null
+    if ($body.id) { $existing = $games | Where-Object { $_.id -eq $body.id } | Select-Object -First 1 }
+    $exe = $null
+    if ($body.exePick -and $script:picks.ContainsKey($body.exePick) -and $script:picks[$body.exePick].kind -eq 'exe' -and $script:picks[$body.exePick].done) {
+        $exe = $script:picks[$body.exePick].path
+    }
+    if (-not $existing -and -not $exe) { return $null }
+    if ($existing) {
+        $id = $existing.id
+        $existing.name = $name
+        if ($exe) { $existing.exe = $exe }
+    } else {
+        $id = [guid]::NewGuid().ToString('N')
+        $games += [pscustomobject]@{ id = $id; name = $name; exe = $exe; added = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
+    }
+    if ($body.coverPick -and $script:picks.ContainsKey($body.coverPick) -and $script:picks[$body.coverPick].kind -eq 'image' -and $script:picks[$body.coverPick].done) {
+        New-Item -ItemType Directory -Force $script:coversDir | Out-Null
+        [System.IO.File]::WriteAllBytes((Join-Path $script:coversDir "$id.jpg"), [Convert]::FromBase64String($script:picks[$body.coverPick].cover))
+    }
+    Save-CustomGames $games
+    foreach ($key in @($body.exePick, $body.coverPick)) { if ($key -and $script:picks.ContainsKey($key)) { $script:picks.Remove($key) } }
+    return $id
+}
+
+function Remove-CustomGame([string]$id) {
+    $games = @(Get-CustomGames)
+    $kept = @($games | Where-Object { $_.id -ne $id })
+    if ($kept.Count -eq $games.Count) { return $false }
+    Save-CustomGames $kept
+    Remove-Item -LiteralPath (Join-Path $script:coversDir "$id.jpg") -Force -ErrorAction SilentlyContinue
+    return $true
+}
+
+function Find-CustomGame([string]$id) {
+    return (Get-CustomGames | Where-Object { $_.id -eq $id } | Select-Object -First 1)
+}
+
+# Abre o jogo na pasta dele.
+function Start-CustomGame([string]$id) {
+    $game = Find-CustomGame $id
+    if (-not $game) { return 'unknown-game' }
+    if (-not (Test-Path -LiteralPath $game.exe)) { return 'missing-file' }
+    Start-Process -FilePath $game.exe -WorkingDirectory (Split-Path -Parent $game.exe)
+    return 'ok'
+}
+
+# Ids dos jogos de fora da Steam que estao rodando (pelo nome do processo).
+function Get-RunningCustomIds {
+    $ids = @()
+    foreach ($g in (Get-CustomGames)) {
+        $name = [System.IO.Path]::GetFileNameWithoutExtension($g.exe)
+        if (-not $name) { continue }
+        $procs = [System.Diagnostics.Process]::GetProcessesByName($name)
+        if ($procs.Count -gt 0) { $ids += [string]$g.id }
+        foreach ($p in $procs) { $p.Dispose() }
+    }
+    return $ids
+}
+
+# Encerra o jogo: o processo do executavel e, se a pasta dele for propria do jogo, os que rodam de dentro dela.
+# Pastas comuns (Desktop, Downloads, raiz do disco...) nao entram, para nao fechar outros programas.
+function Stop-CustomGame([string]$id) {
+    $game = Find-CustomGame $id
+    if (-not $game) { return 'unknown-game' }
+    $targets = New-Object System.Collections.ArrayList
+    foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
+        $exe = $null
+        try { $exe = $p.Path } catch { }
+        if ($exe -and ($exe -ieq $game.exe)) { [void]$targets.Add($p) }
+    }
+    $folder = (Split-Path -Parent $game.exe).TrimEnd('\')
+    $leaf = Split-Path -Leaf $folder
+    $shared = @('Desktop', 'Downloads', 'Documents', 'Program Files', 'Program Files (x86)', 'Users', 'Windows')
+    if ($folder -notmatch '^[A-Za-z]:$' -and ($shared -notcontains $leaf)) {
+        foreach ($p in (Find-ProcessesUnder ($folder + '\'))) {
+            $already = $false
+            foreach ($t in $targets) { if ($t.Id -eq $p.Id) { $already = $true } }
+            if (-not $already) { [void]$targets.Add($p) }
+        }
+    }
+    return (Stop-ProcessList $targets)
 }
 
 function Send-Json($response, [int]$code, $body) {
@@ -268,7 +506,8 @@ function Handle-Request($context) {
         $steamState = Get-SteamState
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 5; steam = $steamState; game = $game }
+        $custom = @(Get-RunningCustomIds)
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 6; steam = $steamState; game = $game; custom = $custom }
         return
     }
 
@@ -281,6 +520,73 @@ function Handle-Request($context) {
     # Estado das atualizacoes (lido dos manifestos): so para o seu site.
     if ($method -eq 'GET' -and $origin -and $path -eq '/updates') {
         Send-Json $response 200 @{ games = @(Get-GameUpdates) }
+        return
+    }
+
+    # Jogos de fora da Steam: lista e escolhas de arquivo (so para o seu site).
+    if ($method -eq 'GET' -and $origin -and $path -eq '/custom-games') {
+        Send-Json $response 200 @{ games = @(Get-CustomGamesForSite) }
+        return
+    }
+
+    if ($method -eq 'POST' -and $origin -and $path -eq '/pick') {
+        $kind = $request.QueryString['kind']
+        if ($kind -ne 'exe' -and $kind -ne 'image') {
+            Send-Json $response 400 @{ error = 'kind' }
+            return
+        }
+        Send-Json $response 202 @{ id = (Start-Pick $kind) }
+        return
+    }
+
+    if ($method -eq 'GET' -and $origin -and $path -eq '/pick-result') {
+        $pickId = $request.QueryString['id']
+        if ($pickId -notmatch '^[0-9a-f]{32}$') {
+            Send-Json $response 400 @{ error = 'id' }
+            return
+        }
+        Send-Json $response 200 (Get-PickResult $pickId)
+        return
+    }
+
+    # Cria ou atualiza um jogo: {name, exePick, coverPick, id?}. O caminho vem da escolha, nunca do site.
+    if ($method -eq 'POST' -and $origin -and $path -eq '/custom-games') {
+        if ($request.ContentLength64 -gt 4096) {
+            Send-Json $response 413 @{ error = 'too-large' }
+            return
+        }
+        $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+        $body = $null
+        try { $body = $reader.ReadToEnd() | ConvertFrom-Json } catch { }
+        if (-not $body) {
+            Send-Json $response 400 @{ error = 'body' }
+            return
+        }
+        $savedId = Save-CustomGame $body
+        if ($savedId) {
+            Send-Json $response 200 @{ ok = $true; id = $savedId }
+        } else {
+            Send-Json $response 400 @{ error = 'invalid' }
+        }
+        return
+    }
+
+    if ($method -eq 'POST' -and $origin -and ($path -eq '/custom-games/remove' -or $path -eq '/launch-custom' -or $path -eq '/stop-custom')) {
+        $gameId = $request.QueryString['id']
+        if ($gameId -notmatch '^[0-9a-f]{32}$') {
+            Send-Json $response 400 @{ error = 'id' }
+            return
+        }
+        if ($path -eq '/custom-games/remove') {
+            if (Remove-CustomGame $gameId) { Send-Json $response 200 @{ ok = $true } } else { Send-Json $response 404 @{ error = 'unknown-game' } }
+            return
+        }
+        if ($path -eq '/launch-custom') { $outcome = Start-CustomGame $gameId } else { $outcome = Stop-CustomGame $gameId }
+        if ($outcome -eq 'ok') {
+            Send-Json $response 202 @{ ok = $true }
+        } else {
+            Send-Json $response 404 @{ error = $outcome }
+        }
         return
     }
 

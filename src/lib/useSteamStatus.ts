@@ -58,6 +58,8 @@ export function useSteamStatus(accountAvailable: boolean) {
   const [hint, setHint] = useState<boolean>(() => readHelperHint());
   // Jogo em execução: AppID (0 = nenhum). null = sem helper, ou helper antigo que não informa.
   const [runningGame, setRunningGame] = useState<number | null>(null);
+  // Jogos de fora da Steam em execução (ids); null = sem helper, ou helper antigo que não informa.
+  const [customRunning, setCustomRunning] = useState<string[] | null>(null);
 
   const helperOnline = useRef(false);
   const accountRef = useRef(accountAvailable);
@@ -124,6 +126,7 @@ export function useSteamStatus(accountAvailable: boolean) {
         setHelper('online');
         setSource('helper');
         setRunningGame(status ? status.game : null);
+        setCustomRunning(status ? status.custom : null);
         apply(fromHelper);
         schedule(Date.now() < fastUntil.current ? POLL_FAST_MS : POLL_NORMAL_MS);
         return;
@@ -132,6 +135,7 @@ export function useSteamStatus(accountAvailable: boolean) {
       helperOnline.current = false;
       setHelper('offline');
       setRunningGame(null);
+      setCustomRunning(null);
 
       if (accountRef.current) {
         const fromAccount = await fetchPresence();
@@ -265,6 +269,7 @@ export function useSteamStatus(accountAvailable: boolean) {
     access,
     hint,
     runningGame,
+    customRunning,
     open,
     stop,
     refresh,
