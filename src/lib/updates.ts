@@ -28,9 +28,17 @@ export function isInProgress(update: HelperGameUpdate): boolean {
   return (update.stateFlags & (FLAG_UPDATE_RUNNING | FLAG_UPDATE_STARTED)) !== 0;
 }
 
+// Além dos bits de StateFlags, vale o que dá para ver: bytes andando entre uma leitura e outra, ou um
+// download pela metade. Assim a verificação de arquivos e outros estados da Steam também aparecem.
+function hasActivity(update: HelperGameUpdate, speed: number): boolean {
+  if (speed > 0) return true;
+  return update.bytesToDownload > 0 && update.bytesDownloaded > 0 && update.bytesDownloaded < update.bytesToDownload;
+}
+
 // Só os jogos com algo a fazer, já com o andamento calculado.
 export function toItem(update: HelperGameUpdate, speed: number): UpdateItem {
-  const inProgress = isInProgress(update);
+  const pendingNow = isPending(update);
+  const inProgress = isInProgress(update) || (pendingNow && hasActivity(update, speed));
   const pending = isPending(update) || inProgress;
   const isInstall = update.buildId === 0 && !(update.stateFlags & FLAG_FULLY_INSTALLED);
 

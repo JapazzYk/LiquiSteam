@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { ArrowLeft, Check, CheckCircle2, Copy, Download, ExternalLink, Loader2, PackageCheck, RefreshCw } from 'lucide-react';
 import { headerImageUrl } from '@/lib/steamLibrary';
@@ -159,7 +159,7 @@ export default function UpdatesView({ updates, helper, steamStatus, onOpenSteam,
                     item={item}
                     requestedAt={requested[item.appid]}
                     onUpdate={() => void updates.update(item.appid)}
-                    onValidate={() => void updates.update(item.appid, 'validate')}
+                    onAlternate={() => void updates.update(item.appid, item.isInstall ? 'validate' : 'install')}
                     onOpenDownloads={openDownloads}
                   />
                 ))}
@@ -281,16 +281,24 @@ function AvailableRow({
   item,
   requestedAt,
   onUpdate,
-  onValidate,
+  onAlternate,
   onOpenDownloads,
 }: {
   item: UpdateItem;
   requestedAt: number | undefined;
   onUpdate: () => void;
-  onValidate: () => void;
+  onAlternate: () => void;
   onOpenDownloads: () => void;
 }) {
   const requested = requestedAt !== undefined;
+  // Garante uma nova renderização quando o tempo de espera acaba, mesmo sem novas leituras.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (requestedAt === undefined) return;
+    const wait = Math.max(0, STUCK_MS - (Date.now() - requestedAt)) + 150;
+    const timer = window.setTimeout(() => setTick((n: number) => n + 1), wait);
+    return () => window.clearTimeout(timer);
+  }, [requestedAt]);
   // Pedido feito e a Steam ainda não começou: oferece outros caminhos.
   const stuck = requested && Date.now() - requestedAt > STUCK_MS;
   const sizeLabel = item.bytesToDownload > 0 ? formatSize(item.bytesToDownload) : null;
@@ -318,15 +326,25 @@ function AvailableRow({
           {requested && !stuck ? 'Pedido enviado' : 'Atualizar'}
         </button>
       </div>
+      {requested && !stuck && (
+        <p className="mt-3 text-xs leading-relaxed text-white/50">
+          Pedido enviado. A Steam confere os arquivos do jogo antes de começar a baixar; isso pode levar alguns
+          segundos.
+        </p>
+      )}
       {stuck && (
         <p className="mt-3 text-xs leading-relaxed text-white/55">
-          A Steam ainda não começou. Ela pode estar pedindo confirmação numa janela, ou com a fila ocupada.{' '}
+          A Steam ainda não começou. Ela pode estar com a fila ocupada ou pedindo confirmação numa janela.{' '}
+          <button type="button" onClick={onUpdate} className="underline underline-offset-2 hover:text-white">
+            Tentar de novo
+          </button>
+          ,{' '}
           <button type="button" onClick={onOpenDownloads} className="underline underline-offset-2 hover:text-white">
-            Abrir downloads da Steam
+            abrir os downloads da Steam
           </button>{' '}
           ou{' '}
-          <button type="button" onClick={onValidate} className="underline underline-offset-2 hover:text-white">
-            verificar os arquivos do jogo
+          <button type="button" onClick={onAlternate} className="underline underline-offset-2 hover:text-white">
+            {item.isInstall ? 'verificar os arquivos' : 'tentar pelo atalho de instalação'}
           </button>
           .
         </p>

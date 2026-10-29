@@ -167,7 +167,11 @@ export function useUpdates({ helperOnline, active }: UseUpdatesOptions) {
   const refresh = useCallback(() => tickRef.current(), []);
 
   // Pede à Steam para atualizar. Sem o helper (ou se ele falhar), cai no atalho steam:// do navegador.
-  const update = useCallback(async (appid: number, mode: 'install' | 'validate' = 'install') => {
+  // Atualização de jogo instalado usa "validate" (a Steam compara com a versão nova e baixa o que mudou);
+  // "install" só serve para instalação nova, e num jogo já instalado a Steam costuma não fazer nada.
+  const update = useCallback(async (appid: number, forcedMode?: 'install' | 'validate') => {
+    const target = itemsRef.current.find((item: UpdateItem) => item.appid === appid);
+    const mode = forcedMode ?? (target?.isInstall ? 'install' : 'validate');
     setRequested((current: Record<number, number>) => ({ ...current, [appid]: Date.now() }));
     boostUntil.current = Date.now() + BOOST_MS;
     const ok = await helperUpdateGame(appid, mode);
