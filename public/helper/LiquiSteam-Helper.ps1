@@ -57,6 +57,7 @@ public delegate bool EnumProc(IntPtr h, IntPtr l);
 [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
 [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h, int cmd);
+[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 public static int HideWindows(int[] pids) {
     HashSet<uint> set = new HashSet<uint>();
     foreach (int id in pids) { set.Add((uint)id); }
@@ -277,8 +278,13 @@ function Start-Pick([string]$kind) {
         $title = 'Escolha a imagem da capa'
         $filter = 'Imagens (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp'
     }
+    # A janela que esta na frente agora e o navegador, onde voce acabou de clicar. A janela de escolha
+    # fica "filha" dela: o Windows sempre mostra uma janela filha por cima da janela dona.
+    $ownerHandle = [int64]0
+    try { $ownerHandle = ([LiquiSteam.Win]::GetForegroundWindow()).ToInt64() } catch { }
     $template = @'
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition 'using System; using System.Windows.Forms; public class HwndOwner : IWin32Window { IntPtr h; public HwndOwner(IntPtr hwnd) { h = hwnd; } public IntPtr Handle { get { return h; } } }'
 Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra); [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string cls, string title); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags);'
 $script:pickTitle = '__TITLE__'
 $script:pickTries = 0
@@ -315,12 +321,16 @@ $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '__TITLE__'
 $dialog.Filter = '__FILTER__'
 $result = ''
-if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
+# Dona da janela: o navegador (se for possivel); senao, a janelinha invisivel acima.
+$dialogOwner = $owner
+$browser = [int64]__OWNER__
+if ($browser -ne 0) { $dialogOwner = New-Object HwndOwner ([System.IntPtr]::new($browser)) }
+if ($dialog.ShowDialog($dialogOwner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
 $timer.Stop()
 $owner.Close()
 [System.IO.File]::WriteAllText('__OUT__', $result, (New-Object System.Text.UTF8Encoding($false)))
 '@
-    $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''"))
+    $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''")).Replace('__OWNER__', [string]$ownerHandle)
     $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($code))
     Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
     $script:picks[$id] = @{ kind = $kind; out = $out; path = $null; done = $false; cover = $null }
