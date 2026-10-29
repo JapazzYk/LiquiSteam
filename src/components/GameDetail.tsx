@@ -54,6 +54,28 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+// Estilo de transição escolhido no painel de aparência. "theme" mantém a abertura própria de cada tema
+// (o painel nasce da capa clicada); os outros estilos usam o mesmo movimento do resto do site.
+type MotionStyle = 'theme' | 'rise' | 'slide' | 'zoom' | 'fade' | 'none';
+
+function motionStyle(): MotionStyle {
+  return (document.documentElement.dataset.motion as MotionStyle | undefined) ?? 'theme';
+}
+
+const STYLE_HIDDEN: Record<'rise' | 'slide' | 'zoom' | 'fade', Keyframe> = {
+  rise: { opacity: 0, transform: 'translateY(24px)' },
+  slide: { opacity: 0, transform: 'translateX(40px)' },
+  zoom: { opacity: 0, transform: 'scale(0.94)' },
+  fade: { opacity: 0 },
+};
+const STYLE_SHOWN: Keyframe = { opacity: 1, transform: 'none' };
+const STYLE_EXIT: Record<'rise' | 'slide' | 'zoom' | 'fade', Keyframe> = {
+  rise: { opacity: 0, transform: 'translateY(-14px)' },
+  slide: { opacity: 0, transform: 'translateX(-28px)' },
+  zoom: { opacity: 0, transform: 'scale(1.04)' },
+  fade: { opacity: 0 },
+};
+
 function openMotion() {
   const skin = document.documentElement.dataset.skin ?? 'liquid';
   return OPEN_MOTION[skin] ?? OPEN_MOTION.liquid;
@@ -169,6 +191,18 @@ export default function GameDetail({
     const backdrop = backdropRef.current;
     if (!panel || !backdrop || prefersReducedMotion()) return;
 
+    const style = motionStyle();
+    if (style === 'none') return;
+    if (style !== 'theme') {
+      panel.animate([STYLE_HIDDEN[style], STYLE_SHOWN], {
+        duration: 480,
+        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        fill: 'backwards',
+      });
+      backdrop.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 340, easing: 'ease-out', fill: 'backwards' });
+      return;
+    }
+
     const motion = openMotion();
     const target = panel.getBoundingClientRect();
     const start = startShape(originRef.current, target);
@@ -195,8 +229,23 @@ export default function GameDetail({
 
     const panel = scrollRef.current;
     const backdrop = backdropRef.current;
-    if (!panel || !backdrop || prefersReducedMotion()) {
+    const style = motionStyle();
+    if (!panel || !backdrop || prefersReducedMotion() || style === 'none') {
       onCloseRef.current();
+      return;
+    }
+
+    if (style !== 'theme') {
+      const leaving = panel.animate([STYLE_SHOWN, STYLE_EXIT[style]], {
+        duration: 240,
+        easing: 'ease-in',
+        fill: 'forwards',
+      });
+      backdrop.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-in', fill: 'forwards' });
+      leaving.finished.then(
+        () => onCloseRef.current(),
+        () => onCloseRef.current()
+      );
       return;
     }
 
@@ -364,7 +413,7 @@ export default function GameDetail({
             </TabButton>
           </div>
 
-          <div key={tab} className="detail-fade">
+          <div key={tab} className="fx-in">
           {tab === 'overview' && (
             <OverviewTab
               game={game}

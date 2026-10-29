@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { usePresence } from '@/lib/motion';
 
 // When the service worker detects a new deploy, it activates and posts
 // { type: 'SW_UPDATED' } to all clients. We surface a small toast that lets
@@ -7,6 +8,7 @@ import { RefreshCw, X } from 'lucide-react';
 // updates automatic without uninstalling/reinstalling.
 export default function UpdateToast() {
   const [visible, setVisible] = useState(false);
+  const presence = usePresence(visible);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -35,13 +37,13 @@ export default function UpdateToast() {
     return () => navigator.serviceWorker.removeEventListener('message', onMessage);
   }, []);
 
-  if (!visible) return null;
+  if (!presence.mounted) return null;
 
   const reload = () => window.location.reload();
 
   return (
     <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2 px-4">
-      <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-[rgba(var(--accent-rgb),0.35)] bg-surface/95 px-5 py-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+      <div className={`${presence.closing ? 'fx-out' : 'fx-in'} pointer-events-auto flex items-center gap-3 rounded-full border border-[rgba(var(--accent-rgb),0.35)] bg-surface/95 px-5 py-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl`}>
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full theme-accent-surface">
           <RefreshCw className="h-4 w-4 theme-accent" />
         </div>

@@ -32,7 +32,7 @@ import { getSkin } from '@/lib/skins';
 import type { OpenOrigin } from '@/lib/openOrigin';
 import type { SteamUser, InstalledGame, View } from '@/types';
 
-// Duração da saída ao trocar de tela (mesmo valor de .view-leave no index.css).
+// Duração da saída ao trocar de tela (mesmo valor de .fx-out no index.css).
 const VIEW_LEAVE_MS = 180;
 
 export default function App() {
@@ -297,19 +297,19 @@ export default function App() {
           </a>
 
           {view === 'library' && (
-            <div className="view-enter-soft min-w-0 flex-1 md:px-4">
+            <div className="fx-soft min-w-0 flex-1 md:px-4">
               <SearchBar value={query} onChange={setQuery} />
             </div>
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {view === 'library' && (
-              <div className="view-enter-soft hidden lg:block">
+              <div className="fx-soft hidden lg:block">
                 <LayoutSwitch value={theme.layout} onChange={(layout) => updateTheme({ ...theme, layout })} />
               </div>
             )}
             {view === 'library' && (
-              <div className="view-enter-soft hidden items-center gap-2 md:flex">
+              <div className="fx-soft hidden items-center gap-2 md:flex">
                 <OpenSteamButton status={steamStatus} source={steamSource} onOpen={openSteam} onStop={stopSteam} />
                 {steamHelper !== 'checking' && (
                   <HelperInstall
@@ -328,7 +328,7 @@ export default function App() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={loading}
-                className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
+                className="fx-soft grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
                 aria-label="Atualizar biblioteca"
                 title="Atualizar biblioteca"
               >
@@ -369,7 +369,7 @@ export default function App() {
       </header>
 
       {accountError && (
-        <div className="px-4 pt-4 sm:px-6 md:px-10">
+        <div className="fx-in px-4 pt-4 sm:px-6 md:px-10">
           <p role="alert" className="mx-auto max-w-[1400px] text-sm text-bad">
             {accountError}
           </p>
@@ -377,7 +377,7 @@ export default function App() {
       )}
 
       <main className="px-4 pb-16 pt-6 sm:px-6 md:px-10 md:pt-8">
-        <div key={view} className={leaving ? 'view-leave' : view === 'account' ? 'view-enter' : 'view-enter-soft'}>
+        <div key={view} className={leaving ? 'fx-out' : 'fx-soft'}>
           {view === 'account' ? (
             <AccountPanel
               user={user}
@@ -392,7 +392,7 @@ export default function App() {
           ) : (
             <div className="mx-auto max-w-[1400px]">
               {usingDemo && (
-                <p className="notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
+                <p className="fx-in notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
                   Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e adicione as
                   pastas steamapps (ou instale o Helper, que acha tudo sozinho) na{' '}
                   <button
@@ -462,7 +462,7 @@ function EmptyLibrary({
 }) {
   const searching = query.trim().length > 0;
   return (
-    <div className="flex flex-col items-center py-24 text-center">
+    <div className="fx-in flex flex-col items-center py-24 text-center">
       <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/40">
         {searching ? <SearchX className="h-6 w-6" /> : <FolderOpen className="h-6 w-6" />}
       </div>

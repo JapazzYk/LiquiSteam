@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, MonitorCheck, MonitorDown, ShieldAlert, Trash2, X } from 'lucide-react';
+import { usePresence } from '@/lib/motion';
 import { helperUninstall, type HelperAccess, type HelperAccessResult } from '@/lib/steamHelper';
 
 // Instalar e desinstalar o LiquiSteam Helper (Windows), ao lado do botão da Steam.
@@ -33,6 +34,7 @@ export default function HelperInstall({
   onForget,
 }: HelperInstallProps) {
   const [open, setOpen] = useState(false);
+  const pop = usePresence(open);
   const [asking, setAsking] = useState(false);
   const [lastResult, setLastResult] = useState<HelperAccessResult | null>(null);
   const [copiedInstall, setCopiedInstall] = useState(false); // já copiou o comando nesta visita
@@ -176,11 +178,11 @@ export default function HelperInstall({
         </span>
       </button>
 
-      {open && (
+      {pop.mounted && (
         <div
           role="dialog"
           aria-label="LiquiSteam Helper"
-          className="install-pop absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-32px))] rounded-2xl border p-4"
+          className={`${pop.closing ? 'fx-out' : 'fx-in'} install-pop absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-32px))] rounded-2xl border p-4`}
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">

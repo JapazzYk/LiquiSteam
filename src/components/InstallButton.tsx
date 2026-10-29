@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, X } from 'lucide-react';
+import { usePresence } from '@/lib/motion';
 import {
   onInstallPromptChange,
   triggerInstall,
@@ -16,6 +17,7 @@ export default function InstallButton() {
   const [installed, setInstalled] = useState(() => isStandalone());
   const [busy, setBusy] = useState(false);
   const [help, setHelp] = useState(false);
+  const helpPop = usePresence(help);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => onInstallPromptChange(setPrompt), []);
@@ -79,11 +81,11 @@ export default function InstallButton() {
         <span className="hidden md:inline">{busy ? 'Instalando…' : 'Instalar app'}</span>
       </button>
 
-      {help && (
+      {helpPop.mounted && (
         <div
           role="dialog"
           aria-label="Como instalar o LiquiSteam"
-          className="install-pop absolute right-0 top-full z-40 mt-3 w-[min(320px,calc(100vw-32px))] rounded-2xl border p-4"
+          className={`${helpPop.closing ? 'fx-out' : 'fx-in'} install-pop absolute right-0 top-full z-40 mt-3 w-[min(320px,calc(100vw-32px))] rounded-2xl border p-4`}
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">Instalar o LiquiSteam</p>

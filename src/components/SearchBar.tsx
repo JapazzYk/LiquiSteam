@@ -21,7 +21,7 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
         <button
           type="button"
           onClick={() => onChange('')}
-          className="ml-2 grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+          className="fx-soft ml-2 grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
           aria-label="Limpar busca"
         >
           <X className="h-4 w-4" />

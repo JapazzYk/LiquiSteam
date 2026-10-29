@@ -1035,33 +1035,46 @@ body {
 
 /* Troca de tela (biblioteca, conta, login): a tela que sai some rápido e a nova chega do
    jeito do tema, com os mesmos movimentos e tempos da entrada dos cartões. */
-.view-enter {
+.fx-in,
+.fx-stack > * {
   animation: card-in-liquid 0.6s var(--ease-out) var(--d, 0ms) backwards;
 }
 
-[data-skin='steam'] .view-enter {
+[data-skin='steam'] .fx-in,
+[data-skin='steam'] .fx-stack > * {
   animation-name: card-in-steam;
   animation-duration: 0.35s;
 }
 
-[data-skin='paper'] .view-enter {
+[data-skin='paper'] .fx-in,
+[data-skin='paper'] .fx-stack > * {
   animation-name: card-in-paper;
   animation-duration: 0.7s;
 }
 
-[data-skin='arcade'] .view-enter {
+[data-skin='arcade'] .fx-in,
+[data-skin='arcade'] .fx-stack > * {
   animation-name: card-in-arcade;
   animation-duration: 0.7s;
   animation-timing-function: linear;
 }
 
-[data-skin='graphite'] .view-enter {
+[data-skin='graphite'] .fx-in,
+[data-skin='graphite'] .fx-stack > * {
   animation-name: card-in-graphite;
   animation-duration: 0.5s;
 }
 
+/* Pilha de blocos (ex.: cartões da conta): cada filho entra um pouco depois do anterior. */
+.fx-stack > :nth-child(2) { --d: 70ms; }
+.fx-stack > :nth-child(3) { --d: 140ms; }
+.fx-stack > :nth-child(4) { --d: 210ms; }
+.fx-stack > :nth-child(5) { --d: 280ms; }
+.fx-stack > :nth-child(6) { --d: 350ms; }
+.fx-stack > :nth-child(n + 7) { --d: 420ms; }
+
 /* Versão só de opacidade: a biblioteca já tem a entrada própria dos cartões. */
-.view-enter-soft {
+.fx-soft {
   animation: view-fade 0.3s ease backwards;
 }
 
@@ -1072,25 +1085,25 @@ body {
 }
 
 /* Saída: 0.18s (VIEW_LEAVE_MS no App.tsx). */
-.view-leave {
+.fx-out {
   animation: view-out-liquid 0.18s ease-in forwards;
   pointer-events: none;
 }
 
-[data-skin='steam'] .view-leave {
+[data-skin='steam'] .fx-out {
   animation-name: view-out-steam;
 }
 
-[data-skin='paper'] .view-leave {
+[data-skin='paper'] .fx-out {
   animation-name: view-out-paper;
 }
 
-[data-skin='arcade'] .view-leave {
+[data-skin='arcade'] .fx-out {
   animation-name: view-out-arcade;
   animation-timing-function: steps(3);
 }
 
-[data-skin='graphite'] .view-leave {
+[data-skin='graphite'] .fx-out {
   animation-name: view-out-graphite;
 }
 
@@ -1369,7 +1382,6 @@ body {
   border-color: rgba(var(--accent-rgb), 0.35);
   background: rgb(var(--surface));
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-  animation: detail-fade 0.25s ease backwards;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1446,14 +1458,21 @@ body {
   .detail-rise,
   .detail-fade,
   .detail-hero img,
-  .view-enter,
-  .view-enter-soft,
-  .view-leave,
+  .fx-in,
+  .fx-stack > *,
+  .fx-soft,
+  .fx-out,
   .featured-banner,
   .featured-art,
   .panel-backdrop,
   .panel-aside,
   .ambient-orb,
+  .ambient-dot,
+  .steam-fog,
+  .steam-mote,
+  .liquid-bubble,
+  .graphite-sheen,
+  .graphite-glow,
   .install-pop {
     animation: none !important;
   }
@@ -1681,60 +1700,62 @@ body {
   }
 }
 
-[data-motion='rise'] :is(.view-enter, .game-card-wrap, .game-row-wrap, .featured-banner) {
+[data-motion='rise'] :is(.fx-in, .fx-stack > *, .game-card-wrap, .game-row-wrap, .featured-banner) {
   animation-name: m-enter-rise;
   animation-duration: 0.55s;
   animation-timing-function: var(--ease-out);
 }
 
-[data-motion='slide'] :is(.view-enter, .game-card-wrap, .game-row-wrap, .featured-banner) {
+[data-motion='slide'] :is(.fx-in, .fx-stack > *, .game-card-wrap, .game-row-wrap, .featured-banner) {
   animation-name: m-enter-slide;
   animation-duration: 0.55s;
   animation-timing-function: var(--ease-out);
 }
 
-[data-motion='zoom'] :is(.view-enter, .game-card-wrap, .game-row-wrap, .featured-banner) {
+[data-motion='zoom'] :is(.fx-in, .fx-stack > *, .game-card-wrap, .game-row-wrap, .featured-banner) {
   animation-name: m-enter-zoom;
   animation-duration: 0.5s;
   animation-timing-function: var(--ease-out);
 }
 
-[data-motion='fade'] :is(.view-enter, .game-card-wrap, .game-row-wrap, .featured-banner) {
+[data-motion='fade'] :is(.fx-in, .fx-stack > *, .game-card-wrap, .game-row-wrap, .featured-banner) {
   animation-name: m-enter-fade;
   animation-duration: 0.45s;
   animation-timing-function: ease;
 }
 
-[data-motion='rise'] .view-leave {
+[data-motion='rise'] .fx-out {
   animation-name: m-leave-rise;
   animation-timing-function: ease-in;
 }
 
-[data-motion='slide'] .view-leave {
+[data-motion='slide'] .fx-out {
   animation-name: m-leave-slide;
   animation-timing-function: ease-in;
 }
 
-[data-motion='zoom'] .view-leave {
+[data-motion='zoom'] .fx-out {
   animation-name: m-leave-zoom;
   animation-timing-function: ease-in;
 }
 
-[data-motion='fade'] .view-leave {
+[data-motion='fade'] .fx-out {
   animation-name: m-leave-fade;
   animation-timing-function: ease-in;
 }
 
 [data-motion='none'] :is(
-    .view-enter,
-    .view-enter-soft,
-    .view-leave,
+    .fx-in,
+    .fx-stack > *,
+    .fx-soft,
+    .fx-out,
     .game-card-wrap,
     .game-row-wrap,
     .featured-banner,
     .featured-art,
     .detail-rise,
     .detail-fade,
+    .detail-hero img,
     .panel-backdrop,
     .panel-aside,
     .install-pop
@@ -1784,28 +1805,6 @@ body {
   background: radial-gradient(circle, rgba(var(--accent-rgb), 0.07), transparent 66%);
 }
 
-/* Minimalista claro: manchas pastel que flutuam sobre o papel pontilhado. */
-.ambient-paper .ambient-orb-a {
-  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.16), transparent 66%);
-}
-.ambient-paper .ambient-orb-b {
-  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.1), transparent 66%);
-}
-.ambient-paper .ambient-orb-c {
-  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.12), transparent 66%);
-}
-
-/* Grafite: um brilho cinza quase imperceptível que varre o preto. */
-.ambient-graphite .ambient-orb-a {
-  background: radial-gradient(circle, rgb(255 255 255 / 0.08), transparent 64%);
-}
-.ambient-graphite .ambient-orb-b {
-  background: radial-gradient(circle, rgb(255 255 255 / 0.06), transparent 64%);
-}
-.ambient-graphite .ambient-orb-c {
-  display: none;
-}
-
 @keyframes orb-drift-a {
   to {
     transform: translate3d(16vw, 12vh, 0) scale(1.15);
@@ -1824,8 +1823,185 @@ body {
   }
 }
 
-[data-ambient='off'] .ambient-orb,
-[data-ambient='off'] .arcade-stars,
-[data-ambient='off'] .arcade-grid {
+[data-ambient='off'] :is(
+    .ambient-orb,
+    .arcade-stars,
+    .arcade-grid,
+    .ambient-dot,
+    .steam-fog,
+    .steam-mote,
+    .liquid-bubble,
+    .graphite-sheen,
+    .graphite-glow
+  ) {
   animation-play-state: paused !important;
+}
+
+/* Minimalista claro: pontinhos cinzas que acendem e apagam sozinhos, bem discretos. */
+.ambient-dot {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: rgb(var(--ink) / 0.55);
+  opacity: 0;
+  animation: dot-blink var(--t) ease-in-out var(--dl) infinite;
+}
+
+@keyframes dot-blink {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: var(--peak, 0.3);
+    transform: scale(1);
+  }
+}
+
+/* Steam escuro: vapor. Névoa azulada que desliza e fagulhas que sobem. */
+.steam-fog {
+  position: absolute;
+  left: -30vw;
+  width: 160vw;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.steam-fog-a {
+  top: 12vh;
+  height: 34vh;
+  background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.1), transparent 68%);
+  animation: fog-drift-a 46s ease-in-out infinite alternate;
+}
+
+.steam-fog-b {
+  bottom: -6vh;
+  height: 42vh;
+  background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.07), transparent 68%);
+  animation: fog-drift-b 62s ease-in-out infinite alternate;
+}
+
+@keyframes fog-drift-a {
+  to {
+    transform: translate3d(18vw, 0, 0);
+  }
+}
+
+@keyframes fog-drift-b {
+  to {
+    transform: translate3d(-18vw, -3vh, 0);
+  }
+}
+
+.steam-mote {
+  position: absolute;
+  left: var(--x);
+  bottom: -12px;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: rgba(var(--accent-rgb), 0.9);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.7);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: mote-rise var(--t) linear var(--dl) infinite;
+}
+
+@keyframes mote-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    opacity: 0.65;
+  }
+  85% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), -105vh, 0);
+  }
+}
+
+/* Liquid Glass: bolhas de vidro que sobem devagar sobre as luzes. */
+.liquid-bubble {
+  position: absolute;
+  left: var(--x);
+  bottom: -60px;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  background: radial-gradient(circle at 30% 28%, rgb(255 255 255 / 0.28), rgb(255 255 255 / 0.04) 45%, transparent 70%);
+  box-shadow: inset 0 0 8px rgb(255 255 255 / 0.08);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: bubble-rise var(--t) ease-in var(--dl) infinite;
+}
+
+@keyframes bubble-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), -112vh, 0);
+  }
+}
+
+/* Grafite: um facho de luz atravessa o preto de tempos em tempos e um brilho respira embaixo. */
+.graphite-sheen {
+  position: absolute;
+  top: -20%;
+  left: -50%;
+  width: 36%;
+  height: 140%;
+  background: linear-gradient(100deg, transparent 0%, rgb(255 255 255 / 0.06) 50%, transparent 100%);
+  transform: skewX(-14deg);
+  will-change: transform;
+  animation: sheen-sweep 16s ease-in-out infinite;
+}
+
+@keyframes sheen-sweep {
+  0% {
+    transform: translate3d(0, 0, 0) skewX(-14deg);
+  }
+  55%,
+  100% {
+    transform: translate3d(420%, 0, 0) skewX(-14deg);
+  }
+}
+
+.graphite-glow {
+  position: absolute;
+  left: 50%;
+  bottom: -30vh;
+  width: 90vw;
+  height: 60vh;
+  margin-left: -45vw;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgb(255 255 255 / 0.07), transparent 65%);
+  animation: glow-breathe 9s ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
