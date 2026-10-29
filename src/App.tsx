@@ -12,6 +12,7 @@ import UpdateToast from '@/components/UpdateToast';
 import CustomizationPanel from '@/components/CustomizationPanel';
 import CursorGlow from '@/components/CursorGlow';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import SiteFooter from '@/components/SiteFooter';
 import LibraryView from '@/components/LibraryView';
 import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
@@ -302,7 +303,7 @@ export default function App() {
   const visible = search ? source.filter((g) => g.name.toLowerCase().includes(search)) : source;
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden font-sans text-white" style={rootStyle}>
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
       {skin.glow && theme.glowIntensity > 0 && <CursorGlow />}
 
@@ -415,7 +416,7 @@ export default function App() {
         </div>
       )}
 
-      <main className="px-4 pb-16 pt-6 sm:px-6 md:px-10 md:pt-8">
+      <main className="flex-1 px-4 pb-10 pt-6 sm:px-6 md:px-10 md:pt-8">
         <div key={view} className={leaving ? 'fx-out' : 'fx-soft'}>
           {view === 'account' ? (
             <AccountPanel
@@ -464,6 +465,8 @@ export default function App() {
           )}
         </div>
       </main>
+
+      <SiteFooter />
 
       {welcome.mounted && (
         <WelcomeScreen
