@@ -279,13 +279,27 @@ function Start-Pick([string]$kind) {
     }
     $template = @'
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra);'
 $owner = New-Object System.Windows.Forms.Form
 $owner.TopMost = $true
+$owner.ShowInTaskbar = $false
+$owner.Opacity = 0
+$owner.Width = 1
+$owner.Height = 1
+$owner.StartPosition = 'CenterScreen'
+$owner.Show()
+# O Windows nao deixa um programa em segundo plano passar na frente do navegador. Apertar e soltar a tecla
+# Alt solta esse bloqueio, e so entao a janela e trazida para a frente.
+[LiquiSteam.Front]::keybd_event(0x12, 0, 0, [System.UIntPtr]::Zero)
+[void][LiquiSteam.Front]::SetForegroundWindow($owner.Handle)
+[LiquiSteam.Front]::keybd_event(0x12, 0, 2, [System.UIntPtr]::Zero)
+$owner.Activate()
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '__TITLE__'
 $dialog.Filter = '__FILTER__'
 $result = ''
 if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
+$owner.Close()
 [System.IO.File]::WriteAllText('__OUT__', $result, (New-Object System.Text.UTF8Encoding($false)))
 '@
     $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''"))
