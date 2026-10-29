@@ -26,7 +26,7 @@ export const defaultTheme: ThemePreferences = {
   layout: 'grid',
   accent: '#38bdf8',
   accentRgb: '56, 189, 248',
-  glowIntensity: 0.7,
+  glowIntensity: 0.55,
   glassOpacity: 0.06,
   panelOpacity: 1,
   motion: 'theme',
@@ -43,7 +43,13 @@ export function normalizeTheme(value: unknown): ThemePreferences {
     layout: LAYOUT_IDS.includes(v.layout as LayoutId) ? (v.layout as LayoutId) : defaultTheme.layout,
     accent: typeof v.accent === 'string' ? v.accent : defaultTheme.accent,
     accentRgb: typeof v.accentRgb === 'string' ? v.accentRgb : defaultTheme.accentRgb,
-    glowIntensity: typeof v.glowIntensity === 'number' ? v.glowIntensity : defaultTheme.glowIntensity,
+    // 0.7 era o padrão antigo (forte demais): quem nunca mexeu no controle passa para o padrão novo.
+    glowIntensity:
+      typeof v.glowIntensity === 'number'
+        ? v.glowIntensity === 0.7
+          ? defaultTheme.glowIntensity
+          : v.glowIntensity
+        : defaultTheme.glowIntensity,
     glassOpacity: typeof v.glassOpacity === 'number' ? v.glassOpacity : defaultTheme.glassOpacity,
     panelOpacity:
       typeof v.panelOpacity === 'number' && v.panelOpacity >= 0.3 && v.panelOpacity <= 1

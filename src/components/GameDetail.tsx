@@ -311,8 +311,10 @@ export default function GameDetail({
       className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
       onClick={requestClose}
     >
+      {/* Moldura da luz do cursor: o painel rola, então o brilho da borda fica numa camada parada por cima. */}
+      <div className="relative flex h-full w-full max-w-6xl md:h-[calc(100vh-40px)]">
       <div
-        className="detail-panel relative flex h-full w-full max-w-6xl flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:h-[calc(100vh-40px)] md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
+        className="detail-panel relative flex h-full w-full flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
         ref={scrollRef}
         role="dialog"
         aria-modal="true"
@@ -362,7 +364,7 @@ export default function GameDetail({
               <button
                 onClick={handleRun}
                 disabled={!steamRunning}
-                className={`group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
+                className={`reveal group relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full px-6 text-sm font-semibold transition-all ${
                   steamRunning
                     ? 'bg-[var(--accent-color)] text-[color:var(--on-accent)] hover:brightness-110 active:scale-[0.98]'
                     : 'cursor-not-allowed border border-white/15 bg-white/[0.06] text-white/40'
@@ -384,7 +386,7 @@ export default function GameDetail({
                 href={storeUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm font-light text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+                className="reveal relative flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm font-light text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               >
                 <ExternalLink className="h-4 w-4" />
                 Loja
@@ -442,6 +444,8 @@ export default function GameDetail({
           </div>
         </div>
       </div>
+      <span aria-hidden className="reveal pointer-events-none absolute inset-0 md:rounded-[32px]" />
+      </div>
     </div>
   );
 }
@@ -482,7 +486,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+    <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
       <div className="mb-2 flex items-center gap-2 text-white/50">
         {icon}
         <span className="text-xs font-medium">{label}</span>
@@ -551,7 +555,7 @@ function OverviewTab({
       </div>
 
       {achievements && achievements.total > 0 && achievements.hasPersonal && (
-        <div className="theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+        <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-white/80">Progresso de conquistas</span>
             <span className="text-sm font-light text-white/55">{achPct}%</span>
@@ -578,7 +582,7 @@ function OverviewTab({
         </div>
       )}
 
-      <div className="theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
         <p className="text-sm font-light leading-relaxed text-white/60">
           Clique em <span className="font-medium text-white">Executar</span> para iniciar o jogo
           pela Steam. A Steam precisa estar aberta em segundo plano — use o botão
@@ -740,7 +744,7 @@ function NewsTab({ loading, news }: { loading: boolean; news: NewsItem[] }) {
           href={n.url}
           target="_blank"
           rel="noreferrer"
-          className="theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl transition-all hover:border-white/30 hover:bg-white/[0.08]"
+          className="reveal theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl transition-all hover:border-white/30 hover:bg-white/[0.08]"
         >
           <div className="mb-2 flex items-center gap-3 text-xs font-light text-white/45">
             <Calendar className="h-3.5 w-3.5" />
@@ -783,7 +787,7 @@ function NotesTab({
           Entre com sua conta Steam (na tela de conta) para salvar anotações que persistem entre sessões.
         </div>
       )}
-      <div className="theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] backdrop-blur-xl">
+      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] backdrop-blur-xl">
         <textarea
           value={draft}
           onChange={(e) => onChange(e.target.value)}
@@ -796,7 +800,7 @@ function NotesTab({
         <button
           onClick={onSave}
           disabled={saving || !hasUser}
-          className="flex h-10 items-center gap-2 rounded-full border border-white/20 bg-white/[0.12] px-5 text-sm font-medium text-white backdrop-blur-xl transition-all hover:border-white/40 hover:bg-white/[0.18] disabled:opacity-40"
+          className="reveal relative flex h-10 items-center gap-2 rounded-full border border-white/20 bg-white/[0.12] px-5 text-sm font-medium text-white backdrop-blur-xl transition-all hover:border-white/40 hover:bg-white/[0.18] disabled:opacity-40"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <CheckCircle2 className="h-4 w-4 text-ok" /> : <Save className="h-4 w-4" />}
           {saving ? 'Salvando…' : saved ? 'Salvo' : 'Salvar anotação'}
