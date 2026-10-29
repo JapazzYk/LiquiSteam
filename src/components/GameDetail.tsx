@@ -24,6 +24,7 @@ import { fetchAchievements, fetchNews, fetchPlaytime } from '@/lib/steamMeta';
 import { loadNote, saveNote } from '@/lib/notes';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import type { OpenOrigin } from '@/lib/openOrigin';
+import { artBackdrop, useArtFit } from '@/lib/artFit';
 
 interface GameDetailProps {
   game: InstalledGame;
@@ -116,6 +117,8 @@ export default function GameDetail({
     ...gameArtworkUrls(game.appid),
   ].filter((url, index, urls) => url && urls.indexOf(url) === index);
   const artworkSource = artwork[artworkIndex];
+  // Arte larga preenche a faixa; imagens de outra proporção aparecem inteiras, sem corte.
+  const { fit: heroFit, onLoad: onHeroLoad } = useArtFit(1920 / 620, 0.4);
 
   const steamRunning = steamStatus === 'running' || steamStatus === 'starting';
   const storeUrl = `https://store.steampowered.com/app/${game.appid}`;
@@ -268,12 +271,17 @@ export default function GameDetail({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Hero: full game art */}
-        <div className="detail-hero relative h-[42vh] min-h-[300px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]">
+        <div
+          className="detail-hero relative h-[42vh] min-h-[300px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]"
+          data-fit={heroFit}
+          style={artBackdrop(artworkSource) as CSSProperties}
+        >
           {artworkSource ? (
             <img
               src={artworkSource}
               alt={game.name}
               className="h-full w-full object-cover"
+              onLoad={onHeroLoad}
               onError={() => setArtworkIndex((index) => index + 1)}
             />
           ) : (

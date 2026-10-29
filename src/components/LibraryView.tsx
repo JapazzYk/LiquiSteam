@@ -77,7 +77,9 @@ function LibrarySkeleton({ layout }: { layout: LayoutId }) {
       )}
       <div className="library-grid">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="game-card-skeleton motion-safe:animate-pulse" />
+          <div key={i} className="game-card-skeleton-wrap">
+            <div className="game-card-skeleton motion-safe:animate-pulse" />
+          </div>
         ))}
       </div>
     </div>

@@ -5,6 +5,7 @@ import type { InstalledGame } from '@/types';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import { formatSize, uniqueUrls } from '@/lib/format';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
+import { artBackdrop, useArtFit } from '@/lib/artFit';
 
 interface GameCardProps {
   game: InstalledGame;
@@ -20,18 +21,26 @@ export default function GameCard({ game, index, onOpen }: GameCardProps) {
   const [artworkIndex, setArtworkIndex] = useState(0);
   const artRef = useRef<HTMLDivElement>(null);
   const cover = artwork[artworkIndex];
+  // Capa vertical 2:3 preenche a moldura; qualquer outra proporção aparece inteira, sem corte.
+  const { fit, onLoad } = useArtFit(2 / 3, 0.08);
 
   return (
     <div className="game-card-wrap" style={{ '--i': index } as CSSProperties}>
       <button type="button" className="game-card" onClick={() => onOpen(game, readOrigin(artRef.current))}>
         <span className="game-card-frame" aria-hidden />
 
-        <div ref={artRef} className="game-card-art">
+        <div
+          ref={artRef}
+          className="game-card-art"
+          data-fit={fit}
+          style={artBackdrop(cover) as CSSProperties}
+        >
           {cover ? (
             <img
               src={cover}
               alt=""
               loading="lazy"
+              onLoad={onLoad}
               onError={() => setArtworkIndex((current) => current + 1)}
             />
           ) : (

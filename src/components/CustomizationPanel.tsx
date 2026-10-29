@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
 import { onAccentColor, type ThemePreferences } from '@/lib/theme';
-import { ACCENTS, LAYOUTS, SKINS, getSkin, type SkinDefinition } from '@/lib/skins';
+import { ACCENTS, LAYOUTS, MOTIONS, SKINS, getSkin, type SkinDefinition } from '@/lib/skins';
 import { layoutIcons } from '@/components/LayoutSwitch';
 import { runThemeTransition } from '@/lib/viewTransition';
 
@@ -13,6 +13,9 @@ interface CustomizationPanelProps {
   onClose: () => void;
 }
 
+// Duração da saída do painel (mesmo valor de .panel-aside[data-closing] no index.css).
+const PANEL_CLOSE_MS = 240;
+
 export default function CustomizationPanel({
   theme,
   onChange,
@@ -20,22 +23,53 @@ export default function CustomizationPanel({
   onClose,
 }: CustomizationPanelProps) {
   const skin = getSkin(theme.skin);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const motionRef = useRef(theme.motion);
+  motionRef.current = theme.motion;
+
+  // Fecha com a animação de saída; sem animação (estilo "Nenhuma" ou reduzir movimento), fecha na hora.
+  const requestClose = useCallback(() => {
+    if (closeTimer.current !== null) return;
+    const instant =
+      motionRef.current === 'none' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (instant) {
+      onCloseRef.current();
+      return;
+    }
+    setClosing(true);
+    closeTimer.current = window.setTimeout(() => onCloseRef.current(), PANEL_CLOSE_MS);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="panel-backdrop fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-sm"
+      data-closing={closing ? '' : undefined}
+      onClick={requestClose}
+    >
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby="appearance-title"
-        className="h-full w-full max-w-md overflow-y-auto border-l border-white/12 bg-surface/95 p-6 shadow-[-20px_0_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-8"
+        className="panel-aside h-full w-full max-w-md overflow-y-auto border-l border-white/12 bg-surface/95 p-6 shadow-[-20px_0_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-8"
+        data-closing={closing ? '' : undefined}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -49,7 +83,7 @@ export default function CustomizationPanel({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/60 transition-colors hover:border-white/25 hover:text-white"
             aria-label="Fechar aparência"
           >
@@ -57,7 +91,7 @@ export default function CustomizationPanel({
           </button>
         </div>
 
-        <Section title="Tema">
+        <Section title="Tema" order={0}>
           <div className="grid gap-2.5">
             {SKINS.map((option) => {
               const selected = option.id === theme.skin;
@@ -100,7 +134,7 @@ export default function CustomizationPanel({
           </div>
         </Section>
 
-        <Section title="Layout da biblioteca">
+        <Section title="Layout da biblioteca" order={1}>
           <div className="grid grid-cols-3 gap-2.5">
             {LAYOUTS.map((layout) => {
               const Icon = layoutIcons[layout.id];
@@ -130,7 +164,7 @@ export default function CustomizationPanel({
           </div>
         </Section>
 
-        <Section title="Cor de destaque">
+        <Section title="Cor de destaque" order={2}>
           <div className="grid grid-cols-5 gap-2">
             {ACCENTS.map((option) => {
               const selected = option.value === theme.accent;
@@ -160,8 +194,49 @@ export default function CustomizationPanel({
           </div>
         </Section>
 
+        <Section title="Transições" order={3}>
+          <p className="-mt-1 mb-3 text-xs leading-relaxed text-white/50">
+            Valem para o site todo: troca de telas, cartões, destaque e painéis.
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {MOTIONS.map((motion) => {
+              const selected = motion.id === theme.motion;
+              return (
+                <button
+                  key={motion.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onChange({ ...theme, motion: motion.id })}
+                  className={`flex items-start justify-between gap-2 rounded-2xl border p-3 text-left transition-colors ${
+                    selected
+                      ? 'border-[rgba(var(--accent-rgb),0.6)] bg-[rgba(var(--accent-rgb),0.08)]'
+                      : 'border-white/10 hover:border-white/25'
+                  }`}
+                >
+                  <span>
+                    <span className="block text-sm font-medium text-white">{motion.name}</span>
+                    <span className="mt-0.5 block text-[11px] leading-snug text-white/50">
+                      {motion.description}
+                    </span>
+                  </span>
+                  {selected && <Check className="theme-accent mt-0.5 h-4 w-4 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </Section>
+
+        <Section title="Fundo" order={4}>
+          <Switch
+            label="Fundo animado"
+            description="Luzes e movimento suave atrás do site. Desligado, o fundo fica parado."
+            checked={theme.liveBackground}
+            onChange={(liveBackground) => onChange({ ...theme, liveBackground })}
+          />
+        </Section>
+
         {(skin.glow || skin.glass) && (
-          <Section title="Efeitos">
+          <Section title="Efeitos" order={5}>
             <div className="grid gap-3">
               {skin.glow && (
                 <Slider
@@ -204,9 +279,10 @@ export default function CustomizationPanel({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+// Cada seção entra um pouco depois da anterior (efeito em cascata ao abrir o painel).
+function Section({ title, order = 0, children }: { title: string; order?: number; children: ReactNode }) {
   return (
-    <section className="mt-8">
+    <section className="detail-rise mt-8" style={{ '--d': `${140 + order * 60}ms` } as CSSProperties}>
       <h3 className="mb-3 text-sm font-medium text-white/85">{title}</h3>
       {children}
     </section>
@@ -257,6 +333,43 @@ function SkinPreview({ skin }: { skin: SkinDefinition }) {
         style={{ background: skin.accent.value }}
       />
     </span>
+  );
+}
+
+function Switch({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-white/25"
+    >
+      <span>
+        <span className="block text-sm text-white/80">{label}</span>
+        <span className="mt-0.5 block text-xs leading-snug text-white/50">{description}</span>
+      </span>
+      <span
+        aria-hidden
+        className="relative h-6 w-11 shrink-0 rounded-full border border-white/15 transition-colors"
+        style={{ background: checked ? 'var(--accent-color)' : 'rgb(255 255 255 / 0.1)' }}
+      >
+        <span
+          className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+          style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }}
+        />
+      </span>
+    </button>
   );
 }
 

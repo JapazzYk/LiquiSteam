@@ -1,6 +1,6 @@
-import type { LayoutId, SkinId } from '@/lib/theme';
+import type { LayoutId, MotionId, SkinId } from '@/lib/theme';
 
-export type Ambient = 'liquid' | 'arcade' | 'steam' | 'none';
+export type Ambient = 'liquid' | 'arcade' | 'steam' | 'paper' | 'graphite';
 
 export interface AccentOption {
   name: string;
@@ -67,7 +67,7 @@ export const SKINS: SkinDefinition[] = [
     description: 'Capas soltas sobre papel, legenda embaixo, muito espaço e sombras suaves.',
     font: 'Instrument Sans',
     accent: accent('Cobalto'),
-    ambient: 'none',
+    ambient: 'paper',
     glass: false,
     glow: false,
     preview: { bg: '#eef0f3', card: '#ffffff', ink: '#181b21' },
@@ -89,7 +89,7 @@ export const SKINS: SkinDefinition[] = [
     description: 'Preto OLED com capas em cinza que ganham cor ao passar o mouse.',
     font: 'Geist',
     accent: accent('Prata'),
-    ambient: 'none',
+    ambient: 'graphite',
     glass: false,
     glow: false,
     preview: { bg: '#000000', card: '#1c1c1c', ink: '#ececec' },
@@ -110,4 +110,20 @@ export const LAYOUTS: LayoutDefinition[] = [
   { id: 'grid', name: 'Grade', description: 'Capas lado a lado' },
   { id: 'list', name: 'Lista', description: 'Uma linha por jogo' },
   { id: 'featured', name: 'Destaque', description: 'Sugestão do dia no topo' },
+];
+
+export interface MotionDefinition {
+  id: MotionId;
+  name: string;
+  description: string;
+}
+
+// Estilos de transição que o usuário escolhe no painel de aparência.
+export const MOTIONS: MotionDefinition[] = [
+  { id: 'theme', name: 'Do tema', description: 'Cada tema chega do seu jeito' },
+  { id: 'rise', name: 'Subir', description: 'Sobe suave e aparece' },
+  { id: 'slide', name: 'Deslizar', description: 'Entra pela direita' },
+  { id: 'zoom', name: 'Zoom', description: 'Cresce até o lugar' },
+  { id: 'fade', name: 'Esmaecer', description: 'Só aparece, sem mexer' },
+  { id: 'none', name: 'Nenhuma', description: 'Troca direto, sem animação' },
 ];

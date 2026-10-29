@@ -1,8 +1,11 @@
 export type SkinId = 'liquid' | 'steam' | 'paper' | 'arcade' | 'graphite';
 export type LayoutId = 'grid' | 'list' | 'featured';
+// Estilo das transições do site todo (telas, cartões, painéis). 'theme' = cada tema com o seu.
+export type MotionId = 'theme' | 'rise' | 'slide' | 'zoom' | 'fade' | 'none';
 
 export const SKIN_IDS: SkinId[] = ['liquid', 'steam', 'paper', 'arcade', 'graphite'];
 export const LAYOUT_IDS: LayoutId[] = ['grid', 'list', 'featured'];
+export const MOTION_IDS: MotionId[] = ['theme', 'rise', 'slide', 'zoom', 'fade', 'none'];
 
 export interface ThemePreferences {
   skin: SkinId;
@@ -11,6 +14,9 @@ export interface ThemePreferences {
   accentRgb: string;
   glowIntensity: number;
   glassOpacity: number;
+  motion: MotionId;
+  // Fundo animado do tema. Desligado, o fundo fica parado.
+  liveBackground: boolean;
 }
 
 export const defaultTheme: ThemePreferences = {
@@ -20,6 +26,8 @@ export const defaultTheme: ThemePreferences = {
   accentRgb: '56, 189, 248',
   glowIntensity: 0.7,
   glassOpacity: 0.06,
+  motion: 'theme',
+  liveBackground: true,
 };
 
 const THEME_KEY = 'liquid_steam_theme';
@@ -34,6 +42,8 @@ export function normalizeTheme(value: unknown): ThemePreferences {
     accentRgb: typeof v.accentRgb === 'string' ? v.accentRgb : defaultTheme.accentRgb,
     glowIntensity: typeof v.glowIntensity === 'number' ? v.glowIntensity : defaultTheme.glowIntensity,
     glassOpacity: typeof v.glassOpacity === 'number' ? v.glassOpacity : defaultTheme.glassOpacity,
+    motion: MOTION_IDS.includes(v.motion as MotionId) ? (v.motion as MotionId) : defaultTheme.motion,
+    liveBackground: typeof v.liveBackground === 'boolean' ? v.liveBackground : defaultTheme.liveBackground,
   };
 }
 

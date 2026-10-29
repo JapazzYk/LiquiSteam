@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 import type { Ambient } from '@/lib/skins';
 
-// Fundo de cada tema. Liquid Glass usa manchas de luz animadas num canvas;
-// Steam escuro e Arcade usam CSS; os temas sólidos usam só a cor de fundo.
-export default function LiquidBackground({ ambient }: { ambient: Ambient }) {
-  if (ambient === 'liquid') return <LiquidCanvas />;
-  if (ambient === 'none') return null;
+// Fundo de cada tema. Liquid Glass usa manchas de luz animadas num canvas leve (meia resolução,
+// 30 quadros por segundo); os outros temas animam só com CSS (transform/opacity, sem repintar).
+// Com `live` desligado, o canvas desenha um quadro e para, e o CSS pausa as animações.
+export default function LiquidBackground({ ambient, live = true }: { ambient: Ambient; live?: boolean }) {
+  if (ambient === 'liquid') return <LiquidCanvas live={live} />;
   if (ambient === 'arcade') {
     return (
       <div className="ambient ambient-arcade" aria-hidden>
@@ -17,10 +17,21 @@ export default function LiquidBackground({ ambient }: { ambient: Ambient }) {
       </div>
     );
   }
-  return <div className={`ambient ambient-${ambient}`} aria-hidden />;
+  return (
+    <div className={`ambient ambient-${ambient}`} aria-hidden>
+      <span className="ambient-orb ambient-orb-a" />
+      <span className="ambient-orb ambient-orb-b" />
+      <span className="ambient-orb ambient-orb-c" />
+    </div>
+  );
 }
 
-function LiquidCanvas() {
+// Resolução interna do canvas em relação à tela: as manchas são macias, então meia resolução
+// esticada pelo CSS é igual a olho nu e custa um quarto dos pixels.
+const CANVAS_SCALE = 0.5;
+const FRAME_MS = 1000 / 30;
+
+function LiquidCanvas({ live }: { live: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -29,13 +40,14 @@ function LiquidCanvas() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Com "reduzir movimento" ativo no sistema, desenha uma vez e para.
-    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Com "reduzir movimento" no sistema, ou com o fundo animado desligado, desenha uma vez e para.
+    const still = !live || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let raf = 0;
     let w = 0;
     let h = 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let last = 0;
+    const dpr = CANVAS_SCALE;
 
     const blobs: {
       x: number;
@@ -114,8 +126,11 @@ function LiquidCanvas() {
       ctx.fillRect(0, 0, w, h);
     };
 
-    const step = () => {
-      t += 0.004;
+    const step = (now = 0) => {
+      raf = requestAnimationFrame(step);
+      if (now - last < FRAME_MS) return;
+      last = now;
+      t += 0.0065;
       for (const b of blobs) {
         b.x += b.vx + Math.sin(t + b.phase) * 0.15;
         b.y += b.vy + Math.cos(t * 0.8 + b.phase) * 0.15;
@@ -125,18 +140,18 @@ function LiquidCanvas() {
         if (b.y > h + b.r) b.y = -b.r;
       }
       draw();
-      raf = requestAnimationFrame(step);
     };
 
     resize();
     window.addEventListener('resize', resize);
-    if (!still) step();
+    if (still) draw();
+    else raf = requestAnimationFrame(step);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
     };
-  }, []);
+  }, [live]);
 
   return (
     <canvas

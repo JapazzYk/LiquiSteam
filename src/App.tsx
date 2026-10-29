@@ -92,7 +92,7 @@ export default function App() {
       setLeaving(false);
       window.scrollTo({ top: 0 });
     };
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (theme.motion === 'none' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       finish();
       return;
     }
@@ -135,6 +135,12 @@ export default function App() {
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', getSkin(theme.skin).preview.bg);
   }, [theme.skin]);
+
+  // Estilo de transição e fundo animado também valem para a página inteira (ver src/index.css).
+  useLayoutEffect(() => {
+    document.documentElement.dataset.motion = theme.motion;
+    document.documentElement.dataset.ambient = theme.liveBackground ? 'on' : 'off';
+  }, [theme.motion, theme.liveBackground]);
 
   const rootStyle = {
     '--accent-rgb': theme.accentRgb,
@@ -258,7 +264,7 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden font-sans text-white" style={rootStyle}>
-      <LiquidBackground ambient={skin.ambient} />
+      <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
       {skin.glow && <CursorGlow />}
 
       <header className="app-header theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
@@ -408,7 +414,7 @@ export default function App() {
                 />
               ) : (
                 <LibraryView
-                  key={`${theme.skin}-${theme.layout}`}
+                  key={`${theme.skin}-${theme.layout}-${theme.motion}`}
                   games={visible}
                   layout={theme.layout}
                   loading={loading}
