@@ -280,6 +280,15 @@ export default function CustomizationPanel({
           </div>
         </Section>
 
+        <Section title="Biblioteca" order={4}>
+          <Switch
+            label="Prévia de trailer"
+            description="Passe o mouse sobre um cartão para ver o trailer do jogo tocando, sem som."
+            checked={theme.trailerPreview}
+            onChange={(trailerPreview) => onChange({ ...theme, trailerPreview })}
+          />
+        </Section>
+
         <Section title="Fundo" order={4}>
           <Switch
             label="Fundo animado"

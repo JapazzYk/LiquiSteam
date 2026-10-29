@@ -17,6 +17,8 @@ export interface ThemePreferences {
   // Opacidade dos painéis nos temas sólidos (Steam, Minimalista, Grafite): 1 = sólido, menos = translúcido.
   panelOpacity: number;
   motion: MotionId;
+  // Prévia em vídeo (trailer) ao passar o mouse sobre um cartão.
+  trailerPreview: boolean;
   // Fundo animado do tema. Desligado, o fundo fica parado.
   liveBackground: boolean;
 }
@@ -30,6 +32,7 @@ export const defaultTheme: ThemePreferences = {
   glassOpacity: 0.06,
   panelOpacity: 1,
   motion: 'theme',
+  trailerPreview: true,
   liveBackground: true,
 };
 
@@ -56,6 +59,7 @@ export function normalizeTheme(value: unknown): ThemePreferences {
         ? v.panelOpacity
         : defaultTheme.panelOpacity,
     motion: MOTION_IDS.includes(v.motion as MotionId) ? (v.motion as MotionId) : defaultTheme.motion,
+    trailerPreview: typeof v.trailerPreview === 'boolean' ? v.trailerPreview : defaultTheme.trailerPreview,
     liveBackground: typeof v.liveBackground === 'boolean' ? v.liveBackground : defaultTheme.liveBackground,
   };
 }

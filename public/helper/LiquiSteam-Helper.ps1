@@ -279,7 +279,9 @@ function Start-Pick([string]$kind) {
     }
     $template = @'
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra);'
+Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra); [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string cls, string title); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags);'
+$script:pickTitle = '__TITLE__'
+$script:pickTries = 0
 $owner = New-Object System.Windows.Forms.Form
 $owner.TopMost = $true
 $owner.ShowInTaskbar = $false
@@ -294,11 +296,27 @@ $owner.Show()
 [void][LiquiSteam.Front]::SetForegroundWindow($owner.Handle)
 [LiquiSteam.Front]::keybd_event(0x12, 0, 2, [System.UIntPtr]::Zero)
 $owner.Activate()
+# Garantia: assim que a janela de escolha existe, marca como "sempre por cima" e traz para a frente.
+# O temporizador roda enquanto a janela esta aberta.
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = 150
+$timer.Add_Tick({
+    $script:pickTries = $script:pickTries + 1
+    $h = [LiquiSteam.Front]::FindWindow($null, $script:pickTitle)
+    if ($h -ne [System.IntPtr]::Zero) {
+        [void][LiquiSteam.Front]::SetWindowPos($h, [System.IntPtr]::new(-1), 0, 0, 0, 0, 0x43)
+        [void][LiquiSteam.Front]::SetForegroundWindow($h)
+        if ($script:pickTries -gt 6) { $timer.Stop() }
+    }
+    if ($script:pickTries -gt 80) { $timer.Stop() }
+})
+$timer.Start()
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title = '__TITLE__'
 $dialog.Filter = '__FILTER__'
 $result = ''
 if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
+$timer.Stop()
 $owner.Close()
 [System.IO.File]::WriteAllText('__OUT__', $result, (New-Object System.Text.UTF8Encoding($false)))
 '@

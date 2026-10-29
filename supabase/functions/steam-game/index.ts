@@ -60,6 +60,13 @@ Deno.serve(async (req: Request) => {
       return await handleNews(appid);
     }
 
+    // Público: dados da loja (descrição, gêneros, nota, trailers). A loja da Steam não deixa o navegador
+    // pedir direto, então a função busca e entrega só o que o site usa.
+    if (action === 'details' && req.method === 'GET') {
+      if (!appid) return jsonError(400, 'appid inválido');
+      return await handleDetails(appid);
+    }
+
     // Público, com conquistas pessoais se o usuário estiver logado e tiver chave
     if (action === 'achievements' && req.method === 'GET') {
       if (!appid) return jsonError(400, 'appid inválido');
@@ -135,6 +142,69 @@ function json(body: unknown, status = 200): Response {
 
 function jsonError(status: number, message: string): Response {
   return json({ error: message }, status);
+}
+
+// Detalhes da loja: públicos, sem chave. Guarda o resultado por algumas horas para não pedir à loja
+// toda hora (ela limita o número de pedidos).
+const detailsCache = new Map<string, { at: number; body: unknown }>();
+const DETAILS_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function handleDetails(appid: string): Promise<Response> {
+  const cached = detailsCache.get(appid);
+  if (cached && Date.now() - cached.at < DETAILS_TTL_MS) return json(cached.body);
+
+  const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appid}&l=brazilian&cc=br`;
+  const res = await fetch(steamUrl);
+  if (!res.ok) return jsonError(502, `A loja respondeu ${res.status}`);
+  const data = await res.json().catch(() => null);
+  const entry = data?.[appid];
+  if (!entry?.success || !entry.data) return json({ found: false });
+  const d = entry.data;
+
+  const movies = (Array.isArray(d.movies) ? d.movies : []).slice(0, 6).map((m: any) => ({
+    id: m.id,
+    name: m.name ?? '',
+    thumbnail: m.thumbnail ?? '',
+    mp4_480: m.mp4?.['480'] ?? '',
+    mp4_max: m.mp4?.max ?? '',
+    webm_480: m.webm?.['480'] ?? '',
+    webm_max: m.webm?.max ?? '',
+  }));
+
+  const body = {
+    found: true,
+    name: d.name ?? '',
+    shortDescription: d.short_description ?? '',
+    releaseDate: d.release_date?.date ?? '',
+    comingSoon: !!d.release_date?.coming_soon,
+    developers: Array.isArray(d.developers) ? d.developers : [],
+    publishers: Array.isArray(d.publishers) ? d.publishers : [],
+    genres: (Array.isArray(d.genres) ? d.genres : []).map((g: any) => g.description).filter(Boolean),
+    categories: (Array.isArray(d.categories) ? d.categories : []).map((c: any) => c.description).filter(Boolean),
+    metacritic: typeof d.metacritic?.score === 'number' ? d.metacritic.score : null,
+    recommendations: typeof d.recommendations?.total === 'number' ? d.recommendations.total : null,
+    achievements: typeof d.achievements?.total === 'number' ? d.achievements.total : null,
+    dlcCount: Array.isArray(d.dlc) ? d.dlc.length : 0,
+    languages: typeof d.supported_languages === 'string' ? d.supported_languages : '',
+    controllerSupport: d.controller_support ?? null,
+    price: d.is_free
+      ? { free: true, final: 'Grátis', discount: 0 }
+      : d.price_overview
+        ? {
+            free: false,
+            final: d.price_overview.final_formatted ?? '',
+            discount: d.price_overview.discount_percent ?? 0,
+          }
+        : null,
+    platforms: {
+      windows: !!d.platforms?.windows,
+      mac: !!d.platforms?.mac,
+      linux: !!d.platforms?.linux,
+    },
+    movies,
+  };
+  detailsCache.set(appid, { at: Date.now(), body });
+  return json(body);
 }
 
 // Notícias do jogo: públicas, sem chave.
@@ -297,6 +367,9 @@ async function handlePlaytime(
     appid: g.appid,
     name: g.name,
     playtime_forever: g.playtime_forever ?? 0,
+    // Minutos nas últimas duas semanas e quando foi jogado pela última vez (segundos desde 1970).
+    playtime_2weeks: g.playtime_2weeks ?? 0,
+    rtime_last_played: g.rtime_last_played ?? 0,
   }));
   return json({ games: map });
 }

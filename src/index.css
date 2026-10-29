@@ -1582,6 +1582,22 @@ body {
   position: relative;
 }
 
+/* Prévia do trailer ao passar o mouse: aparece em fade por cima da capa. */
+.game-card-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.game-card-video[data-ready] {
+  opacity: 1;
+}
+
 /* Jogo de fora da Steam sem imagem: inicial grande sobre uma cor feita do nome. */
 .custom-initial {
   font-size: 46cqw;

@@ -4,6 +4,7 @@ import { ChevronRight, Gamepad2 } from 'lucide-react';
 import type { InstalledGame } from '@/types';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import { formatSize, uniqueUrls } from '@/lib/format';
+import { formatHours } from '@/lib/facts';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { placeholderHue } from '@/lib/customGames';
@@ -11,11 +12,12 @@ import { placeholderHue } from '@/lib/customGames';
 interface GameRowProps {
   game: InstalledGame;
   onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
+  playtimeMinutes?: number;
 }
 
 // Linha do layout de lista: imagem horizontal da loja, nome e tamanho.
 // A moldura de cada tema está em src/index.css (.game-row).
-export default function GameRow({ game, onOpen }: GameRowProps) {
+export default function GameRow({ game, onOpen, playtimeMinutes }: GameRowProps) {
   const artwork = game.custom
     ? uniqueUrls([game.header_image])
     : uniqueUrls([
@@ -66,8 +68,12 @@ export default function GameRow({ game, onOpen }: GameRowProps) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-medium tracking-tight text-white">{game.name}</p>
-        {game.size_on_disk && game.size_on_disk > 0 ? (
-          <p className="mt-0.5 text-xs text-white/50">{formatSize(game.size_on_disk)} instalado</p>
+        {(game.size_on_disk && game.size_on_disk > 0) || (playtimeMinutes ?? 0) > 0 ? (
+          <p className="mt-0.5 text-xs text-white/50">
+            {game.size_on_disk && game.size_on_disk > 0 ? `${formatSize(game.size_on_disk)} instalado` : null}
+            {game.size_on_disk && game.size_on_disk > 0 && playtimeMinutes && playtimeMinutes > 0 ? ' · ' : ''}
+            {playtimeMinutes && playtimeMinutes > 0 ? `${formatHours(playtimeMinutes)} jogadas` : null}
+          </p>
         ) : null}
       </div>
       <ChevronRight className="h-4 w-4 shrink-0 text-white/35 transition-colors group-hover:text-[color:var(--accent-color)]" />

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Settings as SettingsIcon, RefreshCw, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine, Plus } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
@@ -16,9 +16,14 @@ import CursorGlow from '@/components/CursorGlow';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import SiteFooter from '@/components/SiteFooter';
 import LibraryView from '@/components/LibraryView';
+import LibraryToolbar from '@/components/LibraryToolbar';
+import LibrarySummary from '@/components/LibrarySummary';
 import LayoutSwitch from '@/components/LayoutSwitch';
 import { useSteamStatus } from '@/lib/useSteamStatus';
 import { useUpdates } from '@/lib/useUpdates';
+import { fetchAllPlaytime, type PlaytimeEntry } from '@/lib/steamMeta';
+import { libraryStats } from '@/lib/facts';
+import { loadSort, saveSort, sortGames, type SortState } from '@/lib/sort';
 import { usePresence } from '@/lib/motion';
 import { loadUser, saveUser, clearUser } from '@/lib/storage';
 import {
@@ -60,6 +65,16 @@ export default function App() {
   const [leaving, setLeaving] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(welcomeAllowed);
   // Diálogo de jogo de fora da Steam: 'new' adiciona; um jogo edita.
+  // Ordenação e filtro da biblioteca (lembrados neste navegador).
+  const [sort, setSortState] = useState<SortState>(() => loadSort());
+  const setSort = (next: SortState) => {
+    setSortState(next);
+    saveSort(next);
+  };
+  // Tempo de jogo de toda a biblioteca, da Steam (null = sem login/chave).
+  const [playtimes, setPlaytimes] = useState<Map<number, PlaytimeEntry> | null>(null);
+  // Jogo em destaque, sorteado a cada visita.
+  const [featuredId, setFeaturedId] = useState<number | null>(null);
   const [customDialog, setCustomDialog] = useState<'new' | InstalledGame | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const leaveTimer = useRef<number | null>(null);
@@ -292,9 +307,24 @@ export default function App() {
     void clearStoredSteamappsDirs().then(() => loadLibrary());
   };
 
+  // Tempo de jogo da Steam: carrega com login e chave, e some ao sair.
+  const loadPlaytimes = async () => {
+    if (!user || !hasKey) {
+      setPlaytimes(null);
+      return;
+    }
+    const map = await fetchAllPlaytime();
+    setPlaytimes(map);
+  };
+  useEffect(() => {
+    void loadPlaytimes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.steamId, hasKey]);
+
   const handleRefresh = async () => {
     setLoading(true);
     try {
+      void loadPlaytimes();
       await loadLibrary();
     } finally {
       setLoading(false);
@@ -315,7 +345,28 @@ export default function App() {
 
   const source = usingDemo ? demoGames : games;
   const search = query.trim().toLowerCase();
-  const visible = search ? source.filter((g) => g.name.toLowerCase().includes(search)) : source;
+  const filtered = source.filter((g) => {
+    if (search && !g.name.toLowerCase().includes(search)) return false;
+    if (sort.onlyUnplayed && playtimes && !g.custom && (playtimes.get(g.appid)?.forever ?? 0) > 0) return false;
+    return true;
+  });
+  const visible = sortGames(filtered, sort, playtimes);
+  const stats = useMemo(() => (playtimes ? libraryStats(source, playtimes) : null), [source, playtimes]);
+  const hasSizes = source.some((g) => (g.size_on_disk ?? 0) > 0);
+  const hasPlaytime = !!playtimes && playtimes.size > 0;
+
+  // Sorteia o jogo em destaque quando a biblioteca carrega (ou se o jogo atual sair da lista).
+  useEffect(() => {
+    if (source.length === 0) return;
+    if (featuredId !== null && source.some((g) => g.appid === featuredId)) return;
+    setFeaturedId(source[Math.floor(Math.random() * source.length)].appid);
+  }, [source, featuredId]);
+
+  const shuffleFeatured = () => {
+    const pool = source.filter((g) => g.appid !== featuredId);
+    if (pool.length === 0) return;
+    setFeaturedId(pool[Math.floor(Math.random() * pool.length)].appid);
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
@@ -498,6 +549,19 @@ export default function App() {
                 </p>
               )}
 
+              {source.length > 0 && (
+                <>
+                  {stats && <LibrarySummary stats={stats} />}
+                  <LibraryToolbar
+                    sort={sort}
+                    onChange={setSort}
+                    count={visible.length}
+                    hasSizes={hasSizes}
+                    hasPlaytime={hasPlaytime}
+                  />
+                </>
+              )}
+
               {visible.length === 0 && !loading ? (
                 <EmptyLibrary
                   query={query}
@@ -506,11 +570,15 @@ export default function App() {
                 />
               ) : (
                 <LibraryView
-                  key={`${theme.skin}-${theme.layout}-${theme.motion}-${search}`}
+                  key={`${theme.skin}-${theme.layout}-${theme.motion}-${search}-${sort.key}-${sort.dir}-${sort.onlyUnplayed}`}
                   games={visible}
                   layout={theme.layout}
                   loading={loading}
                   onOpen={openGame}
+                  playtimes={playtimes}
+                  trailerPreview={theme.trailerPreview}
+                  featuredId={featuredId}
+                  onShuffleFeatured={shuffleFeatured}
                 />
               )}
             </div>
@@ -548,6 +616,8 @@ export default function App() {
           hasKey={hasKey}
           steamStatus={steamStatus}
           runningAppId={runningGame}
+          playtimes={playtimes}
+          libraryGames={source}
           customRunning={customRunning}
           onLaunchCustom={helperLaunchCustom}
           onStopCustom={helperStopCustom}

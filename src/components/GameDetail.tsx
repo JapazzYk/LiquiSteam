@@ -17,11 +17,22 @@ import {
   Save,
   Gamepad2 as SteamIcon,
   Power,
+  Sparkles,
+  Clapperboard,
 } from 'lucide-react';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
 import { launchGame } from '@/lib/steamLaunch';
-import { fetchAchievements, fetchNews, fetchPlaytime } from '@/lib/steamMeta';
+import {
+  fetchAchievements,
+  fetchGameDetails,
+  fetchNews,
+  fetchPlaytime,
+  fullVideoUrl,
+  type GameDetails,
+  type PlaytimeEntry,
+} from '@/lib/steamMeta';
+import { gameFacts, playtimeFacts } from '@/lib/facts';
 import { loadNote, saveNote } from '@/lib/notes';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import type { OpenOrigin } from '@/lib/openOrigin';
@@ -37,6 +48,9 @@ interface GameDetailProps {
   // Jogo em execução (0 = nenhum); null quando não dá para saber (sem helper, ou helper antigo).
   runningAppId: number | null;
   // Jogos de fora da Steam em execução (ids); null quando não dá para saber.
+  // Tempo de jogo de toda a biblioteca (Steam) e a lista de jogos, para as curiosidades.
+  playtimes: Map<number, PlaytimeEntry> | null;
+  libraryGames: InstalledGame[];
   customRunning: string[] | null;
   onLaunchCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
   onStopCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
@@ -46,7 +60,7 @@ interface GameDetailProps {
   onClose: () => void;
 }
 
-type Tab = 'overview' | 'achievements' | 'news' | 'notes';
+type Tab = 'overview' | 'trailers' | 'achievements' | 'news' | 'notes';
 
 // Tempo e curva da abertura de cada tema. O fechamento é sempre um pouco mais rápido.
 const OPEN_MOTION: Record<string, { duration: number; easing: string }> = {
@@ -118,6 +132,8 @@ export default function GameDetail({
   hasKey,
   steamStatus,
   runningAppId,
+  playtimes,
+  libraryGames,
   customRunning,
   onLaunchCustom,
   onStopCustom,
@@ -211,6 +227,24 @@ export default function GameDetail({
       cancelled = true;
     };
   }, [game.appid, game.name, game.custom, user?.steamId, hasKey]);
+
+  // Detalhes da loja: descrição, curiosidades e trailers.
+  const [details, setDetails] = useState<GameDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  useEffect(() => {
+    if (game.custom) return;
+    let cancelled = false;
+    setDetails(null);
+    setLoadingDetails(true);
+    void fetchGameDetails(game.appid).then((d) => {
+      if (cancelled) return;
+      setDetails(d);
+      setLoadingDetails(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [game.appid, game.custom]);
 
   // Abertura: o painel se expande a partir da capa clicada e o fundo escurece.
   useLayoutEffect(() => {
@@ -549,6 +583,9 @@ export default function GameDetail({
             </TabButton>
             {!isCustom && (
               <>
+                <TabButton active={tab === 'trailers'} onClick={() => setTab('trailers')} icon={<Clapperboard className="h-4 w-4" />}>
+                  Trailers
+                </TabButton>
                 <TabButton active={tab === 'achievements'} onClick={() => setTab('achievements')} icon={<Trophy className="h-4 w-4" />}>
                   Conquistas
                 </TabButton>
@@ -572,11 +609,15 @@ export default function GameDetail({
               playtimeMinutes={playtimeMinutes}
               loadingPlaytime={loadingPlaytime}
               hasSync={!!(user && hasKey)}
+              details={details}
+              playFacts={playtimes ? playtimeFacts(game, playtimes, libraryGames) : []}
+              storeFacts={details ? gameFacts(details) : []}
             />
           )}
           {tab === 'achievements' && (
             <AchievementsTab loading={loadingAch} data={achievements} />
           )}
+          {tab === 'trailers' && <TrailersTab details={details} loading={loadingDetails} />}
           {tab === 'news' && <NewsTab loading={loadingNews} news={news} />}
           {tab === 'notes' && (
             <NotesTab
@@ -678,6 +719,9 @@ function OverviewTab({
   playtimeMinutes,
   loadingPlaytime,
   hasSync,
+  details,
+  playFacts,
+  storeFacts,
 }: {
   game: InstalledGame;
   achPct: number;
@@ -685,6 +729,9 @@ function OverviewTab({
   playtimeMinutes: number | null;
   loadingPlaytime: boolean;
   hasSync: boolean;
+  details: GameDetails | null;
+  playFacts: string[];
+  storeFacts: string[];
 }) {
   const size = game.size_on_disk ? formatSize(game.size_on_disk) : '—';
   const playtime =
@@ -696,6 +743,9 @@ function OverviewTab({
 
   return (
     <div className="space-y-5">
+      {details?.shortDescription && (
+        <p className="max-w-3xl text-[15px] font-light leading-relaxed text-white/70">{details.shortDescription}</p>
+      )}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           icon={<HardDrive className="h-4 w-4" />}
@@ -755,6 +805,15 @@ function OverviewTab({
         </div>
       )}
 
+      {(playFacts.length > 0 || storeFacts.length > 0) && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {playFacts.length > 0 && <FactsCard title="Suas horas" icon={<Clock className="h-4 w-4" />} facts={playFacts} />}
+          {storeFacts.length > 0 && (
+            <FactsCard title="Curiosidades do jogo" icon={<Sparkles className="h-4 w-4" />} facts={storeFacts} />
+          )}
+        </div>
+      )}
+
       <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
         <p className="text-sm font-light leading-relaxed text-white/60">
           Clique em <span className="font-medium text-white">Executar</span> para iniciar o jogo
@@ -762,6 +821,83 @@ function OverviewTab({
           <span className="font-medium text-white"> Abrir Steam</span> no topo do app.
         </p>
       </div>
+    </div>
+  );
+}
+
+function FactsCard({ title, icon, facts }: { title: string; icon: React.ReactNode; facts: string[] }) {
+  return (
+    <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+      <div className="mb-3 flex items-center gap-2 text-white/60">
+        <span className="theme-accent">{icon}</span>
+        <span className="text-sm font-medium text-white/85">{title}</span>
+      </div>
+      <ul className="grid gap-2">
+        {facts.map((fact) => (
+          <li key={fact} className="flex gap-2.5 text-sm font-light leading-relaxed text-white/65">
+            <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--accent-color)]" />
+            <span>{fact}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Trailers da loja da Steam: o vídeo toca do próprio servidor da Steam, sem baixar nada para o computador.
+function TrailersTab({ details, loading }: { details: GameDetails | null; loading: boolean }) {
+  const [index, setIndex] = useState(0);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-white/60">
+        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+        Carregando trailers…
+      </div>
+    );
+  }
+  const movies = details?.movies ?? [];
+  if (movies.length === 0) {
+    return (
+      <EmptyState
+        icon={<Clapperboard className="h-8 w-8" />}
+        title="Sem trailers"
+        text="A loja da Steam não tem trailers para este jogo, ou não foi possível carregá-los."
+      />
+    );
+  }
+  const current = movies[Math.min(index, movies.length - 1)];
+  return (
+    <div className="space-y-4">
+      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-black/40">
+        <video
+          key={current.id}
+          src={fullVideoUrl(current)}
+          poster={current.thumbnail}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full bg-black"
+        />
+      </div>
+      <p className="text-sm font-medium text-white/80">{current.name || 'Trailer'}</p>
+      {movies.length > 1 && (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {movies.map((movie, i) => (
+            <button
+              key={movie.id}
+              type="button"
+              onClick={() => setIndex(i)}
+              aria-label={`Ver ${movie.name || 'trailer'}`}
+              aria-pressed={i === index}
+              className={`reveal relative aspect-video w-36 shrink-0 overflow-hidden rounded-xl border transition-all ${
+                i === index ? 'theme-accent-border' : 'border-white/10 opacity-70 hover:opacity-100'
+              }`}
+            >
+              <img src={movie.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
