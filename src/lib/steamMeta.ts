@@ -146,6 +146,12 @@ export interface GameMovie {
   webm_max: string;
 }
 
+export interface GameScreenshot {
+  id: number;
+  thumb: string;
+  full: string;
+}
+
 export interface GameDetails {
   found: boolean;
   name: string;
@@ -165,6 +171,28 @@ export interface GameDetails {
   price: { free: boolean; final: string; discount: number } | null;
   platforms: { windows: boolean; mac: boolean; linux: boolean };
   movies: GameMovie[];
+  // Imagens da loja. Ausente se a função steam-game no Supabase ainda for a versão antiga.
+  screenshots?: GameScreenshot[];
+}
+
+// O navegador bloqueia vídeo e imagem http:// numa página https://, então tudo vai por https.
+function toHttps(url: string): string {
+  return typeof url === 'string' ? url.replace(/^http:\/\//i, 'https://') : '';
+}
+
+function normalizeDetails(data: GameDetails): GameDetails {
+  return {
+    ...data,
+    movies: (data.movies ?? []).map((m) => ({
+      ...m,
+      thumbnail: toHttps(m.thumbnail),
+      mp4_480: toHttps(m.mp4_480),
+      mp4_max: toHttps(m.mp4_max),
+      webm_480: toHttps(m.webm_480),
+      webm_max: toHttps(m.webm_max),
+    })),
+    screenshots: (data.screenshots ?? []).map((sc) => ({ ...sc, thumb: toHttps(sc.thumb), full: toHttps(sc.full) })),
+  };
 }
 
 const DETAILS_PREFIX = 'liquid_gd_';
@@ -177,7 +205,7 @@ function readCachedDetails(appid: number): GameDetails | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { at: number; data: GameDetails };
     if (!parsed || Date.now() - parsed.at > DETAILS_TTL_MS) return null;
-    return parsed.data;
+    return normalizeDetails(parsed.data);
   } catch {
     return null;
   }
@@ -205,8 +233,9 @@ export function fetchGameDetails(appid: number): Promise<GameDetails | null> {
   const request = callSteamGame<GameDetails>('details', { params: { appid: String(appid) } })
     .then((data) => {
       if (data && data.found) {
-        writeCachedDetails(appid, data);
-        return data;
+        const normalized = normalizeDetails(data);
+        writeCachedDetails(appid, normalized);
+        return normalized;
       }
       return null;
     })

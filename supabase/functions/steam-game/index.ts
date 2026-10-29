@@ -161,14 +161,23 @@ async function handleDetails(appid: string): Promise<Response> {
   if (!entry?.success || !entry.data) return json({ found: false });
   const d = entry.data;
 
-  const movies = (Array.isArray(d.movies) ? d.movies : []).slice(0, 6).map((m: any) => ({
+  // A loja às vezes devolve endereços http://; o site é https, então o navegador bloquearia o vídeo.
+  const https = (url: unknown): string => (typeof url === 'string' ? url.replace(/^http:\/\//i, 'https://') : '');
+
+  const movies = (Array.isArray(d.movies) ? d.movies : []).slice(0, 8).map((m: any) => ({
     id: m.id,
     name: m.name ?? '',
-    thumbnail: m.thumbnail ?? '',
-    mp4_480: m.mp4?.['480'] ?? '',
-    mp4_max: m.mp4?.max ?? '',
-    webm_480: m.webm?.['480'] ?? '',
-    webm_max: m.webm?.max ?? '',
+    thumbnail: https(m.thumbnail),
+    mp4_480: https(m.mp4?.['480']),
+    mp4_max: https(m.mp4?.max),
+    webm_480: https(m.webm?.['480']),
+    webm_max: https(m.webm?.max),
+  }));
+
+  const screenshots = (Array.isArray(d.screenshots) ? d.screenshots : []).slice(0, 24).map((sc: any) => ({
+    id: sc.id,
+    thumb: https(sc.path_thumbnail),
+    full: https(sc.path_full),
   }));
 
   const body = {
@@ -202,6 +211,7 @@ async function handleDetails(appid: string): Promise<Response> {
       linux: !!d.platforms?.linux,
     },
     movies,
+    screenshots,
   };
   detailsCache.set(appid, { at: Date.now(), body });
   return json(body);

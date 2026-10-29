@@ -19,6 +19,8 @@ import {
   Power,
   Sparkles,
   Clapperboard,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
@@ -60,7 +62,7 @@ interface GameDetailProps {
   onClose: () => void;
 }
 
-type Tab = 'overview' | 'trailers' | 'achievements' | 'news' | 'notes';
+type Tab = 'overview' | 'media' | 'achievements' | 'news' | 'notes';
 
 // Tempo e curva da abertura de cada tema. O fechamento é sempre um pouco mais rápido.
 const OPEN_MOTION: Record<string, { duration: number; easing: string }> = {
@@ -583,8 +585,8 @@ export default function GameDetail({
             </TabButton>
             {!isCustom && (
               <>
-                <TabButton active={tab === 'trailers'} onClick={() => setTab('trailers')} icon={<Clapperboard className="h-4 w-4" />}>
-                  Trailers
+                <TabButton active={tab === 'media'} onClick={() => setTab('media')} icon={<Clapperboard className="h-4 w-4" />}>
+                  Mídia
                 </TabButton>
                 <TabButton active={tab === 'achievements'} onClick={() => setTab('achievements')} icon={<Trophy className="h-4 w-4" />}>
                   Conquistas
@@ -617,7 +619,7 @@ export default function GameDetail({
           {tab === 'achievements' && (
             <AchievementsTab loading={loadingAch} data={achievements} />
           )}
-          {tab === 'trailers' && <TrailersTab details={details} loading={loadingDetails} />}
+          {tab === 'media' && <MediaTab details={details} loading={loadingDetails} appid={game.appid} />}
           {tab === 'news' && <NewsTab loading={loadingNews} news={news} />}
           {tab === 'notes' && (
             <NotesTab
@@ -844,60 +846,141 @@ function FactsCard({ title, icon, facts }: { title: string; icon: React.ReactNod
   );
 }
 
-// Trailers da loja da Steam: o vídeo toca do próprio servidor da Steam, sem baixar nada para o computador.
-function TrailersTab({ details, loading }: { details: GameDetails | null; loading: boolean }) {
+// Mídia do jogo, como na loja da Steam: um visualizador grande (o trailer principal primeiro, depois as
+// imagens) e uma faixa de miniaturas embaixo. Os arquivos tocam e aparecem do próprio servidor da Steam.
+type MediaItem =
+  | { type: 'video'; id: string; name: string; url: string; poster: string }
+  | { type: 'image'; id: string; thumb: string; full: string };
+
+function MediaTab({ details, loading, appid }: { details: GameDetails | null; loading: boolean; appid: number }) {
   const [index, setIndex] = useState(0);
+  const [videoFailed, setVideoFailed] = useState(false);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-white/60">
         <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-        Carregando trailers…
+        Carregando mídia…
       </div>
     );
   }
-  const movies = details?.movies ?? [];
-  if (movies.length === 0) {
+  const items: MediaItem[] = [
+    ...(details?.movies ?? [])
+      .map((movie): MediaItem => ({
+        type: 'video',
+        id: `v${movie.id}`,
+        name: movie.name || 'Trailer',
+        url: fullVideoUrl(movie),
+        poster: movie.thumbnail,
+      }))
+      .filter((item) => item.type !== 'video' || item.url),
+    ...(details?.screenshots ?? []).map(
+      (shot): MediaItem => ({ type: 'image', id: `i${shot.id}`, thumb: shot.thumb, full: shot.full })
+    ),
+  ];
+  if (items.length === 0) {
     return (
       <EmptyState
         icon={<Clapperboard className="h-8 w-8" />}
-        title="Sem trailers"
-        text="A loja da Steam não tem trailers para este jogo, ou não foi possível carregá-los."
+        title="Sem mídia"
+        text="A loja da Steam não tem trailers nem imagens para este jogo, ou não foi possível carregá-los."
       />
     );
   }
-  const current = movies[Math.min(index, movies.length - 1)];
+
+  const current = items[Math.min(index, items.length - 1)];
+  const go = (next: number) => {
+    setVideoFailed(false);
+    setIndex((next + items.length) % items.length);
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-black/40">
-        <video
-          key={current.id}
-          src={fullVideoUrl(current)}
-          poster={current.thumbnail}
-          controls
-          playsInline
-          preload="metadata"
-          className="aspect-video w-full bg-black"
-        />
-      </div>
-      <p className="text-sm font-medium text-white/80">{current.name || 'Trailer'}</p>
-      {movies.length > 1 && (
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {movies.map((movie, i) => (
+    <div className="space-y-3">
+      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-black">
+        {current.type === 'video' ? (
+          videoFailed ? (
+            <div className="grid aspect-video w-full place-items-center p-6 text-center text-sm text-white/60">
+              <p>
+                Não consegui tocar este vídeo aqui.{' '}
+                <a
+                  href={`https://store.steampowered.com/app/${appid}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 hover:text-white"
+                >
+                  Ver na loja da Steam
+                </a>
+              </p>
+            </div>
+          ) : (
+            <video
+              key={current.id}
+              src={current.url}
+              poster={current.poster}
+              controls
+              playsInline
+              preload="metadata"
+              className="aspect-video w-full bg-black"
+              onError={() => setVideoFailed(true)}
+            />
+          )
+        ) : (
+          <img key={current.id} src={current.full} alt="" className="aspect-video w-full bg-black object-contain" />
+        )}
+        {items.length > 1 && (
+          <>
             <button
-              key={movie.id}
               type="button"
-              onClick={() => setIndex(i)}
-              aria-label={`Ver ${movie.name || 'trailer'}`}
-              aria-pressed={i === index}
-              className={`reveal relative aspect-video w-36 shrink-0 overflow-hidden rounded-xl border transition-all ${
-                i === index ? 'theme-accent-border' : 'border-white/10 opacity-70 hover:opacity-100'
+              onClick={() => go(index - 1)}
+              aria-label="Anterior"
+              className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => go(index + 1)}
+              aria-label="Próximo"
+              className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-white/45">
+        <span className="truncate">{current.type === 'video' ? current.name : 'Imagem do jogo'}</span>
+        <span className="tabular-nums">
+          {Math.min(index, items.length - 1) + 1} / {items.length}
+        </span>
+      </div>
+
+      <div className="flex gap-2.5 overflow-x-auto pb-1">
+        {items.map((item, i) => {
+          const active = i === Math.min(index, items.length - 1);
+          const thumb = item.type === 'video' ? item.poster : item.thumb;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => go(i)}
+              aria-label={item.type === 'video' ? `Vídeo: ${item.name}` : `Imagem ${i + 1}`}
+              aria-pressed={active}
+              className={`reveal relative aspect-video w-32 shrink-0 overflow-hidden rounded-lg border transition-all ${
+                active ? 'theme-accent-border' : 'border-white/10 opacity-65 hover:opacity-100'
               }`}
             >
-              <img src={movie.thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img src={thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+              {item.type === 'video' && (
+                <span className="absolute inset-0 grid place-items-center bg-black/25">
+                  <Play className="h-5 w-5 fill-white text-white" />
+                </span>
+              )}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
