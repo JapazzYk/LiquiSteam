@@ -145,9 +145,15 @@ body {
   outline-offset: 3px;
 }
 
-/* Brilho do cursor: um halo largo e macio e um núcleo claro menor. Existe em todos os temas; cada um
-   ajusta a cor e a mistura com o fundo. --glow-intensity (0 a 1) vem do painel de aparência. */
+/* Brilho do cursor: luz difusa, sem borda. Cada camada é um gradiente de curva suave (tipo gaussiana)
+   que chega a zero antes do limite da caixa, então não aparece nenhum contorno. Existe em todos os
+   temas; cada um ajusta a cor e a força. --glow-intensity (0 a 1) vem do painel de aparência.
+   --glow-c / --glow-k: cor e força do halo largo. --spot-c / --spot-k: cor e força do núcleo. */
 .cursor-glow {
+  --glow-c: var(--accent-rgb);
+  --glow-k: 0.3;
+  --spot-c: 255, 255, 255;
+  --spot-k: 0.34;
   position: fixed;
   z-index: 30;
   top: 0;
@@ -161,77 +167,65 @@ body {
 
 .cursor-glow-core {
   position: absolute;
-  top: -170px;
-  left: -170px;
-  width: 340px;
-  height: 340px;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.3)) 0%,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.1)) 38%,
-    transparent 70%
+  top: -230px;
+  left: -230px;
+  width: 460px;
+  height: 460px;
+  background: radial-gradient(circle closest-side,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 1)) 0%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.95)) 10%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.8)) 20%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.6)) 30%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.4)) 40%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.24)) 50%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.13)) 60%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.06)) 70%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.02)) 80%,
+    rgba(var(--glow-c), calc(var(--glow-intensity) * var(--glow-k) * 0.006)) 90%,
+    rgba(var(--glow-c), 0) 100%
   );
-  filter: blur(20px);
 }
 
 .cursor-glow-spot {
   position: absolute;
-  top: -46px;
-  left: -46px;
-  width: 92px;
-  height: 92px;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgb(255 255 255 / calc(var(--glow-intensity) * 0.4)) 0%,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.3)) 44%,
-    transparent 72%
+  top: -80px;
+  left: -80px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle closest-side,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 1)) 0%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.95)) 10%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.8)) 20%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.6)) 30%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.4)) 40%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.24)) 50%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.13)) 60%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.06)) 70%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.02)) 80%,
+    rgba(var(--spot-c), calc(var(--glow-intensity) * var(--spot-k) * 0.006)) 90%,
+    rgba(var(--spot-c), 0) 100%
   );
-  filter: blur(6px);
 }
 
 /* Minimalista claro: sobre papel branco o brilho vira uma mancha de cor suave, sem branco. */
 [data-skin='paper'] .cursor-glow {
+  --glow-k: 0.2;
+  --spot-c: var(--accent-rgb);
+  --spot-k: 0.24;
   mix-blend-mode: multiply;
 }
 
-[data-skin='paper'] .cursor-glow-core {
-  background: radial-gradient(
-    circle,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.2)) 0%,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.07)) 40%,
-    transparent 70%
-  );
-}
-
-[data-skin='paper'] .cursor-glow-spot {
-  background: radial-gradient(
-    circle,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.28)) 0%,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.1)) 46%,
-    transparent 72%
-  );
-}
-
 /* Arcade: núcleo ciano sobre o halo neon. */
-[data-skin='arcade'] .cursor-glow-spot {
-  background: radial-gradient(
-    circle,
-    rgb(34 211 238 / calc(var(--glow-intensity) * 0.55)) 0%,
-    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.35)) 46%,
-    transparent 72%
-  );
+[data-skin='arcade'] .cursor-glow {
+  --spot-c: 34, 211, 238;
+  --spot-k: 0.5;
 }
 
 /* Grafite: luz branca e fria, sem cor. */
-[data-skin='graphite'] .cursor-glow-core {
-  background: radial-gradient(
-    circle,
-    rgb(255 255 255 / calc(var(--glow-intensity) * 0.14)) 0%,
-    rgb(255 255 255 / calc(var(--glow-intensity) * 0.05)) 38%,
-    transparent 70%
-  );
+[data-skin='graphite'] .cursor-glow {
+  --glow-c: 255, 255, 255;
+  --glow-k: 0.13;
+  --spot-k: 0.2;
 }
 
 .glass-reflection {
