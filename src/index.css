@@ -1028,6 +1028,112 @@ body {
   animation-timing-function: linear;
 }
 
+/* Troca de tela (biblioteca, conta, login): a tela que sai some rápido e a nova chega do
+   jeito do tema, com os mesmos movimentos e tempos da entrada dos cartões. */
+.view-enter {
+  animation: card-in-liquid 0.6s var(--ease-out) var(--d, 0ms) backwards;
+}
+
+[data-skin='steam'] .view-enter {
+  animation-name: card-in-steam;
+  animation-duration: 0.35s;
+}
+
+[data-skin='paper'] .view-enter {
+  animation-name: card-in-paper;
+  animation-duration: 0.7s;
+}
+
+[data-skin='arcade'] .view-enter {
+  animation-name: card-in-arcade;
+  animation-duration: 0.7s;
+  animation-timing-function: linear;
+}
+
+[data-skin='graphite'] .view-enter {
+  animation-name: card-in-graphite;
+  animation-duration: 0.5s;
+}
+
+/* Versão só de opacidade: a biblioteca já tem a entrada própria dos cartões. */
+.view-enter-soft {
+  animation: view-fade 0.3s ease backwards;
+}
+
+@keyframes view-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Saída: 0.18s (VIEW_LEAVE_MS no App.tsx). */
+.view-leave {
+  animation: view-out-liquid 0.18s ease-in forwards;
+  pointer-events: none;
+}
+
+[data-skin='steam'] .view-leave {
+  animation-name: view-out-steam;
+}
+
+[data-skin='paper'] .view-leave {
+  animation-name: view-out-paper;
+}
+
+[data-skin='arcade'] .view-leave {
+  animation-name: view-out-arcade;
+  animation-timing-function: steps(3);
+}
+
+[data-skin='graphite'] .view-leave {
+  animation-name: view-out-graphite;
+}
+
+@keyframes view-out-liquid {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.985);
+  }
+}
+
+@keyframes view-out-steam {
+  to {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@keyframes view-out-paper {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes view-out-arcade {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes view-out-graphite {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Logo e nome: foco visível para quem navega pelo teclado. */
+.brand-link:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.7);
+  outline-offset: 4px;
+}
+
 /* Linha da lista. */
 .game-row {
   display: flex;
@@ -1335,6 +1441,9 @@ body {
   .detail-rise,
   .detail-fade,
   .detail-hero img,
+  .view-enter,
+  .view-enter-soft,
+  .view-leave,
   .install-pop {
     animation: none !important;
   }

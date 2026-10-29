@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   ArrowLeft,
   LogOut,
@@ -167,7 +168,7 @@ export default function AccountPanel({
         />
 
         {user ? (
-          <div className="relative flex items-center gap-4">
+          <div key="signed-in" className="view-enter relative flex items-center gap-4">
             <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/15 bg-white/[0.10]">
               {user.avatarUrl ? (
                 <img
@@ -196,7 +197,7 @@ export default function AccountPanel({
             </div>
           </div>
         ) : (
-          <div className="relative">
+          <div key="signed-out" className="view-enter relative">
             <h3 className="mb-1 text-lg font-semibold tracking-tight text-white">
               Entrar com a Steam
             </h3>
@@ -228,7 +229,10 @@ export default function AccountPanel({
 
       {/* Steam Web API key — only after login, since the SteamID comes from OpenID */}
       {user && (
-        <div className="theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl">
+        <div
+          className="view-enter theme-glass relative mb-5 overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.06] p-7 backdrop-blur-2xl"
+          style={{ '--d': '90ms' } as CSSProperties}
+        >
           <div className="mb-1 flex items-center gap-2">
             <KeyRound className="theme-accent h-4 w-4" />
             <h3 className="text-lg font-semibold tracking-tight text-white">

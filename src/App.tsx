@@ -32,8 +32,13 @@ import { getSkin } from '@/lib/skins';
 import type { OpenOrigin } from '@/lib/openOrigin';
 import type { SteamUser, InstalledGame, View } from '@/types';
 
+// Duração da saída ao trocar de tela (mesmo valor de .view-leave no index.css).
+const VIEW_LEAVE_MS = 180;
+
 export default function App() {
   const [view, setView] = useState<View>('library');
+  const [leaving, setLeaving] = useState(false);
+  const leaveTimer = useRef<number | null>(null);
   const [user, setUser] = useState<SteamUser | null>(() => loadUser());
   const [games, setGames] = useState<InstalledGame[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +75,52 @@ export default function App() {
       void saveRemoteTheme(nextTheme).catch(() => undefined);
     }, 600);
   };
+
+  // Troca de tela: a tela atual sai rápido e a nova entra no estilo do tema.
+  // Sem animação quando o sistema pede para reduzir movimento.
+  const goTo = (next: View) => {
+    if (leaveTimer.current !== null) {
+      window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+    if (next === view) {
+      setLeaving(false);
+      return;
+    }
+    const finish = () => {
+      setView(next);
+      setLeaving(false);
+      window.scrollTo({ top: 0 });
+    };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finish();
+      return;
+    }
+    setLeaving(true);
+    leaveTimer.current = window.setTimeout(() => {
+      leaveTimer.current = null;
+      finish();
+    }, VIEW_LEAVE_MS);
+  };
+
+  // Logo e nome do canto superior esquerdo: voltam à tela principal da biblioteca.
+  const goHome = () => {
+    setSelectedGame(null);
+    setCustomizationOpen(false);
+    setQuery('');
+    if (view === 'library') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    goTo('library');
+  };
+
+  useEffect(
+    () => () => {
+      if (leaveTimer.current !== null) window.clearTimeout(leaveTimer.current);
+    },
+    []
+  );
 
   const openGame = (game: InstalledGame, origin?: OpenOrigin) => {
     setOpenOrigin(origin ?? null);
@@ -212,10 +263,21 @@ export default function App() {
 
       <header className="app-header theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 md:gap-4">
-          <div className="flex shrink-0 items-center gap-3">
+          <a
+            href="/"
+            onClick={(event) => {
+              // Clique normal volta à tela principal sem recarregar; Ctrl/Cmd/botão do meio abrem em outra aba.
+              if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              goHome();
+            }}
+            aria-label="LiquiSteam: ir para a tela principal"
+            title="Ir para a tela principal"
+            className="brand-link flex shrink-0 items-center gap-3 rounded-xl text-inherit no-underline transition-transform duration-200 hover:opacity-90 active:scale-[0.97]"
+          >
             <img
               src="/logo.png"
-              alt="LiquiSteam"
+              alt=""
               width={40}
               height={40}
               className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_2px_10px_rgba(var(--accent-rgb),0.35)]"
@@ -226,22 +288,22 @@ export default function App() {
                 {usingDemo ? 'Biblioteca de exemplo' : `${games.length} jogos`}
               </p>
             </div>
-          </div>
+          </a>
 
           {view === 'library' && (
-            <div className="min-w-0 flex-1 md:px-4">
+            <div className="view-enter-soft min-w-0 flex-1 md:px-4">
               <SearchBar value={query} onChange={setQuery} />
             </div>
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {view === 'library' && (
-              <div className="hidden lg:block">
+              <div className="view-enter-soft hidden lg:block">
                 <LayoutSwitch value={theme.layout} onChange={(layout) => updateTheme({ ...theme, layout })} />
               </div>
             )}
             {view === 'library' && (
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="view-enter-soft hidden items-center gap-2 md:flex">
                 <OpenSteamButton status={steamStatus} source={steamSource} onOpen={openSteam} onStop={stopSteam} />
                 {steamHelper !== 'checking' && (
                   <HelperInstall
@@ -279,7 +341,7 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => setView(view === 'account' ? 'library' : 'account')}
+              onClick={() => goTo(view === 'account' ? 'library' : 'account')}
               className={`flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
                 view === 'account'
                   ? 'theme-accent-border theme-accent-surface text-white'
@@ -309,51 +371,53 @@ export default function App() {
       )}
 
       <main className="px-4 pb-16 pt-6 sm:px-6 md:px-10 md:pt-8">
-        {view === 'account' ? (
-          <AccountPanel
-            user={user}
-            onUserChange={handleUserChange}
-            onLibraryChanged={() => void loadLibrary()}
-            helper={steamHelper}
-            helperGames={helperGames}
-            hasKey={hasKey}
-            onApiKeyChange={(has) => setHasKey(has)}
-            onBack={() => setView('library')}
-          />
-        ) : (
-          <div className="mx-auto max-w-[1400px]">
-            {usingDemo && (
-              <p className="notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
-                Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e adicione as
-                pastas steamapps (ou instale o Helper, que acha tudo sozinho) na{' '}
-                <button
-                  type="button"
-                  onClick={() => setView('account')}
-                  className="font-medium underline underline-offset-4"
-                >
-                  tela de conta
-                </button>
-                .
-              </p>
-            )}
+        <div key={view} className={leaving ? 'view-leave' : view === 'account' ? 'view-enter' : 'view-enter-soft'}>
+          {view === 'account' ? (
+            <AccountPanel
+              user={user}
+              onUserChange={handleUserChange}
+              onLibraryChanged={() => void loadLibrary()}
+              helper={steamHelper}
+              helperGames={helperGames}
+              hasKey={hasKey}
+              onApiKeyChange={(has) => setHasKey(has)}
+              onBack={() => goTo('library')}
+            />
+          ) : (
+            <div className="mx-auto max-w-[1400px]">
+              {usingDemo && (
+                <p className="notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
+                  Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e adicione as
+                  pastas steamapps (ou instale o Helper, que acha tudo sozinho) na{' '}
+                  <button
+                    type="button"
+                    onClick={() => goTo('account')}
+                    className="font-medium underline underline-offset-4"
+                  >
+                    tela de conta
+                  </button>
+                  .
+                </p>
+              )}
 
-            {visible.length === 0 && !loading ? (
-              <EmptyLibrary
-                query={query}
-                onClear={() => setQuery('')}
-                onPickFolder={() => setView('account')}
-              />
-            ) : (
-              <LibraryView
-                key={`${theme.skin}-${theme.layout}`}
-                games={visible}
-                layout={theme.layout}
-                loading={loading}
-                onOpen={openGame}
-              />
-            )}
-          </div>
-        )}
+              {visible.length === 0 && !loading ? (
+                <EmptyLibrary
+                  query={query}
+                  onClear={() => setQuery('')}
+                  onPickFolder={() => goTo('account')}
+                />
+              ) : (
+                <LibraryView
+                  key={`${theme.skin}-${theme.layout}`}
+                  games={visible}
+                  layout={theme.layout}
+                  loading={loading}
+                  onOpen={openGame}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </main>
 
       {selectedGame && (
