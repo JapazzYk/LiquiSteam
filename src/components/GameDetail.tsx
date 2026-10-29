@@ -30,6 +30,7 @@ import {
   fetchGameDetails,
   fetchNews,
   fetchPlaytime,
+  detailsError,
   fullVideoUrl,
   hlsVideoUrl,
   type GameDetails,
@@ -975,13 +976,17 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
     ),
   ];
   if (items.length === 0) {
-    return (
-      <EmptyState
-        icon={<Clapperboard className="h-8 w-8" />}
-        title="Sem mídia"
-        text="A loja da Steam não tem trailers nem imagens para este jogo, ou não foi possível carregá-los."
-      />
-    );
+    const reason = detailsError(appid);
+    const text = !reason
+      ? 'A loja da Steam não tem trailers nem imagens para este jogo.'
+      : /desconhecida|unknown/i.test(reason)
+        ? 'A função steam-game no Supabase está desatualizada. Cole a versão nova no editor da função e faça o deploy.'
+        : reason === 'not-in-store'
+          ? 'Este jogo não está mais disponível na loja da Steam.'
+          : reason.startsWith('store-')
+            ? `A loja da Steam recusou o pedido (código ${reason.slice(6)}). Pode ser limite de acessos; tente de novo em alguns minutos.`
+            : `Não foi possível carregar: ${reason}`;
+    return <EmptyState icon={<Clapperboard className="h-8 w-8" />} title="Sem mídia" text={text} />;
   }
 
   const current = items[Math.min(index, items.length - 1)];

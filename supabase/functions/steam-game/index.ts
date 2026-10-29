@@ -149,17 +149,33 @@ function jsonError(status: number, message: string): Response {
 const detailsCache = new Map<string, { at: number; body: unknown }>();
 const DETAILS_TTL_MS = 6 * 60 * 60 * 1000;
 
+async function storeDetails(appid: string, cc: string, lang: string): Promise<{ data?: any; status?: number }> {
+  const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appid}&l=${lang}&cc=${cc}`;
+  const res = await fetch(steamUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LiquiSteam/1.0)', Accept: 'application/json' },
+  });
+  if (!res.ok) return { status: res.status };
+  const json = await res.json().catch(() => null);
+  const entry = json?.[appid];
+  return entry?.success && entry.data ? { data: entry.data } : {};
+}
+
 async function handleDetails(appid: string): Promise<Response> {
   const cached = detailsCache.get(appid);
   if (cached && Date.now() - cached.at < DETAILS_TTL_MS) return json(cached.body);
 
-  const steamUrl = `https://store.steampowered.com/api/appdetails?appids=${appid}&l=brazilian&cc=br`;
-  const res = await fetch(steamUrl);
-  if (!res.ok) return jsonError(502, `A loja respondeu ${res.status}`);
-  const data = await res.json().catch(() => null);
-  const entry = data?.[appid];
-  if (!entry?.success || !entry.data) return json({ found: false });
-  const d = entry.data;
+  // Português do Brasil primeiro; se a loja não liberar o jogo nessa região, tenta a versão em inglês.
+  let result = await storeDetails(appid, 'br', 'brazilian');
+  if (!result.data) {
+    const second = await storeDetails(appid, 'us', 'english');
+    if (second.data || result.status === undefined) result = second;
+    else if (second.status !== undefined) result = { status: second.status };
+  }
+  if (!result.data) {
+    // A resposta é 200 com o motivo, para o site poder explicar por que não há mídia.
+    return json({ found: false, reason: result.status ? `store-${result.status}` : 'not-in-store' });
+  }
+  const d = result.data;
 
   // A loja às vezes devolve endereços http://; o site é https, então o navegador bloquearia o vídeo.
   const https = (url: unknown): string => (typeof url === 'string' ? url.replace(/^http:\/\//i, 'https://') : '');

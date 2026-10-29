@@ -202,16 +202,25 @@ function normalizeDetails(data: GameDetails): GameDetails {
   };
 }
 
-const DETAILS_PREFIX = 'liquid_gd_';
+// Versão dos dados guardados: ao mudar o formato (trailers por streaming, imagens...), o que foi guardado
+// antes é descartado em vez de aparecer incompleto por 24 horas.
+const DETAILS_VERSION = 3;
+const DETAILS_PREFIX = 'liquid_gd3_';
 const DETAILS_TTL_MS = 24 * 60 * 60 * 1000;
 const detailsMemory = new Map<number, Promise<GameDetails | null>>();
+const detailsErrors = new Map<number, string>();
+
+// Por que a última tentativa de ler os detalhes de um jogo falhou (null = não falhou).
+export function detailsError(appid: number): string | null {
+  return detailsErrors.get(appid) ?? null;
+}
 
 function readCachedDetails(appid: number): GameDetails | null {
   try {
     const raw = localStorage.getItem(DETAILS_PREFIX + appid);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { at: number; data: GameDetails };
-    if (!parsed || Date.now() - parsed.at > DETAILS_TTL_MS) return null;
+    const parsed = JSON.parse(raw) as { v?: number; at: number; data: GameDetails };
+    if (!parsed || parsed.v !== DETAILS_VERSION || Date.now() - parsed.at > DETAILS_TTL_MS) return null;
     return normalizeDetails(parsed.data);
   } catch {
     return null;
@@ -220,7 +229,7 @@ function readCachedDetails(appid: number): GameDetails | null {
 
 function writeCachedDetails(appid: number, data: GameDetails): void {
   try {
-    localStorage.setItem(DETAILS_PREFIX + appid, JSON.stringify({ at: Date.now(), data }));
+    localStorage.setItem(DETAILS_PREFIX + appid, JSON.stringify({ v: DETAILS_VERSION, at: Date.now(), data }));
   } catch {
     // armazenamento cheio: segue sem guardar
   }
@@ -237,16 +246,21 @@ export function fetchGameDetails(appid: number): Promise<GameDetails | null> {
     detailsMemory.set(appid, resolved);
     return resolved;
   }
-  const request = callSteamGame<GameDetails>('details', { params: { appid: String(appid) } })
+  const request = callSteamGame<GameDetails & { reason?: string }>('details', { params: { appid: String(appid) } })
     .then((data) => {
       if (data && data.found) {
+        detailsErrors.delete(appid);
         const normalized = normalizeDetails(data);
         writeCachedDetails(appid, normalized);
         return normalized;
       }
+      const reason = data?.reason ?? 'not-in-store';
+      detailsErrors.set(appid, reason);
+      if (reason.startsWith('store-')) detailsMemory.delete(appid); // falha passageira: tenta de novo depois
       return null;
     })
-    .catch(() => {
+    .catch((error: unknown) => {
+      detailsErrors.set(appid, error instanceof Error ? error.message : 'erro');
       detailsMemory.delete(appid); // tenta de novo na próxima vez
       return null;
     });
