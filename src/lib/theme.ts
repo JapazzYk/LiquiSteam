@@ -14,6 +14,8 @@ export interface ThemePreferences {
   accentRgb: string;
   glowIntensity: number;
   glassOpacity: number;
+  // Opacidade dos painéis nos temas sólidos (Steam, Minimalista, Grafite): 1 = sólido, menos = translúcido.
+  panelOpacity: number;
   motion: MotionId;
   // Fundo animado do tema. Desligado, o fundo fica parado.
   liveBackground: boolean;
@@ -26,6 +28,7 @@ export const defaultTheme: ThemePreferences = {
   accentRgb: '56, 189, 248',
   glowIntensity: 0.7,
   glassOpacity: 0.06,
+  panelOpacity: 1,
   motion: 'theme',
   liveBackground: true,
 };
@@ -42,6 +45,10 @@ export function normalizeTheme(value: unknown): ThemePreferences {
     accentRgb: typeof v.accentRgb === 'string' ? v.accentRgb : defaultTheme.accentRgb,
     glowIntensity: typeof v.glowIntensity === 'number' ? v.glowIntensity : defaultTheme.glowIntensity,
     glassOpacity: typeof v.glassOpacity === 'number' ? v.glassOpacity : defaultTheme.glassOpacity,
+    panelOpacity:
+      typeof v.panelOpacity === 'number' && v.panelOpacity >= 0.3 && v.panelOpacity <= 1
+        ? v.panelOpacity
+        : defaultTheme.panelOpacity,
     motion: MOTION_IDS.includes(v.motion as MotionId) ? (v.motion as MotionId) : defaultTheme.motion,
     liveBackground: typeof v.liveBackground === 'boolean' ? v.liveBackground : defaultTheme.liveBackground,
   };
@@ -73,4 +80,17 @@ export function onAccentColor(rgb: string): string {
   const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return luminance > 0.18 ? '#04101f' : '#ffffff';
+}
+
+// Cor escolhida no seletor (#rrggbb) para o formato "R, G, B" usado nas variáveis CSS.
+export function hexToRgbString(hex: string): string | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!match) return null;
+  const value = parseInt(match[1], 16);
+  return `${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}`;
+}
+
+export function normalizeHex(hex: string): string | null {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  return match ? `#${match[1].toLowerCase()}` : null;
 }

@@ -31,6 +31,7 @@ export default function CursorGlow() {
   return (
     <div ref={glowRef} className="cursor-glow" aria-hidden>
       <div className="cursor-glow-core" />
+      <div className="cursor-glow-spot" />
     </div>
   );
 }

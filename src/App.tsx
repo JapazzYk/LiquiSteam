@@ -142,12 +142,19 @@ export default function App() {
     document.documentElement.dataset.ambient = theme.liveBackground ? 'on' : 'off';
   }, [theme.motion, theme.liveBackground]);
 
+  // Painéis translúcidos nos temas sólidos pedem desfoque do fundo (ver [data-panels] no index.css).
+  useLayoutEffect(() => {
+    const translucent = !getSkin(theme.skin).glass && theme.panelOpacity < 1;
+    document.documentElement.dataset.panels = translucent ? 'glass' : 'solid';
+  }, [theme.skin, theme.panelOpacity]);
+
   const rootStyle = {
     '--accent-rgb': theme.accentRgb,
     '--accent-color': theme.accent,
     '--on-accent': onAccentColor(theme.accentRgb),
     '--glow-intensity': theme.glowIntensity,
     '--glass-opacity': theme.glassOpacity,
+    '--panel-a': skin.glass ? 1 : theme.panelOpacity,
   } as CSSProperties;
 
   // Ao abrir o app: conclui o login Steam (se voltou do login) e carrega a conta.
@@ -265,7 +272,7 @@ export default function App() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
-      {skin.glow && <CursorGlow />}
+      {skin.glow && theme.glowIntensity > 0 && <CursorGlow />}
 
       <header className="app-header theme-glass glass-reflection sticky top-0 z-20 px-4 py-4 backdrop-blur-md sm:px-6 md:px-10 md:py-5">
         <div className="mx-auto flex max-w-[1400px] items-center gap-3 md:gap-4">

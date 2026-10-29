@@ -5,30 +5,30 @@ import type { Ambient } from '@/lib/skins';
 // Fundo de cada tema. Liquid Glass usa manchas de luz num canvas leve (meia resolução, 30 quadros por
 // segundo) mais bolhas de vidro; Arcade, Steam, Minimalista e Grafite animam só com CSS
 // (transform/opacity, sem repintar a tela).
-// Com `live` desligado, o canvas desenha um quadro e para, e o CSS pausa as animações.
+// Com `live` desligado, os efeitos (bolhas, pontos, névoa, facho, estrelas) saem da tela; o Liquid Glass
+// mantém só um quadro das luzes do canvas, como fundo base.
 export default function LiquidBackground({ ambient, live = true }: { ambient: Ambient; live?: boolean }) {
   if (ambient === 'liquid') {
     return (
       <>
         <LiquidCanvas live={live} />
-        <LiquidBubbles />
+        {live && <LiquidBubbles />}
       </>
     );
   }
   if (ambient === 'arcade') {
     return (
       <div className="ambient ambient-arcade" aria-hidden>
-        <div className="arcade-stars" />
+        {live && <div className="arcade-stars" />}
         <div className="arcade-sun" />
-        <div className="arcade-floor">
-          <div className="arcade-grid" />
-        </div>
+        <div className="arcade-floor">{live && <div className="arcade-grid" />}</div>
       </div>
     );
   }
-  if (ambient === 'steam') return <SteamAmbient />;
-  if (ambient === 'paper') return <PaperAmbient />;
-  return <GraphiteAmbient />;
+  // Desligado: some tudo o que se mexe e fica só o fundo base do tema.
+  if (ambient === 'steam') return <SteamAmbient live={live} />;
+  if (ambient === 'paper') return <PaperAmbient live={live} />;
+  return <GraphiteAmbient live={live} />;
 }
 
 // Gerador pseudoaleatório com semente fixa: os elementos de fundo nascem sempre nos mesmos lugares,
@@ -47,7 +47,7 @@ function seeded(seed: number): () => number {
 const range = (rand: () => number, min: number, max: number) => min + rand() * (max - min);
 
 // Minimalista claro: pontinhos cinzas que acendem e apagam em lugares aleatórios, bem discretos.
-function PaperAmbient() {
+function PaperAmbient({ live }: { live: boolean }) {
   const dots = useMemo(() => {
     const rand = seeded(7);
     return Array.from({ length: 70 }, () => ({
@@ -61,7 +61,7 @@ function PaperAmbient() {
   }, []);
   return (
     <div className="ambient ambient-paper" aria-hidden>
-      {dots.map((style, index) => (
+      {live && dots.map((style, index) => (
         <span key={index} className="ambient-dot" style={style} />
       ))}
     </div>
@@ -69,7 +69,7 @@ function PaperAmbient() {
 }
 
 // Steam escuro: vapor. Névoa azulada que passa devagar e fagulhas azuis que sobem.
-function SteamAmbient() {
+function SteamAmbient({ live }: { live: boolean }) {
   const motes = useMemo(() => {
     const rand = seeded(21);
     return Array.from({ length: 22 }, () => ({
@@ -82,23 +82,31 @@ function SteamAmbient() {
   }, []);
   return (
     <div className="ambient ambient-steam" aria-hidden>
-      <span className="ambient-orb ambient-orb-a" />
-      <span className="ambient-orb ambient-orb-b" />
-      <span className="steam-fog steam-fog-a" />
-      <span className="steam-fog steam-fog-b" />
-      {motes.map((style, index) => (
-        <span key={index} className="steam-mote" style={style} />
-      ))}
+      {live && (
+        <>
+          <span className="ambient-orb ambient-orb-a" />
+          <span className="ambient-orb ambient-orb-b" />
+          <span className="steam-fog steam-fog-a" />
+          <span className="steam-fog steam-fog-b" />
+          {motes.map((style, index) => (
+            <span key={index} className="steam-mote" style={style} />
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
 // Grafite: um facho de luz que atravessa o preto de tempos em tempos e um brilho que respira embaixo.
-function GraphiteAmbient() {
+function GraphiteAmbient({ live }: { live: boolean }) {
   return (
     <div className="ambient ambient-graphite" aria-hidden>
-      <span className="graphite-sheen" />
-      <span className="graphite-glow" />
+      {live && (
+        <>
+          <span className="graphite-sheen" />
+          <span className="graphite-glow" />
+        </>
+      )}
     </div>
   );
 }

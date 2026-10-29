@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
-import { onAccentColor, type ThemePreferences } from '@/lib/theme';
+import { hexToRgbString, normalizeHex, onAccentColor, type ThemePreferences } from '@/lib/theme';
 import { ACCENTS, LAYOUTS, MOTIONS, SKINS, getSkin, type SkinDefinition } from '@/lib/skins';
 import { layoutIcons } from '@/components/LayoutSwitch';
 import { runThemeTransition } from '@/lib/viewTransition';
@@ -23,6 +23,8 @@ export default function CustomizationPanel({
   onClose,
 }: CustomizationPanelProps) {
   const skin = getSkin(theme.skin);
+  const customAccent = !ACCENTS.some((option) => option.value.toLowerCase() === theme.accent.toLowerCase());
+  const [hexDraft, setHexDraft] = useState(theme.accent);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const onCloseRef = useRef(onClose);
@@ -49,6 +51,14 @@ export default function CustomizationPanel({
     },
     []
   );
+
+  useEffect(() => setHexDraft(theme.accent), [theme.accent]);
+
+  const applyCustomAccent = (value: string) => {
+    const hex = normalizeHex(value);
+    const rgb = hex ? hexToRgbString(hex) : null;
+    if (hex && rgb) onChange({ ...theme, accent: hex, accentRgb: rgb });
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -108,8 +118,10 @@ export default function CustomizationPanel({
                         onChange({
                           ...theme,
                           skin: option.id,
-                          accent: option.accent.value,
-                          accentRgb: option.accent.rgb,
+                          // Cor personalizada continua ao trocar de tema; as cores prontas voltam à cor do tema.
+                          ...(customAccent
+                            ? {}
+                            : { accent: option.accent.value, accentRgb: option.accent.rgb }),
                         }),
                       { x: event.clientX, y: event.clientY }
                     );
@@ -191,7 +203,49 @@ export default function CustomizationPanel({
                 </button>
               );
             })}
+            {/* Seletor de cor livre (RGB): o clique abre o seletor do navegador. */}
+            <label
+              className={`relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border p-2 transition-colors focus-within:border-white/40 ${
+                customAccent ? 'border-white/40 bg-white/[0.08]' : 'border-white/10 hover:border-white/25'
+              }`}
+            >
+              <span
+                className="grid h-8 w-8 place-items-center rounded-full"
+                style={{
+                  background: customAccent
+                    ? theme.accent
+                    : 'conic-gradient(from 0deg, #f43f5e, #f59e0b, #84cc16, #22d3ee, #6366f1, #d946ef, #f43f5e)',
+                }}
+              >
+                {customAccent && <Check className="h-4 w-4" style={{ color: onAccentColor(theme.accentRgb) }} />}
+              </span>
+              <span className="text-[10px] text-white/55">Outra cor</span>
+              <input
+                type="color"
+                value={normalizeHex(theme.accent) ?? '#38bdf8'}
+                onChange={(event) => applyCustomAccent(event.target.value)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                aria-label="Escolher uma cor de destaque personalizada"
+              />
+            </label>
           </div>
+          <label className="mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white/70">
+            <span className="shrink-0">Código da cor</span>
+            <input
+              type="text"
+              value={hexDraft}
+              onChange={(event) => {
+                setHexDraft(event.target.value);
+                applyCustomAccent(event.target.value);
+              }}
+              onBlur={() => setHexDraft(theme.accent)}
+              spellCheck={false}
+              maxLength={7}
+              placeholder="#38bdf8"
+              aria-label="Código hexadecimal da cor de destaque"
+              className="min-w-0 flex-1 bg-transparent text-right font-mono text-sm text-white placeholder:text-white/30 focus:outline-none"
+            />
+          </label>
         </Section>
 
         <Section title="Transições" order={3}>
@@ -235,36 +289,43 @@ export default function CustomizationPanel({
           />
         </Section>
 
-        {(skin.glow || skin.glass) && (
-          <Section title="Efeitos" order={5}>
-            <div className="grid gap-3">
-              {skin.glow && (
-                <Slider
-                  label="Brilho do cursor"
-                  value={theme.glowIntensity}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  display={`${Math.round(theme.glowIntensity * 100)}%`}
-                  accent={theme.accent}
-                  onChange={(glowIntensity) => onChange({ ...theme, glowIntensity })}
-                />
-              )}
-              {skin.glass && (
-                <Slider
-                  label="Opacidade dos vidros"
-                  value={theme.glassOpacity}
-                  min={0.03}
-                  max={0.14}
-                  step={0.01}
-                  display={`${Math.round(theme.glassOpacity * 100)}%`}
-                  accent={theme.accent}
-                  onChange={(glassOpacity) => onChange({ ...theme, glassOpacity })}
-                />
-              )}
-            </div>
-          </Section>
-        )}
+        <Section title="Efeitos" order={5}>
+          <div className="grid gap-3">
+            <Slider
+              label="Brilho do cursor"
+              value={theme.glowIntensity}
+              min={0}
+              max={1}
+              step={0.05}
+              display={theme.glowIntensity === 0 ? 'Desligado' : `${Math.round(theme.glowIntensity * 100)}%`}
+              accent={theme.accent}
+              onChange={(glowIntensity) => onChange({ ...theme, glowIntensity })}
+            />
+            {skin.glass ? (
+              <Slider
+                label="Opacidade dos vidros"
+                value={theme.glassOpacity}
+                min={0.03}
+                max={0.14}
+                step={0.01}
+                display={`${Math.round(theme.glassOpacity * 100)}%`}
+                accent={theme.accent}
+                onChange={(glassOpacity) => onChange({ ...theme, glassOpacity })}
+              />
+            ) : (
+              <Slider
+                label="Opacidade dos painéis"
+                value={theme.panelOpacity}
+                min={0.4}
+                max={1}
+                step={0.05}
+                display={`${Math.round(theme.panelOpacity * 100)}%`}
+                accent={theme.accent}
+                onChange={(panelOpacity) => onChange({ ...theme, panelOpacity })}
+              />
+            )}
+          </div>
+        </Section>
 
         <button
           type="button"

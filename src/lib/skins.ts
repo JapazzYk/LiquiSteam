@@ -58,7 +58,7 @@ export const SKINS: SkinDefinition[] = [
     accent: accent('Steam'),
     ambient: 'steam',
     glass: false,
-    glow: false,
+    glow: true,
     preview: { bg: '#171a21', card: '#2a475e', ink: '#c7d5e0' },
   },
   {
@@ -69,7 +69,7 @@ export const SKINS: SkinDefinition[] = [
     accent: accent('Cobalto'),
     ambient: 'paper',
     glass: false,
-    glow: false,
+    glow: true,
     preview: { bg: '#eef0f3', card: '#ffffff', ink: '#181b21' },
   },
   {
@@ -91,7 +91,7 @@ export const SKINS: SkinDefinition[] = [
     accent: accent('Prata'),
     ambient: 'graphite',
     glass: false,
-    glow: false,
+    glow: true,
     preview: { bg: '#000000', card: '#1c1c1c', ink: '#ececec' },
   },
 ];

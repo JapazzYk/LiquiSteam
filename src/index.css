@@ -145,6 +145,8 @@ body {
   outline-offset: 3px;
 }
 
+/* Brilho do cursor: um halo largo e macio e um núcleo claro menor. Existe em todos os temas; cada um
+   ajusta a cor e a mistura com o fundo. --glow-intensity (0 a 1) vem do painel de aparência. */
 .cursor-glow {
   position: fixed;
   z-index: 30;
@@ -154,17 +156,82 @@ body {
   height: 1px;
   pointer-events: none;
   will-change: transform;
+  mix-blend-mode: screen;
 }
 
 .cursor-glow-core {
   position: absolute;
-  top: -120px;
-  left: -120px;
-  width: 240px;
-  height: 240px;
+  top: -170px;
+  left: -170px;
+  width: 340px;
+  height: 340px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.12)) 0%, rgba(var(--accent-rgb), 0.035) 28%, transparent 70%);
-  filter: blur(18px);
+  background: radial-gradient(
+    circle,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.3)) 0%,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.1)) 38%,
+    transparent 70%
+  );
+  filter: blur(20px);
+}
+
+.cursor-glow-spot {
+  position: absolute;
+  top: -46px;
+  left: -46px;
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / calc(var(--glow-intensity) * 0.4)) 0%,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.3)) 44%,
+    transparent 72%
+  );
+  filter: blur(6px);
+}
+
+/* Minimalista claro: sobre papel branco o brilho vira uma mancha de cor suave, sem branco. */
+[data-skin='paper'] .cursor-glow {
+  mix-blend-mode: multiply;
+}
+
+[data-skin='paper'] .cursor-glow-core {
+  background: radial-gradient(
+    circle,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.2)) 0%,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.07)) 40%,
+    transparent 70%
+  );
+}
+
+[data-skin='paper'] .cursor-glow-spot {
+  background: radial-gradient(
+    circle,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.28)) 0%,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.1)) 46%,
+    transparent 72%
+  );
+}
+
+/* Arcade: núcleo ciano sobre o halo neon. */
+[data-skin='arcade'] .cursor-glow-spot {
+  background: radial-gradient(
+    circle,
+    rgb(34 211 238 / calc(var(--glow-intensity) * 0.55)) 0%,
+    rgba(var(--accent-rgb), calc(var(--glow-intensity) * 0.35)) 46%,
+    transparent 72%
+  );
+}
+
+/* Grafite: luz branca e fria, sem cor. */
+[data-skin='graphite'] .cursor-glow-core {
+  background: radial-gradient(
+    circle,
+    rgb(255 255 255 / calc(var(--glow-intensity) * 0.14)) 0%,
+    rgb(255 255 255 / calc(var(--glow-intensity) * 0.05)) 38%,
+    transparent 70%
+  );
 }
 
 .glass-reflection {
@@ -1823,20 +1890,6 @@ body {
   }
 }
 
-[data-ambient='off'] :is(
-    .ambient-orb,
-    .arcade-stars,
-    .arcade-grid,
-    .ambient-dot,
-    .steam-fog,
-    .steam-mote,
-    .liquid-bubble,
-    .graphite-sheen,
-    .graphite-glow
-  ) {
-  animation-play-state: paused !important;
-}
-
 /* Minimalista claro: pontinhos cinzas que acendem e apagam sozinhos, bem discretos. */
 .ambient-dot {
   position: absolute;
@@ -2004,4 +2057,73 @@ body {
   50% {
     opacity: 1;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Opacidade dos painéis nos temas sólidos (Steam, Minimalista, Grafite) */
+/* --panel-a: 1 = sólido como sempre; menos = translúcido com desfoque.  */
+/* --panel-a só vale nos temas sólidos (o App envia 1 nos de vidro).    */
+/* ------------------------------------------------------------------ */
+.detail-panel {
+  background-color: rgb(var(--surface) / calc(0.94 * var(--panel-a, 1)));
+}
+
+.panel-aside {
+  background-color: rgb(var(--surface) / calc(0.95 * var(--panel-a, 1)));
+}
+
+.install-pop {
+  background: rgb(var(--surface) / var(--panel-a, 1));
+}
+
+[data-skin='steam'] .app-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #1b2838 calc(var(--panel-a, 1) * 100%), transparent) 0%,
+    color-mix(in srgb, #171a21 calc(var(--panel-a, 1) * 100%), transparent) 100%
+  );
+}
+
+[data-skin='steam'] .game-card {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #1f3045 calc(var(--panel-a, 1) * 100%), transparent),
+    color-mix(in srgb, #16202d calc(var(--panel-a, 1) * 100%), transparent)
+  );
+}
+
+[data-skin='steam'] .game-row {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #1f3045 calc(var(--panel-a, 1) * 100%), transparent),
+    color-mix(in srgb, #1a2636 calc(var(--panel-a, 1) * 100%), transparent)
+  );
+}
+
+[data-skin='paper'] .app-header {
+  background: rgb(250 250 251 / calc(0.95 * var(--panel-a, 1)));
+}
+
+[data-skin='paper'] .game-row,
+[data-skin='paper'] .search-shell {
+  background: rgb(255 255 255 / var(--panel-a, 1));
+}
+
+[data-skin='graphite'] .app-header {
+  background: rgb(0 0 0 / var(--panel-a, 1));
+}
+
+[data-skin='graphite'] .game-card,
+[data-skin='graphite'] .game-row {
+  background: rgb(8 8 8 / var(--panel-a, 1));
+}
+
+[data-skin='graphite'] .search-shell {
+  background: rgb(5 5 5 / var(--panel-a, 1));
+}
+
+/* Painel translúcido: o desfoque do fundo mantém o texto legível. */
+[data-panels='glass'] :is(.app-header, .game-card, .game-row, .search-shell, .detail-panel, .panel-aside, .install-pop) {
+  -webkit-backdrop-filter: blur(calc((1 - var(--panel-a, 1)) * 28px)) !important;
+  backdrop-filter: blur(calc((1 - var(--panel-a, 1)) * 28px)) !important;
 }
