@@ -31,6 +31,7 @@ import {
   fetchNews,
   fetchPlaytime,
   fullVideoUrl,
+  hlsVideoUrl,
   type GameDetails,
   type PlaytimeEntry,
 } from '@/lib/steamMeta';
@@ -849,8 +850,98 @@ function FactsCard({ title, icon, facts }: { title: string; icon: React.ReactNod
 // Mídia do jogo, como na loja da Steam: um visualizador grande (o trailer principal primeiro, depois as
 // imagens) e uma faixa de miniaturas embaixo. Os arquivos tocam e aparecem do próprio servidor da Steam.
 type MediaItem =
-  | { type: 'video'; id: string; name: string; url: string; poster: string }
+  | { type: 'video'; id: string; name: string; url: string; hls: boolean; poster: string }
   | { type: 'image'; id: string; thumb: string; full: string };
+
+// hls.js é carregado só quando precisa (navegadores sem HLS nativo, como o Chrome), direto de um CDN.
+interface HlsInstance {
+  loadSource(url: string): void;
+  attachMedia(video: HTMLVideoElement): void;
+  on(event: string, callback: (event: unknown, data: { fatal?: boolean }) => void): void;
+  destroy(): void;
+}
+interface HlsStatic {
+  new (config?: object): HlsInstance;
+  isSupported(): boolean;
+  Events: { ERROR: string };
+}
+
+let hlsLoader: Promise<HlsStatic | null> | null = null;
+function loadHls(): Promise<HlsStatic | null> {
+  if (!hlsLoader) {
+    const sources = ['https://esm.sh/hls.js@1', 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.mjs'];
+    hlsLoader = (async () => {
+      for (const source of sources) {
+        try {
+          const module = (await import(/* @vite-ignore */ source)) as { default?: HlsStatic };
+          if (module.default) return module.default;
+        } catch {
+          // tenta o próximo
+        }
+      }
+      return null;
+    })();
+  }
+  return hlsLoader;
+}
+
+// Player do trailer. Arquivo direto toca na hora; streaming (HLS) usa o suporte do navegador ou o hls.js.
+function StoreVideo({
+  url,
+  hls,
+  poster,
+  onFail,
+}: {
+  url: string;
+  hls: boolean;
+  poster: string;
+  onFail: () => void;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  // O aviso de falha muda a cada renderização; guardá-lo num ref evita recriar o player toda vez.
+  const failRef = useRef(onFail);
+  failRef.current = onFail;
+  useEffect(() => {
+    const video = ref.current;
+    if (!video || !hls) return;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      return;
+    }
+    let cancelled = false;
+    let instance: HlsInstance | null = null;
+    void loadHls().then((Hls) => {
+      if (cancelled) return;
+      if (!Hls || !Hls.isSupported()) {
+        failRef.current();
+        return;
+      }
+      instance = new Hls({ maxBufferLength: 20 });
+      instance.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) failRef.current();
+      });
+      instance.loadSource(url);
+      instance.attachMedia(video);
+    });
+    return () => {
+      cancelled = true;
+      instance?.destroy();
+    };
+  }, [url, hls]);
+
+  return (
+    <video
+      ref={ref}
+      src={hls ? undefined : url}
+      poster={poster}
+      controls
+      playsInline
+      preload="metadata"
+      className="aspect-video w-full bg-black"
+      onError={hls ? undefined : onFail}
+    />
+  );
+}
 
 function MediaTab({ details, loading, appid }: { details: GameDetails | null; loading: boolean; appid: number }) {
   const [index, setIndex] = useState(0);
@@ -866,13 +957,18 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
   }
   const items: MediaItem[] = [
     ...(details?.movies ?? [])
-      .map((movie): MediaItem => ({
-        type: 'video',
-        id: `v${movie.id}`,
-        name: movie.name || 'Trailer',
-        url: fullVideoUrl(movie),
-        poster: movie.thumbnail,
-      }))
+      .map((movie): MediaItem => {
+        // Hoje a Steam só entrega trailer por streaming (HLS); o arquivo direto só existe em jogos antigos.
+        const file = fullVideoUrl(movie);
+        return {
+          type: 'video',
+          id: `v${movie.id}`,
+          name: movie.name || 'Trailer',
+          url: file || hlsVideoUrl(movie),
+          hls: !file,
+          poster: movie.thumbnail,
+        };
+      })
       .filter((item) => item.type !== 'video' || item.url),
     ...(details?.screenshots ?? []).map(
       (shot): MediaItem => ({ type: 'image', id: `i${shot.id}`, thumb: shot.thumb, full: shot.full })
@@ -913,15 +1009,12 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
               </p>
             </div>
           ) : (
-            <video
+            <StoreVideo
               key={current.id}
-              src={current.url}
+              url={current.url}
+              hls={current.hls}
               poster={current.poster}
-              controls
-              playsInline
-              preload="metadata"
-              className="aspect-video w-full bg-black"
-              onError={() => setVideoFailed(true)}
+              onFail={() => setVideoFailed(true)}
             />
           )
         ) : (

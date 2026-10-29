@@ -116,6 +116,7 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
               preload="auto"
               aria-hidden
               onCanPlay={() => setVideo((current) => (current ? { ...current, ready: true } : current))}
+              onError={() => setVideo(null)}
             />
           )}
           <div className="game-card-shade" />

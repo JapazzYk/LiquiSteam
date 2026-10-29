@@ -164,15 +164,23 @@ async function handleDetails(appid: string): Promise<Response> {
   // A loja às vezes devolve endereços http://; o site é https, então o navegador bloquearia o vídeo.
   const https = (url: unknown): string => (typeof url === 'string' ? url.replace(/^http:\/\//i, 'https://') : '');
 
-  const movies = (Array.isArray(d.movies) ? d.movies : []).slice(0, 8).map((m: any) => ({
-    id: m.id,
-    name: m.name ?? '',
-    thumbnail: https(m.thumbnail),
-    mp4_480: https(m.mp4?.['480']),
-    mp4_max: https(m.mp4?.max),
-    webm_480: https(m.webm?.['480']),
-    webm_max: https(m.webm?.max),
-  }));
+  // Desde 2025 a loja não entrega mais mp4/webm direto: os trailers vêm só como streaming (HLS e DASH).
+  // O "microtrailer" (mp4 curto e mudo, na mesma pasta) serve para as prévias dos cartões.
+  const movies = (Array.isArray(d.movies) ? d.movies : []).slice(0, 8).map((m: any) => {
+    const hls = https(m.hls_h264);
+    return {
+      id: m.id,
+      name: m.name ?? '',
+      thumbnail: https(m.thumbnail),
+      hls,
+      dash: https(m.dash_h264),
+      micro: hls ? hls.replace(/\/[^\/?]+(\?.*)?$/, '/microtrailer.mp4') : '',
+      mp4_480: https(m.mp4?.['480']),
+      mp4_max: https(m.mp4?.max),
+      webm_480: https(m.webm?.['480']),
+      webm_max: https(m.webm?.max),
+    };
+  });
 
   const screenshots = (Array.isArray(d.screenshots) ? d.screenshots : []).slice(0, 24).map((sc: any) => ({
     id: sc.id,

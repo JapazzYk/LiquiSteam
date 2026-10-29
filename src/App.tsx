@@ -429,17 +429,6 @@ export default function App() {
                 )}
               </div>
             )}
-            {view === 'library' && (
-              <button
-                type="button"
-                onClick={() => setCustomDialog('new')}
-                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
-                aria-label="Adicionar jogo de fora da Steam"
-                title="Adicionar jogo de fora da Steam"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            )}
             {view === 'library' && !usingDemo && (
               <button
                 type="button"
@@ -450,6 +439,17 @@ export default function App() {
                 title="Atualizar biblioteca"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
+              </button>
+            )}
+            {view === 'library' && (
+              <button
+                type="button"
+                onClick={() => setCustomDialog('new')}
+                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+                aria-label="Adicionar jogo de fora da Steam"
+                title="Adicionar jogo de fora da Steam"
+              >
+                <Plus className="h-4 w-4" />
               </button>
             )}
             <InstallButton />

@@ -140,6 +140,10 @@ export interface GameMovie {
   id: number;
   name: string;
   thumbnail: string;
+  // Streaming (HLS) do trailer completo e mp4 curto e mudo para prévias. Ausentes na função antiga.
+  hls?: string;
+  dash?: string;
+  micro?: string;
   mp4_480: string;
   mp4_max: string;
   webm_480: string;
@@ -186,6 +190,9 @@ function normalizeDetails(data: GameDetails): GameDetails {
     movies: (data.movies ?? []).map((m) => ({
       ...m,
       thumbnail: toHttps(m.thumbnail),
+      hls: toHttps(m.hls ?? ''),
+      dash: toHttps(m.dash ?? ''),
+      micro: toHttps(m.micro ?? ''),
       mp4_480: toHttps(m.mp4_480),
       mp4_max: toHttps(m.mp4_max),
       webm_480: toHttps(m.webm_480),
@@ -247,12 +254,18 @@ export function fetchGameDetails(appid: number): Promise<GameDetails | null> {
   return request;
 }
 
-// Melhor vídeo para uma prévia pequena: mp4 de 480 p (mais leve); se faltar, o maior disponível.
+// Melhor vídeo para uma prévia pequena: o microtrailer (mp4 curto e mudo); nos jogos antigos, o mp4 de 480 p.
 export function previewVideoUrl(movie: GameMovie | undefined): string {
   if (!movie) return '';
-  return movie.mp4_480 || movie.webm_480 || movie.mp4_max || movie.webm_max || '';
+  return movie.micro || movie.mp4_480 || movie.webm_480 || movie.mp4_max || movie.webm_max || '';
 }
 
+// Endereço de streaming (HLS) do trailer completo.
+export function hlsVideoUrl(movie: GameMovie | undefined): string {
+  return movie?.hls ?? '';
+}
+
+// Arquivo mp4/webm direto (só existe nos jogos antigos).
 export function fullVideoUrl(movie: GameMovie | undefined): string {
   if (!movie) return '';
   return movie.mp4_max || movie.mp4_480 || movie.webm_max || movie.webm_480 || '';
