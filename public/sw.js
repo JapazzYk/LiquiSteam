@@ -12,7 +12,7 @@
 // for all tabs to close), and it posts 'SW_UPDATED' to clients so the app can
 // reload into the new version. No uninstall needed.
 
-const CACHE = 'liquisteam-v3';
+const CACHE = 'liquisteam-v4';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.png', '/logo.png'];
 
 self.addEventListener('install', (event) => {
