@@ -189,7 +189,7 @@ html[data-scroll-locked] body {
   --reveal-ring-a: 1;
   --reveal-fill: 255, 255, 255;
   --reveal-fill-a: 0.22;
-  --reveal-r: 230px;
+  --reveal-r: 150px;
 }
 
 :is(.reveal, .game-card, .game-row, .search-shell)::before,
@@ -209,10 +209,9 @@ html[data-scroll-locked] body {
   background: radial-gradient(
     circle var(--reveal-r) at calc(var(--rx, 0) * 1px) calc(var(--ry, 0) * 1px),
     rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 1)) 0%,
-    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.78)) 20%,
-    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.45)) 40%,
-    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.2)) 60%,
-    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.06)) 80%,
+    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.6)) 22%,
+    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.22)) 48%,
+    rgba(var(--reveal-ring), calc(var(--glow-intensity, 0.7) * var(--reveal-ring-a) * 0.04)) 74%,
     rgba(var(--reveal-ring), 0) 100%
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -225,10 +224,9 @@ html[data-scroll-locked] body {
   background: radial-gradient(
     circle calc(var(--reveal-r) * 1.2) at calc(var(--rx, 0) * 1px) calc(var(--ry, 0) * 1px),
     rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 1)) 0%,
-    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.78)) 20%,
-    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.45)) 40%,
-    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.2)) 60%,
-    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.06)) 80%,
+    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.6)) 22%,
+    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.22)) 48%,
+    rgba(var(--reveal-fill), calc(var(--glow-intensity, 0.7) * var(--reveal-fill-a) * 0.04)) 74%,
     rgba(var(--reveal-fill), 0) 100%
   );
 }

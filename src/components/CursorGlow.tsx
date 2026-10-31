@@ -3,11 +3,11 @@ import { useEffect } from 'react';
 // Luz do cursor no estilo "Reveal" do menu do Windows 10/11: em vez de uma bola de luz solta, o cursor
 // acende a interface. Cartões, linhas, busca e botões marcados com a classe "reveal" recebem a posição
 // do cursor (--rx, --ry, em pixels, relativa a cada elemento) e desenham, pelo CSS, um brilho na borda e
-// um clarão suave na superfície. Elementos vizinhos também acendem a borda, mesmo sem o cursor em cima.
+// um clarão suave na superfície. Elementos vizinhos só acendem a borda quando o cursor está bem perto deles.
 // Só os elementos perto do cursor são atualizados; o resto não é tocado.
 const REVEAL_SELECTOR = '.reveal, .game-card, .game-row, .search-shell';
 // Distância (px) além da borda de um elemento em que ele ainda recebe a luz.
-const RANGE = 200;
+const RANGE = 60;
 
 export default function CursorGlow() {
   useEffect(() => {
@@ -33,8 +33,11 @@ export default function CursorGlow() {
 
       // Primeiro lê todas as posições, depois escreve: uma única passagem de layout por quadro.
       const near: { el: HTMLElement; rx: number; ry: number }[] = [];
+      // Com uma janela aberta por cima, só o que está dentro dela recebe luz (o resto está escondido atrás).
+      const locked = document.documentElement.hasAttribute('data-scroll-locked');
       for (const el of elements) {
         if (!el.isConnected) continue;
+        if (locked && !el.closest('.overlay-scrim')) continue;
         const rect = el.getBoundingClientRect();
         const dx = Math.max(rect.left - x, 0, x - rect.right);
         const dy = Math.max(rect.top - y, 0, y - rect.bottom);

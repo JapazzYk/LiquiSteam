@@ -89,7 +89,7 @@ export default function CustomizationPanel({
         data-closing={closing ? '' : undefined}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="pointer-events-none sticky top-3 z-20 -mt-5 flex h-0 justify-end md:-mt-8">
+        <div className="pointer-events-none sticky top-3 z-20 flex h-0 justify-end">
           <button
             type="button"
             onClick={requestClose}
@@ -100,7 +100,7 @@ export default function CustomizationPanel({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex items-start justify-between gap-4 pr-12">
+        <div className="flex items-start justify-between gap-4 pr-12 pt-1 md:pt-2">
           <div>
             <h2 id="appearance-title" className="text-2xl font-semibold tracking-tight text-white">
               Aparência
