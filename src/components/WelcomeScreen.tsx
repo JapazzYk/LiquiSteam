@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import { Library, Palette, Zap } from 'lucide-react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { steamLoginUrl } from '@/lib/steamAuth';
 
 interface WelcomeScreenProps {
@@ -20,6 +21,7 @@ const FEATURES = [
 // Boas-vindas para quem ainda não entrou com a Steam. Aparece sobre o fundo animado do tema e some
 // com a mesma transição do resto do site.
 export default function WelcomeScreen({ closing, onContinue, onNeverShow }: WelcomeScreenProps) {
+  useScrollLock();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onContinue();

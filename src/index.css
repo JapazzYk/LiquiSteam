@@ -150,6 +150,16 @@ html {
 html::-webkit-scrollbar-track {
   margin: 0;
 }
+/* Janela aberta por cima: a página de trás não rola, e a rolagem das janelas não "vaza" para ela. */
+html[data-scroll-locked],
+html[data-scroll-locked] body {
+  overflow: hidden;
+}
+.detail-panel,
+.panel-aside,
+.panel-backdrop {
+  overscroll-behavior: contain;
+}
 /* Firefox (e navegadores que só entendem a regra padrão) */
 @supports not selector(::-webkit-scrollbar) {
   * {

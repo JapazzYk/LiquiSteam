@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import type { CSSProperties, ReactNode } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
 import { hexToRgbString, normalizeHex, onAccentColor, type ThemePreferences } from '@/lib/theme';
@@ -27,6 +28,7 @@ export default function CustomizationPanel({
   const [hexDraft, setHexDraft] = useState(theme.accent);
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
+  useScrollLock();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const motionRef = useRef(theme.motion);

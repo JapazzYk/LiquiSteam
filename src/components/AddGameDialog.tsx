@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import { FolderOpen, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import type { InstalledGame } from '@/types';
 import {
@@ -38,6 +39,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose: onCloseN
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [copied, setCopied] = useState(false);
+  useScrollLock();
   const [closing, setClosing] = useState(false);
   const alive = useRef(true);
   const closeNowRef = useRef(onCloseNow);

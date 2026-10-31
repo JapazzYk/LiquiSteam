@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useScrollLock } from '@/lib/scrollLock';
 import type { CSSProperties } from 'react';
 import {
   X,
@@ -163,6 +164,7 @@ export default function GameDetail({
   const closingRef = useRef(false);
   const originRef = useRef(origin);
   originRef.current = origin;
+  useScrollLock();
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   // A faixa do topo é larga, então usa a arte horizontal (library_hero) e deixa a capa vertical por último.
