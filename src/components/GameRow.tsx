@@ -8,6 +8,7 @@ import { formatHours } from '@/lib/facts';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { placeholderHue } from '@/lib/customGames';
+import CollectionButtons from '@/components/CollectionButtons';
 
 interface GameRowProps {
   game: InstalledGame;
@@ -76,6 +77,8 @@ export default function GameRow({ game, onOpen, playtimeMinutes }: GameRowProps)
           </p>
         ) : null}
       </div>
+      {game.notInstalled && <span className="shrink-0 text-[11px] text-white/45">Não instalado</span>}
+      <CollectionButtons appid={game.appid} />
       <ChevronRight className="h-4 w-4 shrink-0 text-white/35 transition-colors group-hover:text-[color:var(--accent-color)]" />
     </button>
   );

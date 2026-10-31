@@ -9,6 +9,8 @@ import { fetchGameDetails, previewVideoUrl } from '@/lib/steamMeta';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { placeholderHue } from '@/lib/customGames';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
+import { DRAG_TYPE, useCollectionsUi } from '@/lib/collections';
+import CollectionButtons from '@/components/CollectionButtons';
 
 interface GameCardProps {
   game: InstalledGame;
@@ -39,6 +41,7 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
   const [slides, setSlides] = useState<{ urls: string[]; index: number } | null>(null);
   const slideTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
+  const collectionsUi = useCollectionsUi();
 
   // Prévia do trailer: só com mouse, depois de uma pausa, e uma vez por jogo (os detalhes ficam em cache).
   const startPreview = (event: PointerEvent<HTMLButtonElement>) => {
@@ -85,10 +88,22 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
   const { fit, onLoad } = useArtFit(2 / 3, 0.08, `card-${game.appid}-${artworkIndex}`);
 
   return (
-    <div className="game-card-wrap" style={{ '--i': index } as CSSProperties}>
+    <div
+      className="game-card-wrap"
+      style={{ '--i': index } as CSSProperties}
+      draggable={!!collectionsUi}
+      onDragStart={(event) => {
+        // Arrastar o cartão até um grupo (ou Favoritos) na faixa acima da biblioteca.
+        event.dataTransfer.setData(DRAG_TYPE, String(game.appid));
+        event.dataTransfer.setData('text/plain', game.name);
+        event.dataTransfer.effectAllowed = 'copy';
+        stopPreview();
+      }}
+    >
       <button
         type="button"
         className="game-card"
+        data-not-installed={game.notInstalled ? '' : undefined}
         onClick={() => onOpen(game, readOrigin(artRef.current))}
         onPointerEnter={startPreview}
         onPointerLeave={stopPreview}
@@ -155,6 +170,8 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
             </div>
           )}
           <div className="game-card-shade" />
+          <CollectionButtons appid={game.appid} className="game-card-coll" />
+          {game.notInstalled && <span className="game-card-tag">Não instalado</span>}
           <span className="game-card-rank" aria-hidden>
             {String(index + 1).padStart(2, '0')}
           </span>

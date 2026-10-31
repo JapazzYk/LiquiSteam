@@ -115,13 +115,14 @@ export interface PlaytimeEntry {
   forever: number; // minutos
   twoWeeks: number; // minutos nas últimas duas semanas
   lastPlayed: number; // segundos desde 1970; 0 = nunca
+  name?: string; // nome na conta (para listar os jogos da conta, instalados ou não)
 }
 
 // null = sem login, sem chave de API ou perfil privado.
 export async function fetchAllPlaytime(): Promise<Map<number, PlaytimeEntry> | null> {
   try {
     const data = await callSteamGame<{
-      games?: { appid: number; playtime_forever?: number; playtime_2weeks?: number; rtime_last_played?: number }[];
+      games?: { appid: number; name?: string; playtime_forever?: number; playtime_2weeks?: number; rtime_last_played?: number }[];
     }>('playtime');
     if (!Array.isArray(data.games)) return null;
     const map = new Map<number, PlaytimeEntry>();
@@ -130,6 +131,7 @@ export async function fetchAllPlaytime(): Promise<Map<number, PlaytimeEntry> | n
         forever: g.playtime_forever ?? 0,
         twoWeeks: g.playtime_2weeks ?? 0,
         lastPlayed: g.rtime_last_played ?? 0,
+        name: g.name,
       });
     }
     return map;
@@ -290,4 +292,30 @@ export function hlsVideoUrl(movie: GameMovie | undefined): string {
 export function fullVideoUrl(movie: GameMovie | undefined): string {
   if (!movie) return '';
   return movie.mp4_max || movie.mp4_480 || movie.webm_max || movie.webm_480 || '';
+}
+
+// ---------------------------------------------------------------------------------------------
+// Busca na loja da Steam (qualquer jogo, mesmo sem tê-lo instalado)
+// ---------------------------------------------------------------------------------------------
+export interface StoreHit {
+  appid: number;
+  name: string;
+}
+
+const searchCache = new Map<string, StoreHit[]>();
+
+// Lista vazia se a busca falhar (por exemplo, função do Supabase ainda desatualizada).
+export async function searchStore(term: string): Promise<StoreHit[]> {
+  const key = term.trim().toLowerCase();
+  if (key.length < 2) return [];
+  const cached = searchCache.get(key);
+  if (cached) return cached;
+  try {
+    const data = await callSteamGame<{ items?: StoreHit[] }>('search', { params: { term: key } });
+    const items = Array.isArray(data.items) ? data.items : [];
+    searchCache.set(key, items);
+    return items;
+  } catch {
+    return [];
+  }
 }

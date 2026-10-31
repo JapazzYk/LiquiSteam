@@ -60,6 +60,11 @@ Deno.serve(async (req: Request) => {
       return await handleNews(appid);
     }
 
+    // Público: busca na loja da Steam por nome (para achar qualquer jogo, instalado ou não).
+    if (action === 'search' && req.method === 'GET') {
+      return await handleSearch(url.searchParams.get('term') ?? '');
+    }
+
     // Público: dados da loja (descrição, gêneros, nota, trailers). A loja da Steam não deixa o navegador
     // pedir direto, então a função busca e entrega só o que o site usa.
     if (action === 'details' && req.method === 'GET') {
@@ -239,6 +244,24 @@ async function handleDetails(appid: string): Promise<Response> {
   };
   detailsCache.set(appid, { at: Date.now(), body });
   return json(body);
+}
+
+// Busca por nome na loja da Steam: devolve só id, nome e se é um jogo.
+async function handleSearch(term: string): Promise<Response> {
+  const clean = term.trim().slice(0, 60);
+  if (clean.length < 2) return json({ items: [] });
+  const steamUrl =
+    `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(clean)}&l=brazilian&cc=br`;
+  const res = await fetch(steamUrl, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LiquiSteam/1.0)', Accept: 'application/json' },
+  });
+  if (!res.ok) return json({ items: [], error: `store-${res.status}` });
+  const data = await res.json().catch(() => null);
+  const items = (Array.isArray(data?.items) ? data.items : [])
+    .filter((it: any) => it?.type === 'app' && typeof it.id === 'number')
+    .slice(0, 24)
+    .map((it: any) => ({ appid: it.id, name: String(it.name ?? '') }));
+  return json({ items });
 }
 
 // Notícias do jogo: públicas, sem chave.

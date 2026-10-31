@@ -7,6 +7,7 @@ import { formatHours } from '@/lib/facts';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { fetchGameDetails, type GameDetails } from '@/lib/steamMeta';
+import CollectionButtons from '@/components/CollectionButtons';
 
 interface FeaturedGameProps {
   game: InstalledGame;
@@ -120,6 +121,7 @@ export default function FeaturedGame({ game, onOpen, onShuffle, playtimeMinutes 
               <Shuffle className="h-4 w-4" />
               Sortear outro
             </button>
+            <CollectionButtons appid={game.appid} />
           </div>
         </div>
       </div>

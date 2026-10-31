@@ -23,7 +23,9 @@ import {
   Clapperboard,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react';
+import CollectionButtons from '@/components/CollectionButtons';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
 import { launchGame } from '@/lib/steamLaunch';
@@ -505,7 +507,16 @@ export default function GameDetail({
               {game.name}
             </h2>
             <div className="detail-rise flex flex-wrap items-center gap-3" style={stagger(260)}>
-              {gameAware && thisRunning && gameBusy !== 'stopping' ? (
+              {game.notInstalled ? (
+                <a
+                  href={`steam://install/${game.appid}`}
+                  title="Abre a Steam na página de instalação deste jogo"
+                  className="reveal relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full bg-[var(--accent-color)] px-6 text-sm font-semibold text-[color:var(--on-accent)] transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  <Download className="h-5 w-5" />
+                  Instalar na Steam
+                </a>
+              ) : gameAware && thisRunning && gameBusy !== 'stopping' ? (
                 <button
                   type="button"
                   onClick={handleStop}
@@ -569,6 +580,7 @@ export default function GameDetail({
                 Loja
               </a>
               )}
+              <CollectionButtons appid={game.appid} className="detail-coll" />
               {thisRunning && (
                 <span className="flex items-center gap-2 text-xs font-medium text-ok">
                   <span className="h-1.5 w-1.5 rounded-full bg-ok motion-safe:animate-pulse" />

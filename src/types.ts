@@ -16,6 +16,8 @@ export interface InstalledGame {
   custom?: boolean;
   customId?: string;
   added?: number; // ms
+  // Jogo da conta Steam que não está instalado neste computador (aparece na visão "Toda a conta").
+  notInstalled?: boolean;
 }
 
 export type View = 'library' | 'account' | 'updates';
