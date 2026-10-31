@@ -1,4 +1,4 @@
-// Liquid Steam service worker.
+// LiquiSteam service worker.
 // Strategy:
 //  - Navigation (HTML): network-first. A new deploy's index.html references
 //    freshly-hashed JS/CSS bundles, so the new version loads on next open.

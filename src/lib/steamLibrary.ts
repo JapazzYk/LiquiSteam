@@ -398,10 +398,6 @@ export function gameArtworkUrls(appid: number): string[] {
   ];
 }
 
-export function launchUrl(appid: number): string {
-  return `steam://run/${appid}`;
-}
-
 export function isFileSystemAccessSupported(): boolean {
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 }

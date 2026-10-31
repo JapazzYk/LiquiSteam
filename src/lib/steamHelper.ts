@@ -144,11 +144,6 @@ export async function helperStatus(timeoutMs = 1500): Promise<HelperStatus | nul
   return null;
 }
 
-export async function helperSteamState(timeoutMs = 1500): Promise<HelperSteamState | null> {
-  const status = await helperStatus(timeoutMs);
-  return status ? status.steam : null;
-}
-
 export async function helperAction(action: 'open' | 'exit'): Promise<boolean> {
   return (await call(`/${action}`, 'POST', 4000)) !== null;
 }
