@@ -71,6 +71,7 @@ const demoAppIds: { appid: number; name: string }[] = [
   { appid: 1687950, name: 'Persona 5 Royal' },
   { appid: 524220, name: 'NieR:Automata' },
   { appid: 431960, name: 'Wallpaper Engine' },
+  { appid: 1196590, name: 'Resident Evil Village' },
 ];
 
 export const demoGames: InstalledGame[] = demoAppIds.map((g) => ({
