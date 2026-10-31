@@ -168,6 +168,14 @@ export default function GameDetail({
   const originRef = useRef(origin);
   originRef.current = origin;
   useScrollLock();
+  // O título da aba do navegador mostra o jogo aberto e volta ao normal ao fechar.
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${game.name} · LiquiSteam`;
+    return () => {
+      document.title = previous;
+    };
+  }, [game.name]);
   const closeRef = useRef<() => void>(() => {});
   const outsideClose = useOutsideClose(() => closeRef.current());
   const onCloseRef = useRef(onClose);

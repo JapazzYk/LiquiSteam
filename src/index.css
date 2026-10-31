@@ -2403,3 +2403,22 @@ button.coll-chip:hover {
   border-style: dashed;
   cursor: pointer;
 }
+
+/* Acabamentos gerais */
+/* Foco por teclado visível em tudo que se clica (sem aparecer ao clicar com o mouse). */
+:where(button, a, [role='button'], summary):focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* Títulos com quebra de linha equilibrada. */
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+
+/* Sem o clarão cinza ao tocar em botões no celular. */
+button,
+a,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
