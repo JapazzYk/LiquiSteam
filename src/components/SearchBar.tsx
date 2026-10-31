@@ -13,7 +13,7 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Buscar na biblioteca"
+        placeholder="Buscar um jogo pelo nome"
         aria-label="Buscar jogos"
         className="h-full w-full bg-transparent text-[15px] tracking-tight text-white placeholder:text-white/40 focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />

@@ -404,8 +404,8 @@ export default function GameDetail({
         setGameBusy(null);
         setStopError(
           result === 'missing-file'
-            ? 'O arquivo do jogo não está mais no lugar. Edite o jogo e escolha o executável de novo.'
-            : 'Não consegui abrir o jogo. Atualize o LiquiSteam Helper e tente de novo.'
+            ? 'O arquivo deste jogo não está mais no lugar onde você o escolheu. Clique em Editar e escolha o programa (.exe) de novo.'
+            : 'Não consegui abrir o jogo. O Helper pode estar desligado ou desatualizado: abra o botão "Helper" na biblioteca e atualize-o.'
         );
       }
       onBoost();
@@ -430,8 +430,8 @@ export default function GameDetail({
       setGameBusy(null);
       setStopError(
         result === 'no-process' || result === 'missing-file'
-          ? 'Não achei o processo do jogo para encerrar. Feche-o pela própria janela.'
-          : 'Não consegui encerrar. Atualize o LiquiSteam Helper e tente de novo.'
+          ? 'Não encontrei o jogo aberto para fechar. Feche-o pela janela do próprio jogo.'
+          : 'Não consegui fechar o jogo. O Helper pode estar desatualizado: abra o botão "Helper" na biblioteca e atualize-o.'
       );
     }
   };
@@ -445,10 +445,19 @@ export default function GameDetail({
     <div
       ref={backdropRef}
       className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
-      onClick={requestClose}
     >
       {/* Moldura da luz do cursor: o painel rola, então o brilho da borda fica numa camada parada por cima. */}
       <div className="relative flex h-full w-full max-w-6xl md:h-[calc(100vh-40px)]">
+      {/* Fechar: fica fora da área que rola, então acompanha a página inteira. */}
+      <button
+        type="button"
+        onClick={requestClose}
+        className="absolute right-4 top-4 z-30 grid h-10 w-10 place-items-center rounded-full border border-snow/20 bg-black/55 text-snow shadow-lg backdrop-blur-xl transition-all hover:border-snow/40 hover:bg-black/70 md:right-6 md:top-5"
+        aria-label="Fechar"
+        title="Fechar (Esc)"
+      >
+        <X className="h-5 w-5" />
+      </button>
       <div
         className="detail-panel relative flex h-full w-full flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
         ref={scrollRef}
@@ -478,15 +487,6 @@ export default function GameDetail({
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/40 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-canvas/80 via-transparent to-transparent" />
-
-          {/* Close */}
-          <button
-            onClick={requestClose}
-            className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full border border-snow/20 bg-black/40 text-snow backdrop-blur-xl transition-all hover:border-snow/40 hover:bg-black/60"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
 
           {/* Title + run */}
           <div className="absolute inset-x-0 bottom-0 px-6 pb-6 md:px-10 md:pb-8">
@@ -521,7 +521,7 @@ export default function GameDetail({
                 <button
                   type="button"
                   disabled
-                  title="A Steam executa um jogo por vez. Encerre o outro jogo primeiro."
+                  title="Só dá para ter um jogo aberto por vez. Feche o outro jogo primeiro."
                   className="relative flex h-11 cursor-not-allowed items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.06] px-6 text-sm font-semibold text-white/40"
                 >
                   <Lock className="h-4 w-4" />
@@ -545,7 +545,7 @@ export default function GameDetail({
                   ) : (
                     <>
                       <Lock className="h-4 w-4" />
-                      {isCustom ? 'Instale o Helper para executar' : 'Abra a Steam para executar'}
+                      {isCustom ? 'Precisa do Helper para executar' : 'Abra a Steam para executar'}
                     </>
                   )}
                 </button>
@@ -798,8 +798,8 @@ function OverviewTab({
 
       {!hasSync && (
         <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
-          Tempo de jogo e conquistas pessoais não sincronizados. Adicione uma chave da Steam Web API
-          na tela de conta para sincronizar com sua conta Steam.
+          Seu tempo de jogo e suas conquistas pessoais ainda não aparecem aqui. Para mostrá-los, entre com a Steam e
+          cole a sua chave da Steam na tela de conta (é grátis e só permite leitura).
         </div>
       )}
       {hasSync && achievements && !achievements.hasPersonal && (
@@ -980,12 +980,12 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
     const text = !reason
       ? 'A loja da Steam não tem trailers nem imagens para este jogo.'
       : /desconhecida|unknown/i.test(reason)
-        ? 'A função steam-game no Supabase está desatualizada. Cole a versão nova no editor da função e faça o deploy.'
+        ? 'O serviço que busca as imagens e vídeos do site está desatualizado. Avise o responsável pelo LiquiSteam.'
         : reason === 'not-in-store'
-          ? 'Este jogo não está mais disponível na loja da Steam.'
+          ? 'Este jogo não está mais na loja da Steam, por isso não há imagens nem vídeos.'
           : reason.startsWith('store-')
-            ? `A loja da Steam recusou o pedido (código ${reason.slice(6)}). Pode ser limite de acessos; tente de novo em alguns minutos.`
-            : `Não foi possível carregar: ${reason}`;
+            ? `A loja da Steam recusou o pedido (código ${reason.slice(6)}). Costuma ser excesso de pedidos: espere alguns minutos e tente de novo.`
+            : `Não foi possível carregar as imagens e vídeos (${reason}). Tente de novo mais tarde.`;
     return <EmptyState icon={<Clapperboard className="h-8 w-8" />} title="Sem mídia" text={text} />;
   }
 
@@ -1103,7 +1103,7 @@ function AchievementsTab({
       <EmptyState
         icon={<Trophy className="h-8 w-8" />}
         title="Sem conquistas"
-        text="Este jogo não tem conquistas públicas, ou não foi possível carregá-las."
+        text="Este jogo não tem conquistas, ou elas não puderam ser carregadas agora. Se o seu perfil da Steam estiver privado, as conquistas também não aparecem."
       />
     );
   }
@@ -1222,7 +1222,7 @@ function NewsTab({ loading, news }: { loading: boolean; news: NewsItem[] }) {
       <EmptyState
         icon={<Newspaper className="h-8 w-8" />}
         title="Sem notícias recentes"
-        text="Não há atualizações recentes para este jogo."
+        text="Não há notícias nem avisos recentes dos criadores deste jogo."
       />
     );
   }
@@ -1274,7 +1274,7 @@ function NotesTab({
     <div className="space-y-4">
       {!hasUser && (
         <div className="rounded-2xl notice-warn border p-4 text-sm font-light">
-          Entre com sua conta Steam (na tela de conta) para salvar anotações que persistem entre sessões.
+          Entre com a sua conta da Steam (na tela de conta) para suas anotações ficarem salvas e aparecerem em outros computadores.
         </div>
       )}
       <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] backdrop-blur-xl">

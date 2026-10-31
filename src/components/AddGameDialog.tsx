@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FolderOpen, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import type { InstalledGame } from '@/types';
 import {
@@ -10,6 +10,7 @@ import {
 } from '@/lib/steamHelper';
 import { installerCommand } from '@/components/HelperInstall';
 import { placeholderHue } from '@/lib/customGames';
+import { motionDisabled } from '@/lib/motion';
 
 interface AddGameDialogProps {
   helperOnline: boolean;
@@ -26,7 +27,7 @@ const POLL_LIMIT_MS = 5 * 60 * 1000;
 
 // Adicionar um jogo de fora da Steam: o helper abre a janela de escolha de arquivo do Windows (o site
 // não consegue ver caminhos de arquivo), e o site só confirma o nome e a capa.
-export default function AddGameDialog({ helperOnline, editing, onClose, onSaved }: AddGameDialogProps) {
+export default function AddGameDialog({ helperOnline, editing, onClose: onCloseNow, onSaved }: AddGameDialogProps) {
   const isEdit = !!editing?.customId;
   const [step, setStep] = useState<Step>('idle');
   const [name, setName] = useState(editing?.name ?? '');
@@ -37,7 +38,20 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
   const alive = useRef(true);
+  const closeNowRef = useRef(onCloseNow);
+  closeNowRef.current = onCloseNow;
+
+  // Fecha com animação de saída (a mesma família de transições do resto do site).
+  const onClose = useCallback(() => {
+    if (motionDisabled()) {
+      closeNowRef.current();
+      return;
+    }
+    setClosing(true);
+    window.setTimeout(() => closeNowRef.current(), 220);
+  }, []);
 
   useEffect(() => {
     alive.current = true;
@@ -62,7 +76,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
     if (!id) {
       if (alive.current) {
         setStep('idle');
-        setError('Não consegui abrir a janela de escolha. Atualize o LiquiSteam Helper e tente de novo.');
+        setError('Não consegui abrir a janela de escolha de arquivos. Provavelmente o seu Helper está desatualizado: atualize-o e tente de novo.');
       }
       return;
     }
@@ -102,7 +116,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
     if (!alive.current) return;
     if (!savedId) {
       setStep('idle');
-      setError('Não consegui salvar. Tente escolher o arquivo de novo.');
+      setError('Não consegui salvar este jogo. Escolha o arquivo do jogo de novo e tente outra vez.');
       return;
     }
     onSaved();
@@ -121,7 +135,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
     if (!alive.current) return;
     if (!ok) {
       setStep('idle');
-      setError('Não consegui remover.');
+      setError('Não consegui remover este jogo. Tente de novo em instantes.');
       return;
     }
     onSaved();
@@ -144,14 +158,13 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
   return (
     <div
       className="panel-backdrop fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm"
-      onClick={() => !busy && onClose()}
+      data-closing={closing ? '' : undefined}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-game-title"
-        className="fx-in theme-glass reveal relative my-auto w-full max-w-md overflow-hidden rounded-[28px] border border-white/15 bg-surface/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
-        onClick={(event) => event.stopPropagation()}
+        className={`${closing ? 'fx-out' : 'fx-in'} theme-glass reveal relative my-auto w-full max-w-md overflow-hidden rounded-[28px] border border-white/15 bg-surface/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-2xl`}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -160,8 +173,8 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-white/55">
               {isEdit
-                ? 'Jogo de fora da Steam. Mude o nome ou a capa.'
-                : 'Adicione um programa de fora da Steam (Epic, GOG, emulador, jogo avulso).'}
+                ? 'Este jogo não é da Steam. Aqui você pode trocar o nome e a imagem de capa, ou tirá-lo da lista.'
+                : 'Coloque na sua biblioteca um jogo que não é da Steam (Epic, GOG, emulador ou qualquer programa). Depois é só clicar em Executar para abri-lo.'}
             </p>
           </div>
           <button
@@ -177,8 +190,10 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
 
         {!helperOnline ? (
           <p className="mt-5 text-sm leading-relaxed text-white/65">
-            Para adicionar jogos, o LiquiSteam precisa do Helper, que é quem abre o arquivo no Windows. Instale ou
-            atualize o Helper pelo botão no topo da biblioteca e volte aqui.
+            Para adicionar um jogo, o LiquiSteam precisa do Helper. Ele é um pequeno programa opcional que você
+            instala uma vez no Windows: sem ele, o site não consegue abrir a janela de escolha de arquivos nem
+            executar programas no seu computador. Clique no botão "Helper" no topo da biblioteca e siga os passos;
+            depois volte aqui.
           </p>
         ) : (
           <>
@@ -211,7 +226,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
                   ) : (
                     <ImagePlus className="h-4 w-4" />
                   )}
-                  {step === 'waiting-cover' ? 'Escolha na janela…' : coverPreview ? 'Trocar capa' : 'Escolher capa'}
+                  {step === 'waiting-cover' ? 'Escolha na janela que abriu…' : coverPreview ? 'Trocar capa' : 'Escolher capa'}
                 </button>
                 <p className="text-xs leading-relaxed text-white/45">
                   Opcional. Sem imagem, o jogo aparece com a inicial do nome. Qualquer proporção funciona.
@@ -232,10 +247,10 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
                   <FolderOpen className="h-4 w-4" />
                 )}
                 {step === 'waiting-exe'
-                  ? 'Escolha o arquivo na janela do Windows…'
+                  ? 'Escolha o arquivo na janela que abriu no Windows…'
                   : exeChosen
                     ? 'Arquivo escolhido. Trocar'
-                    : 'Escolher o executável (.exe)'}
+                    : 'Escolher o programa do jogo (.exe)'}
               </button>
             )}
 
@@ -255,7 +270,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
               <p role="alert" className="mt-3 text-xs leading-relaxed text-bad">
                 {error}{' '}
                 <button type="button" onClick={copyUpdateCommand} className="underline underline-offset-2">
-                  {copied ? 'Comando copiado' : 'Copiar comando de atualização do Helper'}
+                  {copied ? 'Comando copiado' : 'Copiar o comando para atualizar o Helper'}
                 </button>
               </p>
             )}
@@ -269,7 +284,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
                   className="flex h-11 items-center gap-2 rounded-full border border-white/12 px-4 text-sm text-white/65 transition hover:border-bad/50 hover:text-bad disabled:opacity-50"
                 >
                   {step === 'removing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  {confirmRemove ? 'Confirmar remoção' : 'Remover'}
+                  {confirmRemove ? 'Clique de novo para remover' : 'Remover'}
                 </button>
               )}
               <button
@@ -284,7 +299,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose, onSaved 
             </div>
             {isEdit && (
               <p className="mt-3 text-[11px] leading-relaxed text-white/40">
-                Remover tira o jogo só do LiquiSteam; o programa continua no seu computador.
+                Remover tira o jogo apenas da lista do LiquiSteam. O jogo em si continua instalado no seu computador.
               </p>
             )}
           </>

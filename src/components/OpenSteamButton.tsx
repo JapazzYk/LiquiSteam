@@ -20,10 +20,10 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
   const title = running ? 'Encerrar a Steam' : 'Abrir a Steam';
   const hint =
     source === 'helper'
-      ? 'Status lido direto do computador'
+      ? 'Status confirmado pelo Helper neste computador'
       : source === 'account'
-        ? 'Status da sua conta na Steam (pode demorar alguns segundos; instale o LiquiSteam Helper para ficar exato)'
-        : 'Status estimado (instale o LiquiSteam Helper para sincronizar)';
+        ? 'Status vindo da sua conta na Steam (pode atrasar alguns segundos; com o Helper instalado fica exato)'
+        : 'Status aproximado: o site não tem como saber com certeza se a Steam está aberta. Com o Helper instalado fica exato';
   const dot = source === 'helper' ? 'bg-ok' : source === 'account' ? 'bg-[rgb(var(--accent-rgb))]' : 'bg-white/25';
 
   return (

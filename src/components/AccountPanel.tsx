@@ -71,14 +71,14 @@ export default function AccountPanel({
     if (!user) return;
     setApiKeyError(null);
     if (!apiKey.trim()) {
-      setApiKeyError('Cole uma chave de API da Steam.');
+      setApiKeyError('Cole a sua chave da Steam no campo acima.');
       return;
     }
     setApiKeyBusy(true);
     const result = await saveSteamKey(apiKey.trim());
     setApiKeyBusy(false);
     if (!result.ok) {
-      setApiKeyError(result.error ?? 'Chave inválida.');
+      setApiKeyError(result.error ?? 'A Steam não aceitou essa chave. Confira se copiou a chave inteira.');
       return;
     }
     setApiKey('');
@@ -111,14 +111,14 @@ export default function AccountPanel({
       if (result.status === 'duplicate') {
         setScanNotice(`A pasta "${result.name}" já estava na lista.`);
       } else if (result.status === 'denied') {
-        setScanError('O navegador não liberou a leitura dessa pasta.');
+        setScanError('O navegador não liberou essa pasta. Tente de novo e clique em "Ver arquivos" ou "Permitir" quando ele perguntar.');
       }
       if (result.status === 'added') {
         await refreshDirs();
         onLibraryChanged();
       }
     } catch (e) {
-      setScanError(e instanceof Error ? e.message : 'Não foi possível ler a pasta da Steam.');
+      setScanError(e instanceof Error ? e.message : 'Não consegui ler essa pasta. Confirme que ela se chama "steamapps".');
     } finally {
       setAdding(false);
     }
@@ -154,7 +154,7 @@ export default function AccountPanel({
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-white">Conta</h2>
           <p className="text-sm font-light text-white/50">
-            Entre com a Steam e conecte sua biblioteca local
+            Entre com a sua conta da Steam e diga onde ficam os seus jogos
           </p>
         </div>
       </div>
@@ -201,8 +201,9 @@ export default function AccountPanel({
               Entrar com a Steam
             </h3>
             <p className="mb-5 text-sm font-light leading-relaxed text-white/55">
-              O login acontece no site da Steam. O LiquiSteam recebe só o seu SteamID público
-              e o nome do perfil, nunca a sua senha.
+              Entrar é opcional: serve para guardar o seu visual na conta e mostrar o seu tempo de jogo e conquistas.
+              O login é feito no próprio site da Steam. O LiquiSteam recebe só o seu nome de perfil e o seu
+              número público (SteamID), nunca a sua senha.
             </p>
 
             {/* Official-styled Steam login button */}
@@ -236,8 +237,9 @@ export default function AccountPanel({
             </h3>
           </div>
           <p className="mb-4 text-sm font-light leading-relaxed text-white/55">
-            Necessária para sincronizar seu tempo de jogo e conquistas reais com sua conta Steam.
-            A chave é validada no servidor e usada apenas lá — nunca exposta ao navegador.
+            Opcional. É uma "senha de leitura" gratuita que você gera no site da Steam e que permite ao LiquiSteam
+            buscar o seu tempo de jogo e as suas conquistas. Ela só permite ler dados, não altera nada na sua conta.
+            Fica guardada em um servidor seguro e nunca volta para o seu navegador.
           </p>
           <input
             type="password"
@@ -297,18 +299,19 @@ export default function AccountPanel({
           Jogos instalados
         </h3>
         <p className="mb-5 text-sm font-light leading-relaxed text-white/55">
-          Adicione a pasta <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
-          de cada biblioteca da Steam (uma por HD ou pasta de jogos) para listar os jogos instalados
-          neste computador. As capas vêm do servidor de imagens da Steam.
+          Para o LiquiSteam mostrar quais jogos estão instalados no seu computador, ele precisa saber onde eles
+          ficam. Escolha a pasta <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs">steamapps</code>{' '}
+          de cada lugar onde você instala jogos da Steam (por exemplo, uma por HD). Se você usa o Helper, nem
+          precisa disso. As capas vêm da própria Steam.
         </p>
 
         {blockedByIframe && (
           <div className="mb-4 flex items-start gap-3 rounded-2xl notice-info border p-4 text-sm font-light">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Você está vendo o app numa moldura (preview embutido). A seleção da pasta da Steam
-              só funciona com o app instalado e aberto numa janela própria. Use o banner
-              “Instalar app” no topo da tela, abra em nova aba, ou publique o projeto e instale a partir do link publicado.
+              O LiquiSteam está aberto dentro de outra página (uma moldura), e nesse modo o navegador
+              não deixa escolher pastas. Abra o endereço do LiquiSteam numa aba própria, ou use o botão
+              "Instalar app" no topo da tela, e tente de novo.
             </p>
           </div>
         )}
@@ -317,8 +320,8 @@ export default function AccountPanel({
           <div className="mb-4 flex items-start gap-3 rounded-2xl notice-warn border p-4 text-sm font-light">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              Seu navegador não suporta a API de acesso a arquivos. Para a experiência completa,
-              use Chrome ou Edge no desktop e instale o app.
+              Este navegador não permite escolher pastas do computador. Para usar esse recurso, abra o
+              LiquiSteam no Chrome ou no Edge, no computador.
             </p>
           </div>
         )}
@@ -328,8 +331,8 @@ export default function AccountPanel({
             <MonitorCheck className="mt-0.5 h-4 w-4 shrink-0 text-ok" />
             <p>
               {helperGames === null
-                ? 'O LiquiSteam Helper está ativo, mas é de uma versão antiga que ainda não lista os jogos. Atualize-o pelo botão "Helper ativo" na biblioteca (Copiar comando de atualização).'
-                : `O LiquiSteam Helper está ativo e lê todas as bibliotecas da Steam sozinho, inclusive em Arquivos de Programas (${helperGames} ${helperGames === 1 ? 'jogo' : 'jogos'}). Você não precisa escolher pastas.`}
+                ? 'O Helper está funcionando, mas é de uma versão antiga que ainda não sabe listar os jogos. Clique no botão "Helper funcionando" na biblioteca e depois em "Copiar o comando para atualizar o Helper".'
+                : `O Helper está funcionando e encontra sozinho os jogos de todas as suas bibliotecas da Steam, até os que ficam em "Arquivos de Programas" (${helperGames} ${helperGames === 1 ? 'jogo encontrado' : 'jogos encontrados'}). Você não precisa escolher pastas.`}
             </p>
           </div>
         )}
@@ -359,7 +362,7 @@ export default function AccountPanel({
                   onClick={() => handleRemoveDir(dir.index)}
                   className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-white/45 transition-colors hover:text-white"
                   aria-label={`Remover a pasta ${dir.name}`}
-                  title="Remover pasta"
+                  title="Tirar esta pasta da lista (não apaga nada do computador)"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -391,11 +394,11 @@ export default function AccountPanel({
       <div className="theme-glass mb-3 flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-sm font-light leading-relaxed text-white/55 backdrop-blur-xl">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-white/40" />
         <p>
-          O acesso às pastas é pedido uma vez e fica salvo neste navegador. Depois de instalar
-          jogos novos, use o botão de atualizar no topo da tela. O Chrome e o Edge não deixam
-          escolher pastas dentro de "Arquivos de Programas"; se a sua Steam estiver lá, instale o
-          Helper (botão ao lado de "Abrir Steam" na biblioteca), que lê os jogos sozinho, ou
-          adicione uma biblioteca em outro local pela própria Steam (Configurações, Armazenamento).
+          O navegador pede a permissão da pasta uma vez, e ela fica salva neste navegador. Quando instalar jogos
+          novos, clique no botão de atualizar (as duas setas) no topo da biblioteca. O Chrome e o Edge não permitem
+          escolher pastas dentro de "Arquivos de Programas". Se a sua Steam estiver lá, a solução mais fácil é instalar
+          o Helper (botão "Helper" na biblioteca), que encontra os jogos sozinho. A outra saída é criar uma biblioteca
+          em outro local, pela própria Steam (Configurações, Armazenamento).
         </p>
       </div>
 

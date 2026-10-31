@@ -5,16 +5,16 @@ import { steamLoginUrl } from '@/lib/steamAuth';
 
 interface WelcomeScreenProps {
   closing: boolean;
-  onContinue: () => void; // "Explorar sem entrar": fecha só nesta visita
+  onContinue: () => void; // "Continuar sem entrar": fecha só nesta visita
   onNeverShow: () => void; // não mostrar de novo neste navegador
 }
 
 const stagger = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties;
 
 const FEATURES = [
-  { icon: Library, title: 'Sua biblioteca', text: 'Os jogos instalados, organizados e com a capa certa.' },
-  { icon: Zap, title: 'Steam a um clique', text: 'Abra e encerre a Steam, e veja o status em tempo real.' },
-  { icon: Palette, title: 'Do seu jeito', text: 'Temas, cores, transições e fundo animado à sua escolha.' },
+  { icon: Library, title: 'Sua biblioteca', text: 'Veja os seus jogos da Steam e de fora dela, com capa, tempo de jogo e trailers.' },
+  { icon: Zap, title: 'Steam a um clique', text: 'Com o Helper (opcional), abra e feche a Steam e os jogos direto daqui.' },
+  { icon: Palette, title: 'Do seu jeito', text: 'Escolha temas, cores, animações e fundo animado.' },
 ];
 
 // Boas-vindas para quem ainda não entrou com a Steam. Aparece sobre o fundo animado do tema e some
@@ -63,7 +63,7 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
             LiquiSteam
           </h1>
           <p className="detail-rise mx-auto mt-4 max-w-sm text-[15px] leading-relaxed text-white/65" style={stagger(340)}>
-            Sua biblioteca da Steam num só lugar, com o visual que você escolher.
+            Um jeito mais bonito e prático de ver e abrir a sua biblioteca de jogos.
           </p>
 
           <ul className="mt-7 grid gap-3 text-left">
@@ -100,13 +100,12 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
               onClick={onContinue}
               className="h-11 w-full rounded-xl text-sm text-white/65 transition-colors hover:text-white"
             >
-              Explorar sem entrar
+              Continuar sem entrar
             </button>
           </div>
 
           <p className="detail-rise mt-4 text-[11px] leading-relaxed text-white/40" style={stagger(840)}>
-            O login acontece no site da Steam. O LiquiSteam recebe só o seu SteamID público e o nome do perfil,
-            nunca a sua senha.
+            Entrar é opcional. O login é feito no site da Steam e o LiquiSteam nunca recebe a sua senha, só o nome do seu perfil.
           </p>
           <button
             type="button"
@@ -114,7 +113,7 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
             className="detail-rise mt-3 text-[11px] text-white/35 underline underline-offset-2 transition-colors hover:text-white/70"
             style={stagger(900)}
           >
-            Não mostrar de novo
+            Não mostrar esta tela de novo
           </button>
         </div>
       </div>

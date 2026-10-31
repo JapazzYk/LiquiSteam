@@ -115,9 +115,9 @@ export default function HelperInstall({
   const accessBlock = (
     <>
       <p className="mt-2 text-[13px] leading-relaxed text-white/65">
-        Para o helper funcionar, o navegador precisa deixar o LiquiSteam acessar apps e serviços neste
-        dispositivo. Sem isso o site não enxerga o helper, mesmo instalado. A pergunta só aparece quando
-        você clica aqui, nunca ao abrir o site.
+        O Helper já pode estar instalado, mas o seu navegador (Chrome ou Edge) precisa de uma permissão para o
+        site conversar com ele. É uma proteção do navegador: ela só vale para este endereço e a pergunta nunca
+        aparece sozinha, apenas quando você clicar abaixo.
       </p>
       {access === 'prompt' ? (
         <button
@@ -127,28 +127,28 @@ export default function HelperInstall({
           className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110 disabled:opacity-60"
         >
           <ShieldAlert className="h-4 w-4" />
-          {asking ? 'Aguardando você no navegador…' : 'Permitir acesso'}
+          {asking ? 'Responda a pergunta no navegador…' : 'Permitir acesso'}
         </button>
       ) : (
         <div className="mt-3 grid gap-2 text-[13px] leading-relaxed text-white/65">
-          <p className="text-white/80">O acesso está bloqueado neste navegador, então a pergunta não volta a aparecer.</p>
+          <p className="text-white/80">Essa permissão está bloqueada no navegador, por isso a pergunta não aparece mais. Dá para liberar manualmente:</p>
           <ol className="grid list-decimal gap-1.5 pl-5">
-            <li>Clique no ícone à esquerda do endereço do site (cadeado ou controles).</li>
-            <li>Em Configurações do site, ache Apps e serviços neste dispositivo e escolha Permitir.</li>
-            <li>Volte aqui: o site confere sozinho e o botão do helper fica verde.</li>
+            <li>Clique no ícone ao lado esquerdo do endereço do site, lá em cima (cadeado ou dois traços).</li>
+            <li>Abra "Configurações do site", procure "Apps e serviços neste dispositivo" e escolha "Permitir".</li>
+            <li>Volte para esta página: o site percebe sozinho e o botão do Helper fica verde.</li>
           </ol>
         </div>
       )}
       {lastResult === 'dismissed' && access === 'prompt' && (
         <p className="mt-2 text-xs leading-relaxed text-white/50">
-          A pergunta foi fechada sem resposta. Clique em Permitir acesso de novo e escolha Permitir.
+          A pergunta do navegador foi fechada sem resposta. Clique em "Permitir acesso" de novo e, na caixa que aparecer, escolha "Permitir".
         </p>
       )}
     </>
   );
 
   const Icon = installed ? MonitorCheck : needsAccess ? ShieldAlert : MonitorDown;
-  const label = installed ? 'Helper ativo' : needsAccess ? 'Permitir helper' : 'Helper';
+  const label = installed ? 'Helper funcionando' : needsAccess ? 'Permitir Helper' : 'Helper';
 
   return (
     <div ref={rootRef} className="relative">
@@ -158,16 +158,16 @@ export default function HelperInstall({
         aria-expanded={open}
         aria-label={
           installed
-            ? 'Helper ativo: gerenciar ou desinstalar'
+            ? 'Helper ativo: ver detalhes ou desinstalar'
             : needsAccess
-              ? 'Permitir que o LiquiSteam acesse o helper neste computador'
-              : 'Helper opcional: sincronizar o status com a Steam'
+              ? 'Dar ao site a permissão para falar com o Helper deste computador'
+              : 'Helper (opcional): saiba o que é e como instalar'
         }
         title={
           installed
-            ? 'LiquiSteam Helper ativo'
+            ? 'LiquiSteam Helper está funcionando'
             : needsAccess
-              ? 'O navegador ainda não deixa o site falar com o helper'
+              ? 'O navegador ainda precisa da sua permissão para falar com o Helper'
               : 'Helper opcional: deixa o status da Steam sempre exato'
         }
         className="reveal relative flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
@@ -186,7 +186,7 @@ export default function HelperInstall({
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">
-              {installed ? 'LiquiSteam Helper' : needsAccess ? 'Permitir o acesso ao helper' : 'Sincronizar com a Steam'}
+              {installed ? 'LiquiSteam Helper' : needsAccess ? 'Falta uma permissão do navegador' : 'O que é o Helper?'}
               {!needsAccess && (
                 <span className="ml-2 rounded-full border border-white/15 px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-white/55">
                   Opcional
@@ -206,15 +206,16 @@ export default function HelperInstall({
           {installed ? (
             <>
               <p className="mt-2 text-[13px] leading-relaxed text-white/65">
-                O helper está ativo neste computador: o status da Steam é lido direto do Windows e o botão abre a Steam
-                em segundo plano (na bandeja, sem a janela da loja) e a encerra. Ele só responde ao LiquiSteam e inicia junto com o Windows.
+                Está tudo certo: o Helper está funcionando neste computador. Graças a ele o LiquiSteam sabe se a Steam
+                e os seus jogos estão abertos, consegue abrir e fechar a Steam, executar jogos que não são da Steam
+                e mostrar as atualizações pendentes. Ele só obedece ao site do LiquiSteam e liga sozinho junto com o Windows.
               </p>
               <button
                 type="button"
                 onClick={() => copy('install')}
                 className="mt-2 text-[13px] text-white/60 underline underline-offset-2 transition-colors hover:text-white"
               >
-                {copied === 'install' ? 'Comando copiado' : 'Copiar comando de atualização'}
+                {copied === 'install' ? 'Comando copiado' : 'Copiar o comando para atualizar o Helper'}
               </button>
 
               {removeState === 'idle' && (
@@ -231,7 +232,7 @@ export default function HelperInstall({
               {removeState === 'confirm' && (
                 <div className="mt-4 grid gap-2">
                   <p className="text-[13px] text-white/75">
-                    Remover o helper deste computador? O status da Steam volta a ser estimado.
+                    Desinstalar o Helper deste computador? O site continua funcionando, mas perde o que depende dele (executar jogos, jogos avulsos, atualizações e o status exato da Steam). Você pode instalar de novo quando quiser.
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -253,14 +254,14 @@ export default function HelperInstall({
               )}
 
               {removeState === 'working' && (
-                <p className="mt-4 text-[13px] text-white/70">Removendo…</p>
+                <p className="mt-4 text-[13px] text-white/70">Desinstalando o Helper…</p>
               )}
 
               {removeState === 'unsupported' && (
                 <div className="mt-4 grid gap-2">
                   <p className="text-[13px] leading-relaxed text-white/70">
-                    Esta versão do helper é antiga e não sabe se desinstalar pelo site. Copie o comando abaixo, cole
-                    no PowerShell e aperte Enter.
+                    Seu Helper é de uma versão antiga e não sabe se desinstalar sozinho por aqui. Sem problema: copie o
+                    comando abaixo, abra o PowerShell (tecla Windows, digite PowerShell), cole o comando com Ctrl+V e aperte Enter.
                   </p>
                   <button
                     type="button"
@@ -268,7 +269,7 @@ export default function HelperInstall({
                     className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
                   >
                     {copied === 'remove' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied === 'remove' ? 'Comando copiado' : 'Copiar comando de remoção'}
+                    {copied === 'remove' ? 'Comando copiado' : 'Copiar o comando para desinstalar'}
                   </button>
                 </div>
               )}
@@ -284,38 +285,40 @@ export default function HelperInstall({
                 }}
                 className="mt-3 block text-xs text-white/45 underline underline-offset-2 transition-colors hover:text-white"
               >
-                Não instalei o helper
+                Eu não instalei o Helper
               </button>
             </>
           ) : removeState === 'done' ? (
             <p className="mt-3 text-[13px] leading-relaxed text-white/70">
-              Helper removido. Se mudar de ideia, é só instalar de novo por este mesmo botão.
+              O Helper foi desinstalado. Se mudar de ideia, é só instalar de novo por este mesmo botão.
               <button
                 type="button"
                 onClick={() => setRemoveState('idle')}
                 className="mt-3 block text-white/55 underline underline-offset-2 hover:text-white"
               >
-                Ver como instalar
+                Ver como instalar de novo
               </button>
             </p>
           ) : (
             <>
               {lastResult === 'no-helper' && (
                 <p className="mt-2 rounded-xl border border-white/15 px-3 py-2 text-[13px] leading-relaxed text-white/75">
-                  O navegador já deixa o site falar com o helper, mas ele não respondeu. Se acabou de instalar, espere
-                  alguns segundos; senão, rode o comando de instalação de novo.
+                  A permissão do navegador está certa, mas o Helper não respondeu. Se você acabou de instalar, espere uns
+                  segundos e clique de novo. Se continuar assim, rode o comando de instalação mais uma vez.
                 </p>
               )}
               <p className="mt-2 text-[13px] leading-relaxed text-white/65">
-                Este botão é opcional e não faz parte do app. Ele aparece porque o LiquiSteam Helper não está
-                rodando neste computador. Instale-o, uma vez só, para o status da Steam bater sempre e para o
-                botão abrir e encerrar o cliente. Só para Windows, sem precisar de administrador.
+                O LiquiSteam funciona direto no navegador, e por segurança um site não pode abrir programas no seu
+                computador. O Helper é um miniprograma gratuito, opcional, que você instala uma única vez no Windows
+                para liberar isso: executar e encerrar jogos (inclusive os que não são da Steam), abrir e fechar a
+                Steam, ver o status exato e listar as atualizações pendentes. Não precisa de administrador e não
+                mexe nos seus jogos.
               </p>
               <ol className="mt-3 grid list-decimal gap-1.5 pl-5 text-[13px] leading-relaxed text-white/65">
-                <li>Abra o PowerShell (tecla Windows, digite PowerShell).</li>
-                <li>Clique em Copiar comando, cole lá e aperte Enter.</li>
-                <li>Quando o navegador perguntar se o LiquiSteam pode acessar apps e serviços neste dispositivo, escolha Permitir.</li>
-                <li>Volte aqui: o ponto no botão da Steam fica verde.</li>
+                <li>Aperte a tecla Windows, digite PowerShell e abra o programa (uma janela azul ou preta).</li>
+                <li>Clique no botão "Copiar comando" abaixo, cole na janela com Ctrl+V e aperte Enter.</li>
+                <li>Se o navegador perguntar se este site pode acessar "apps e serviços neste dispositivo", escolha "Permitir". É isso que deixa o site falar com o Helper.</li>
+                <li>Volte para esta página: o botão do Helper vira "Helper funcionando" e o ponto no botão da Steam fica verde.</li>
               </ol>
               <button
                 type="button"
@@ -329,8 +332,9 @@ export default function HelperInstall({
                 <div className="mt-4 border-t border-white/10 pt-3">{accessBlock}</div>
               )}
               <p className="mt-3 text-xs leading-relaxed text-white/45">
-                O helper só responde ao LiquiSteam e inicia junto com o Windows. Sem ele, o site ainda funciona,
-                só que o status da Steam fica estimado. Dá para desinstalar por aqui a qualquer momento.
+                O Helper só aceita pedidos do site do LiquiSteam, não envia nada seu para a internet e liga junto com o
+                Windows. Sem ele o site continua funcionando para ver a biblioteca; você só não terá os recursos
+                acima. Dá para desinstalar por aqui a qualquer momento.
               </p>
             </>
           )}

@@ -49,7 +49,7 @@ export default function UpdateToast() {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium tracking-tight text-white">Nova versão disponível</p>
-          <p className="text-xs font-light text-white/55">Recarregue para atualizar o app.</p>
+          <p className="text-xs font-light text-white/55">Clique em Atualizar para carregar a versão mais nova do site.</p>
         </div>
         <button
           onClick={reload}

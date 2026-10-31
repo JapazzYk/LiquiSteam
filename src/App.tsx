@@ -216,7 +216,7 @@ export default function App() {
         try {
           await completeSteamLogin(params);
         } catch (e) {
-          setAccountError(e instanceof Error ? e.message : 'Falha no login com a Steam.');
+          setAccountError(e instanceof Error ? e.message : 'Não foi possível entrar com a Steam. Tente de novo em instantes.');
         }
       }
 
@@ -436,7 +436,7 @@ export default function App() {
                 disabled={loading}
                 className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
                 aria-label="Atualizar biblioteca"
-                title="Atualizar biblioteca"
+                title="Reler os jogos instalados (use depois de instalar ou desinstalar algo)"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
               </button>
@@ -447,7 +447,7 @@ export default function App() {
                 onClick={() => setCustomDialog('new')}
                 className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
                 aria-label="Adicionar jogo de fora da Steam"
-                title="Adicionar jogo de fora da Steam"
+                title="Adicionar um jogo que não é da Steam (Epic, GOG, emulador…)"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -464,7 +464,7 @@ export default function App() {
               aria-label={
                 updates.pendingCount > 0 ? `Atualizações (${updates.pendingCount} pendentes)` : 'Atualizações'
               }
-              title="Atualizações"
+              title="Atualizações pendentes dos seus jogos da Steam"
             >
               <ArrowDownToLine className="h-4 w-4" />
               {updates.pendingCount > 0 && (
@@ -478,7 +478,7 @@ export default function App() {
               onClick={() => setCustomizationOpen(true)}
               className="reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               aria-label="Aparência"
-              title="Aparência"
+              title="Aparência: tema, cores e animações"
             >
               <SlidersHorizontal className="h-4 w-4" />
             </button>
@@ -491,7 +491,7 @@ export default function App() {
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
               }`}
               aria-label="Conta"
-              title="Conta"
+              title="Conta: entrar com a Steam e escolher pastas"
             >
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
@@ -536,16 +536,16 @@ export default function App() {
             <div className="mx-auto max-w-[1400px]">
               {usingDemo && (
                 <p className="fx-in notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
-                  Esta é uma biblioteca de exemplo. Para ver os seus jogos, entre com a Steam e adicione as
-                  pastas steamapps (ou instale o Helper, que acha tudo sozinho) na{' '}
+                  Você está vendo jogos de exemplo, só para conhecer o visual. Para ver os seus próprios jogos, abra a{' '}
                   <button
                     type="button"
                     onClick={() => goTo('account')}
                     className="font-medium underline underline-offset-4"
                   >
                     tela de conta
-                  </button>
-                  .
+                  </button>{' '}
+                  e escolha a pasta steamapps da sua Steam. Se preferir não escolher pastas, o Helper (botão no topo)
+                  encontra os jogos sozinho.
                 </p>
               )}
 
@@ -658,12 +658,12 @@ function EmptyLibrary({
         {searching ? <SearchX className="h-6 w-6" /> : <FolderOpen className="h-6 w-6" />}
       </div>
       <p className="text-lg font-medium tracking-tight text-white">
-        {searching ? `Nenhum jogo com “${query.trim()}”` : 'Nenhum jogo encontrado nessa pasta'}
+        {searching ? `Nenhum jogo com “${query.trim()}”` : 'Nenhum jogo encontrado'}
       </p>
       <p className="mt-2 max-w-sm text-sm text-white/50">
         {searching
-          ? 'Confira a grafia ou limpe a busca para ver a biblioteca inteira.'
-          : 'Adicione outra pasta steamapps da Steam na tela de conta.'}
+          ? 'Confira se o nome está certo, ou apague a busca para ver todos os jogos de novo.'
+          : 'Não achamos jogos instalados nas pastas escolhidas. Na tela de conta você pode adicionar outra pasta steamapps.'}
       </p>
       <button
         type="button"

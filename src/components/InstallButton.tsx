@@ -74,7 +74,7 @@ export default function InstallButton() {
         onClick={handleClick}
         disabled={busy}
         aria-expanded={help}
-        title="Instalar o LiquiSteam como app"
+        title="Instalar o LiquiSteam como aplicativo, com atalho e janela própria (não é o Helper)"
         className="install-btn reveal relative flex h-10 items-center gap-2 rounded-full border px-3 text-sm font-medium text-white backdrop-blur-xl transition-all disabled:opacity-60 md:px-4"
       >
         <Download className="theme-accent h-4 w-4" />
@@ -110,7 +110,7 @@ export default function InstallButton() {
             </li>
           </ul>
           <p className="mt-3 text-xs text-white/45">
-            O app abre em janela própria, sem a barra do navegador, e atualiza sozinho.
+            Instalado, o LiquiSteam ganha um atalho, abre em janela própria, sem a barra do navegador, e se atualiza sozinho. Isso é diferente do Helper, que libera executar jogos.
           </p>
         </div>
       )}

@@ -47,8 +47,8 @@ export default function LibraryToolbar({ sort, onChange, count, hasSizes, hasPla
                 ok
                   ? option.label
                   : option.key === 'size'
-                    ? 'Sem tamanhos conhecidos: escolha as pastas da Steam ou instale o Helper'
-                    : 'Entre com a Steam e salve a chave da API para usar o tempo de jogo'
+                    ? 'Ainda não sabemos o tamanho dos jogos. Escolha as pastas da Steam na tela de conta ou instale o Helper'
+                    : 'Para ordenar por tempo de jogo, entre com a Steam e salve a sua chave na tela de conta'
               }
               onClick={() => onChange({ ...sort, key: option.key, dir: active ? sort.dir : defaultDir(option.key) })}
               className={`h-8 rounded-full px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
@@ -63,7 +63,7 @@ export default function LibraryToolbar({ sort, onChange, count, hasSizes, hasPla
       <button
         type="button"
         onClick={() => onChange({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
-        title={`Inverter: ${dirLabel}`}
+        title={`Clique para inverter a ordem (agora: ${dirLabel})`}
         aria-label={`Inverter a ordem (agora: ${dirLabel})`}
         className="reveal relative flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-xs text-white/75 transition-all hover:border-white/30 hover:text-white"
       >

@@ -72,7 +72,6 @@ export default function CustomizationPanel({
     <div
       className="panel-backdrop fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-sm"
       data-closing={closing ? '' : undefined}
-      onClick={requestClose}
     >
       <aside
         role="dialog"
@@ -82,23 +81,26 @@ export default function CustomizationPanel({
         data-closing={closing ? '' : undefined}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="pointer-events-none sticky top-3 z-20 -mt-5 flex h-0 justify-end md:-mt-8">
+          <button
+            type="button"
+            onClick={requestClose}
+            className="pointer-events-auto grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/15 bg-surface/90 text-white/70 shadow-lg backdrop-blur-xl transition-colors hover:border-white/30 hover:text-white"
+            aria-label="Fechar aparência"
+            title="Fechar (Esc)"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex items-start justify-between gap-4 pr-12">
           <div>
             <h2 id="appearance-title" className="text-2xl font-semibold tracking-tight text-white">
               Aparência
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-white/55">
-              Tema, layout e cor ficam salvos neste navegador e, com login, na sua conta.
+              Escolha como o LiquiSteam fica: tema, layout, cor e movimento. As escolhas ficam salvas neste navegador e, se você entrou na sua conta, em qualquer lugar em que entrar.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.06] text-white/60 transition-colors hover:border-white/25 hover:text-white"
-            aria-label="Fechar aparência"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         <Section title="Tema" order={0}>
@@ -250,7 +252,7 @@ export default function CustomizationPanel({
 
         <Section title="Transições" order={3}>
           <p className="-mt-1 mb-3 text-xs leading-relaxed text-white/50">
-            Valem para o site todo: troca de telas, cartões, destaque e painéis.
+            Como as coisas se movem quando aparecem ou somem: troca de telas, cartões e janelas. Escolha "Nenhuma" se preferir tudo parado.
           </p>
           <div className="grid grid-cols-2 gap-2.5">
             {MOTIONS.map((motion) => {
@@ -283,7 +285,7 @@ export default function CustomizationPanel({
         <Section title="Biblioteca" order={4}>
           <Switch
             label="Prévia de trailer"
-            description="Passe o mouse sobre um cartão para ver o trailer do jogo tocando, sem som."
+            description="Ao passar o mouse sobre a capa de um jogo, o trailer toca sem som. Desligue se o seu computador ou a internet ficarem pesados."
             checked={theme.trailerPreview}
             onChange={(trailerPreview) => onChange({ ...theme, trailerPreview })}
           />
@@ -292,7 +294,7 @@ export default function CustomizationPanel({
         <Section title="Fundo" order={4}>
           <Switch
             label="Fundo animado"
-            description="Luzes e movimento suave atrás do site. Desligado, o fundo fica parado."
+            description="Luzes e formas se movendo devagar atrás do site, de acordo com o tema. Desligado, o fundo fica simples e sem efeitos."
             checked={theme.liveBackground}
             onChange={(liveBackground) => onChange({ ...theme, liveBackground })}
           />
@@ -301,7 +303,7 @@ export default function CustomizationPanel({
         <Section title="Efeitos" order={5}>
           <div className="grid gap-3">
             <Slider
-              label="Luz do cursor"
+              label="Luz do mouse (brilho que segue o cursor)"
               value={theme.glowIntensity}
               min={0}
               max={1}
@@ -312,7 +314,7 @@ export default function CustomizationPanel({
             />
             {skin.glass ? (
               <Slider
-                label="Opacidade dos vidros"
+                label="Transparência do vidro dos painéis"
                 value={theme.glassOpacity}
                 min={0.03}
                 max={0.14}
@@ -323,7 +325,7 @@ export default function CustomizationPanel({
               />
             ) : (
               <Slider
-                label="Opacidade dos painéis"
+                label="Transparência dos painéis"
                 value={theme.panelOpacity}
                 min={0.4}
                 max={1}
