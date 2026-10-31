@@ -17,11 +17,13 @@ export default function CursorGlow() {
     let y = -9999;
     let frame = 0;
     const lit = new Set<HTMLElement>();
+    const last = new Map<HTMLElement, string>();
 
     const clear = (el: HTMLElement) => {
       el.style.removeProperty('--rx');
       el.style.removeProperty('--ry');
       el.style.removeProperty('--ra');
+      last.delete(el);
     };
 
     const update = () => {
@@ -35,20 +37,37 @@ export default function CursorGlow() {
       const near: { el: HTMLElement; rx: number; ry: number }[] = [];
       // Com uma janela aberta por cima, só o que está dentro dela recebe luz (o resto está escondido atrás).
       const locked = document.documentElement.hasAttribute('data-scroll-locked');
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
       for (const el of elements) {
         if (!el.isConnected) continue;
         if (locked && !el.closest('.overlay-scrim')) continue;
         const rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) continue;
+        // Fora da tela não há o que acender.
+        if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) continue;
         const dx = Math.max(rect.left - x, 0, x - rect.right);
         const dy = Math.max(rect.top - y, 0, y - rect.bottom);
-        if (dx * dx + dy * dy <= RANGE * RANGE) near.push({ el, rx: x - rect.left, ry: y - rect.top });
+        if (dx * dx + dy * dy > RANGE * RANGE) continue;
+        // O retângulo medido já inclui escala e deslocamento (hover, animação de entrada); o brilho é
+        // desenhado no espaço do próprio elemento, então a posição precisa ser convertida de volta.
+        const sx = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+        const sy = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1;
+        near.push({ el, rx: (x - rect.left) / (sx || 1), ry: (y - rect.top) / (sy || 1) });
       }
 
       const next = new Set<HTMLElement>();
       for (const { el, rx, ry } of near) {
-        el.style.setProperty('--rx', rx.toFixed(1));
-        el.style.setProperty('--ry', ry.toFixed(1));
-        el.style.setProperty('--ra', '1');
+        const px = Math.round(rx);
+        const py = Math.round(ry);
+        // Só escreve quando muda, para não forçar repintura à toa (evita cintilar).
+        const key = `${px},${py}`;
+        if (last.get(el) !== key || !lit.has(el)) {
+          last.set(el, key);
+          el.style.setProperty('--rx', String(px));
+          el.style.setProperty('--ry', String(py));
+        }
+        if (!lit.has(el)) el.style.setProperty('--ra', '1');
         next.add(el);
       }
       for (const el of lit) if (!next.has(el)) clear(el);
