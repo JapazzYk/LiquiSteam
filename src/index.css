@@ -201,7 +201,7 @@ html[data-scroll-locked] body {
   border-radius: inherit;
   pointer-events: none;
   opacity: var(--ra, 0);
-  transition: opacity 0.2s ease;
+  transition: opacity 0.28s ease;
 }
 
 :is(.reveal, .game-card, .game-row, .search-shell)::before {

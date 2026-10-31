@@ -20,9 +20,9 @@ export default function CursorGlow() {
     const last = new Map<HTMLElement, string>();
 
     const clear = (el: HTMLElement) => {
-      el.style.removeProperty('--rx');
-      el.style.removeProperty('--ry');
-      el.style.removeProperty('--ra');
+      // Só apaga a luz (opacidade); a posição fica onde estava. Se a posição fosse removida, o centro do
+      // brilho pularia para o canto do elemento durante o desvanecer: era o "flick".
+      el.style.setProperty('--ra', '0');
       last.delete(el);
     };
 
