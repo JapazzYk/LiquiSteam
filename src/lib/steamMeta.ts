@@ -1,3 +1,4 @@
+import { cleanNewsText, looksForeign } from '@/lib/language';
 import type { AchievementSummary, NewsItem } from '@/types';
 import { SUPABASE_URL, ANON_KEY, accessToken } from '@/lib/supabaseClient';
 
@@ -39,7 +40,11 @@ export async function fetchNews(appid: number): Promise<NewsItem[]> {
     const data = await callSteamGame<{ news: NewsItem[] }>('news', {
       params: { appid: String(appid) },
     });
-    return data.news ?? [];
+    // Um idioma só: descarta o que veio em outros alfabetos e limpa as marcações da Steam.
+    return (data.news ?? [])
+      .map((item) => ({ ...item, title: cleanNewsText(item.title ?? ''), summary: cleanNewsText(item.summary ?? '') }))
+      .filter((item) => item.title && !looksForeign(item.title) && !looksForeign(item.summary))
+      .slice(0, 6);
   } catch {
     return [];
   }
@@ -187,7 +192,9 @@ function toHttps(url: string): string {
 function normalizeDetails(data: GameDetails): GameDetails {
   return {
     ...data,
-    movies: (data.movies ?? []).map((m) => ({
+    shortDescription: looksForeign(data.shortDescription) ? '' : data.shortDescription,
+    // Poucos trailers: os 3 primeiros bastam, o resto só poluiria a aba de mídia.
+    movies: (data.movies ?? []).slice(0, 3).map((m) => ({
       ...m,
       thumbnail: toHttps(m.thumbnail),
       hls: toHttps(m.hls ?? ''),

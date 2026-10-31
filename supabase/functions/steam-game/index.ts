@@ -245,18 +245,28 @@ async function handleDetails(appid: string): Promise<Response> {
 async function handleNews(appid: string): Promise<Response> {
   const steamUrl =
     `https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid=${appid}` +
-    `&count=6&maxlength=300&format=json`;
+    `&count=25&maxlength=300&format=json`;
   const res = await fetch(steamUrl);
   if (!res.ok) return json({ news: [] });
   const data = await res.json();
   const entries: any[] = data?.appnews?.newsitems ?? [];
-  const news = entries.map((e) => ({
-    title: e.title ?? '',
-    url: e.url ?? `https://store.steampowered.com/app/${appid}`,
-    date: e.date ?? 0,
-    author: e.author ?? '',
-    summary: e.contents ?? '',
-  }));
+  // Um idioma só: descarta notícias escritas em outros alfabetos (russo, chinês...).
+  const foreign = (text: string) => {
+    const letters = text.match(/\p{L}/gu)?.length ?? 0;
+    if (letters < 6) return false;
+    const other = text.match(/[\p{Script=Cyrillic}\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thai}\p{Script=Devanagari}\p{Script=Greek}]/gu)?.length ?? 0;
+    return other / letters > 0.2;
+  };
+  const news = entries
+    .map((e) => ({
+      title: e.title ?? '',
+      url: e.url ?? `https://store.steampowered.com/app/${appid}`,
+      date: e.date ?? 0,
+      author: e.author ?? '',
+      summary: e.contents ?? '',
+    }))
+    .filter((n) => n.title && !foreign(n.title) && !foreign(n.summary))
+    .slice(0, 10);
   return json({ news });
 }
 

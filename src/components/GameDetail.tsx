@@ -978,8 +978,9 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
           poster: movie.thumbnail,
         };
       })
-      .filter((item) => item.type !== 'video' || item.url),
-    ...(details?.screenshots ?? []).map(
+      .filter((item) => item.type !== 'video' || item.url)
+      .slice(0, 3), // no máximo 3 trailers, sempre antes das imagens
+    ...(details?.screenshots ?? []).slice(0, 16).map(
       (shot): MediaItem => ({ type: 'image', id: `i${shot.id}`, thumb: shot.thumb, full: shot.full })
     ),
   ];

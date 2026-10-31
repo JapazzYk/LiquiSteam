@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
 import { Gamepad2 } from 'lucide-react';
 import type { InstalledGame } from '@/types';
@@ -35,6 +35,9 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
   const artRef = useRef<HTMLDivElement>(null);
   const cover = artwork[artworkIndex];
   const [video, setVideo] = useState<{ url: string; ready: boolean } | null>(null);
+  // Sem trailer, a prévia vira um carrossel com as imagens da loja.
+  const [slides, setSlides] = useState<{ urls: string[]; index: number } | null>(null);
+  const slideTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
 
   // Prévia do trailer: só com mouse, depois de uma pausa, e uma vez por jogo (os detalhes ficam em cache).
@@ -43,15 +46,40 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
     if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
     hoverTimer.current = window.setTimeout(() => {
       void fetchGameDetails(game.appid).then((details) => {
+        if (hoverTimer.current === null) return;
         const url = previewVideoUrl(details?.movies[0]);
-        if (url && hoverTimer.current !== null) setVideo({ url, ready: false });
+        if (url) {
+          setVideo({ url, ready: false });
+          return;
+        }
+        const urls = (details?.screenshots ?? []).slice(0, 6).map((shot) => shot.thumb || shot.full).filter(Boolean);
+        if (urls.length < 2) return;
+        urls.forEach((src) => {
+          const image = new Image();
+          image.src = src; // carrega antes, para a troca não piscar
+        });
+        setSlides({ urls, index: 0 });
+        if (slideTimer.current !== null) window.clearInterval(slideTimer.current);
+        slideTimer.current = window.setInterval(() => {
+          setSlides((current) => (current ? { ...current, index: (current.index + 1) % current.urls.length } : current));
+        }, 1400);
       });
-    }, 650);
+    }, 500);
   };
+  useEffect(
+    () => () => {
+      if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
+      if (slideTimer.current !== null) window.clearInterval(slideTimer.current);
+    },
+    []
+  );
   const stopPreview = () => {
     if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
     hoverTimer.current = null;
+    if (slideTimer.current !== null) window.clearInterval(slideTimer.current);
+    slideTimer.current = null;
     setVideo(null);
+    setSlides(null);
   };
   // Capa vertical 2:3 preenche a moldura; qualquer outra proporção aparece inteira, sem corte.
   const { fit, onLoad } = useArtFit(2 / 3, 0.08, `card-${game.appid}-${artworkIndex}`);
@@ -118,6 +146,13 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
               onCanPlay={() => setVideo((current) => (current ? { ...current, ready: true } : current))}
               onError={() => setVideo(null)}
             />
+          )}
+          {slides && (
+            <div className="game-card-slides" aria-hidden>
+              {slides.urls.map((src, i) => (
+                <img key={src} src={src} alt="" data-active={i === slides.index ? '' : undefined} />
+              ))}
+            </div>
           )}
           <div className="game-card-shade" />
           <span className="game-card-rank" aria-hidden>
