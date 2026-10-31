@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Folder, Plus, Star } from 'lucide-react';
 import { MAX_GROUPS, MAX_GROUP_NAME, type CollectionsApi } from '@/lib/collections';
+import { motionDisabled } from '@/lib/motion';
 
 interface GroupMenuProps {
   appid: number;
@@ -12,10 +13,25 @@ interface GroupMenuProps {
 }
 
 // Menu "Guardar em…": marca o jogo como favorito, coloca ou tira de cada grupo e cria um grupo novo.
-export default function GroupMenu({ appid, gameName, anchor, api, onClose }: GroupMenuProps) {
+export default function GroupMenu({ appid, gameName, anchor, api, onClose: closeNow }: GroupMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const [name, setName] = useState('');
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const closeNowRef = useRef(closeNow);
+  closeNowRef.current = closeNow;
+  // Fecha com a animação de saída (a mesma dos outros pop-ups); sem animação, fecha na hora.
+  const onClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    if (motionDisabled()) {
+      closeNowRef.current();
+      return;
+    }
+    setClosing(true);
+    window.setTimeout(() => closeNowRef.current(), 180);
+  }, []);
   const { groups } = api.collections;
   const inGroup = (id: string) => groups.find((g) => g.id === id)?.games.includes(appid) ?? false;
 
@@ -69,7 +85,7 @@ export default function GroupMenu({ appid, gameName, anchor, api, onClose }: Gro
       ref={ref}
       role="dialog"
       aria-label={`Guardar ${gameName}`}
-      className="overlay-surface fx-in fixed z-[70] w-[min(300px,calc(100vw-16px))] rounded-2xl p-3"
+      className={`overlay-surface ${closing ? 'fx-out' : 'fx-in'} fixed z-[70] w-[min(300px,calc(100vw-16px))] rounded-2xl p-3`}
       style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, visibility: pos ? 'visible' : 'hidden' }}
     >
       <p className="truncate px-2 pb-2 text-xs text-white/50">

@@ -106,7 +106,7 @@ export default function App() {
     const timer = window.setTimeout(() => setLockedNotice(false), 4500);
     return () => window.clearTimeout(timer);
   }, [lockedNotice]);
-  const [groupMenu, setGroupMenu] = useState<{ appid: number; anchor: HTMLElement } | null>(null);
+  const [groupMenu, setGroupMenu] = useState<{ appid: number; anchor: HTMLElement; id: number } | null>(null);
   // Biblioteca: só o que está instalado neste computador ou todos os jogos da conta Steam.
   const [scope, setScopeState] = useState<'installed' | 'account'>(() => {
     try {
@@ -494,7 +494,7 @@ export default function App() {
   const collectionsUi = useMemo<CollectionsUi>(
     () => ({
       api: collectionsApi,
-      openGroupMenu: (appid, anchor) => setGroupMenu({ appid, anchor }),
+      openGroupMenu: (appid, anchor) => setGroupMenu({ appid, anchor, id: Date.now() }),
       enabled: !!user,
       notifyLocked: () => setLockedNotice(true),
     }),
@@ -890,6 +890,7 @@ export default function App() {
 
       {user && groupMenu && (
         <GroupMenu
+          key={groupMenu.id}
           appid={groupMenu.appid}
           gameName={menuGameName}
           anchor={groupMenu.anchor}
