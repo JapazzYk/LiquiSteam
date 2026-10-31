@@ -35,9 +35,9 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
       role="dialog"
       aria-modal="true"
       aria-labelledby="welcome-title"
-      className={`${closing ? 'fx-out' : 'fx-soft'} fixed inset-0 z-[45] flex items-center justify-center overflow-y-auto bg-canvas/75 p-5 backdrop-blur-xl`}
+      className={`${closing ? 'fx-out' : 'fx-soft'} overlay-scrim fixed inset-0 z-[45] flex items-center justify-center overflow-y-auto p-5`}
     >
-      <div className="fx-in theme-glass reveal relative my-auto w-full max-w-[520px] overflow-hidden rounded-[32px] border border-white/15 p-8 text-center shadow-[0_30px_90px_rgba(0,0,0,0.45)] sm:p-10">
+      <div className="fx-in overlay-surface reveal relative my-auto w-full max-w-[520px] overflow-hidden rounded-[32px] p-8 text-center sm:p-10">
         <div
           className="pointer-events-none absolute inset-0 opacity-70"
           style={{ boxShadow: 'inset 0 0 90px 12px rgba(var(--accent-rgb), 0.12)' }}

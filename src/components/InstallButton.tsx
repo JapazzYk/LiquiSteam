@@ -85,7 +85,7 @@ export default function InstallButton() {
         <div
           role="dialog"
           aria-label="Como instalar o LiquiSteam"
-          className={`${helpPop.closing ? 'fx-out' : 'fx-in'} install-pop absolute right-0 top-full z-40 mt-3 w-[min(320px,calc(100vw-32px))] rounded-2xl border p-4`}
+          className={`${helpPop.closing ? 'fx-out' : 'fx-in'} install-pop overlay-surface absolute right-0 top-full z-40 mt-3 w-[min(320px,calc(100vw-32px))] rounded-2xl border p-4`}
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">Instalar o LiquiSteam</p>

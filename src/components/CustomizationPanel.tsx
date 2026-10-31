@@ -77,7 +77,7 @@ export default function CustomizationPanel({
 
   return (
     <div
-      className="panel-backdrop fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-sm"
+      className="panel-backdrop overlay-scrim fixed inset-0 z-50 flex justify-end"
       data-closing={closing ? '' : undefined}
       {...outsideClose}
     >
@@ -85,7 +85,7 @@ export default function CustomizationPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="appearance-title"
-        className="panel-aside h-full w-full max-w-md overflow-y-auto border-l border-white/12 bg-surface/95 p-6 shadow-[-20px_0_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl md:p-8"
+        className="panel-aside overlay-surface h-full w-full max-w-md overflow-y-auto p-6 md:p-8"
         data-closing={closing ? '' : undefined}
         onClick={(event) => event.stopPropagation()}
       >

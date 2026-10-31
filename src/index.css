@@ -1486,11 +1486,6 @@ html[data-scroll-locked] body {
   background: rgba(var(--accent-rgb), 0.26);
 }
 
-.install-pop {
-  border-color: rgba(var(--accent-rgb), 0.35);
-  background: rgb(var(--surface));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-}
 
 /* ------------------------------------------------------------------ */
 /* Temas sólidos e cantos                                              */
@@ -2129,16 +2124,24 @@ html[data-scroll-locked] body {
 /* --panel-a: 1 = sólido como sempre; menos = translúcido com desfoque.  */
 /* --panel-a só vale nos temas sólidos (o App envia 1 nos de vidro).    */
 /* ------------------------------------------------------------------ */
-.detail-panel {
-  background-color: rgb(var(--surface) / calc(0.94 * var(--panel-a, 1)));
+/* Padrão único das janelas por cima do site (card do jogo, aparência, adicionar jogo, boas-vindas, */
+/* pop-ups do topo e aviso de versão). Mudou aqui, mudou em todas.                                  */
+.overlay-scrim {
+  background-color: rgb(var(--bg) / 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
-.panel-aside {
-  background-color: rgb(var(--surface) / calc(0.95 * var(--panel-a, 1)));
+.overlay-surface {
+  background-color: rgb(var(--surface) / calc(0.94 * var(--panel-a, 1)));
+  border: 1px solid rgb(var(--ink) / 0.14);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
 }
 
 .install-pop {
-  background: rgb(var(--surface) / var(--panel-a, 1));
+  border-color: rgba(var(--accent-rgb), 0.35);
 }
 
 [data-skin='steam'] .app-header {

@@ -43,7 +43,7 @@ export default function UpdateToast() {
 
   return (
     <div className="pointer-events-none fixed bottom-5 left-1/2 z-50 -translate-x-1/2 px-4">
-      <div className={`${presence.closing ? 'fx-out' : 'fx-in'} pointer-events-auto flex items-center gap-3 rounded-full border border-[rgba(var(--accent-rgb),0.35)] bg-surface/95 px-5 py-3 shadow-[0_8px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl`}>
+      <div className={`${presence.closing ? 'fx-out' : 'fx-in'} pointer-events-auto flex items-center gap-3 overlay-surface rounded-full px-5 py-3`}>
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full theme-accent-surface">
           <RefreshCw className="h-4 w-4 theme-accent" />
         </div>

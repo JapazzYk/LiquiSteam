@@ -452,7 +452,7 @@ export default function GameDetail({
     <div
       ref={backdropRef}
       {...outsideClose}
-      className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
+      className="overlay-scrim fixed inset-0 z-40 flex items-stretch justify-center p-0 md:p-5"
     >
       {/* Moldura da luz do cursor: o painel rola, então o brilho da borda fica numa camada parada por cima. */}
       <div className="relative flex h-full w-full max-w-6xl md:h-[calc(100vh-40px)]">
@@ -467,7 +467,7 @@ export default function GameDetail({
         <X className="h-5 w-5" />
       </button>
       <div
-        className="detail-panel relative flex h-full w-full flex-col overflow-y-auto bg-surface/[0.94] shadow-2xl md:rounded-[32px] md:border md:border-white/12 md:backdrop-blur-2xl"
+        className="detail-panel overlay-surface relative flex h-full w-full flex-col overflow-y-auto md:rounded-[32px]"
         ref={scrollRef}
         role="dialog"
         aria-modal="true"

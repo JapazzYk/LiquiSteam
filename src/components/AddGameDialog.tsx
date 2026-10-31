@@ -164,7 +164,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose: onCloseN
 
   return (
     <div
-      className="panel-backdrop fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm"
+      className="panel-backdrop overlay-scrim fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4"
       data-closing={closing ? '' : undefined}
       {...outsideClose}
     >
@@ -172,7 +172,7 @@ export default function AddGameDialog({ helperOnline, editing, onClose: onCloseN
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-game-title"
-        className={`${closing ? 'fx-out' : 'fx-in'} theme-glass reveal relative my-auto w-full max-w-md overflow-hidden rounded-[28px] border border-white/15 bg-surface/95 p-6 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-2xl`}
+        className={`${closing ? 'fx-out' : 'fx-in'} overlay-surface reveal relative my-auto w-full max-w-md overflow-hidden rounded-[28px] p-6`}
       >
         <div className="flex items-start justify-between gap-4">
           <div>

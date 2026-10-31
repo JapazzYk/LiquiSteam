@@ -182,7 +182,7 @@ export default function HelperInstall({
         <div
           role="dialog"
           aria-label="LiquiSteam Helper"
-          className={`${pop.closing ? 'fx-out' : 'fx-in'} install-pop absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-32px))] rounded-2xl border p-4`}
+          className={`${pop.closing ? 'fx-out' : 'fx-in'} install-pop overlay-surface absolute right-0 top-full z-40 mt-3 w-[min(380px,calc(100vw-32px))] rounded-2xl border p-4`}
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">
