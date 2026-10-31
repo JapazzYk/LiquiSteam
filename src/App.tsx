@@ -425,8 +425,9 @@ export default function App() {
   const available = useMemo(() => new Set(source.map((g) => g.appid)), [source]);
 
   const search = query.trim().toLowerCase();
-  const activeGroup = collectionsApi.collections.groups.find((g) => g.id === filter) ?? null;
-  const effectiveFilter: CollectionFilter = filter === 'all' || filter === 'favorites' || activeGroup ? filter : 'all';
+  // Favoritos e grupos só existem com a Steam conectada.
+  const activeGroup = user ? (collectionsApi.collections.groups.find((g) => g.id === filter) ?? null) : null;
+  const effectiveFilter: CollectionFilter = !user ? 'all' : filter === 'all' || filter === 'favorites' || activeGroup ? filter : 'all';
   const inFilter = (g: InstalledGame) =>
     effectiveFilter === 'all'
       ? true
@@ -512,7 +513,7 @@ export default function App() {
   };
 
   return (
-    <CollectionsContext.Provider value={collectionsUi}>
+    <CollectionsContext.Provider value={user ? collectionsUi : null}>
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
       {skin.glow && theme.glowIntensity > 0 && <CursorGlow />}
@@ -682,7 +683,7 @@ export default function App() {
                 <p className="fx-in notice-info mb-6 rounded-2xl border px-5 py-4 text-sm leading-relaxed">
                   Você está vendo jogos de exemplo. Pode usá-los à vontade: use a busca para achar{' '}
                   <strong className="font-medium">qualquer jogo da loja da Steam</strong>, abrir o card dele (trailers,
-                  imagens, notas) e guardar nos favoritos ou em grupos. Para ver os seus próprios jogos,{' '}
+                  imagens, notas). Para ver os seus próprios jogos e criar favoritos e grupos,{' '}
                   <button
                     type="button"
                     onClick={() => goTo('account')}
@@ -711,7 +712,7 @@ export default function App() {
               {source.length > 0 && (
                 <>
                   {stats && <LibrarySummary stats={stats} />}
-                  <CollectionBar
+                  {user && <CollectionBar
                     api={collectionsApi}
                     active={effectiveFilter}
                     onSelect={setFilter}
@@ -745,7 +746,7 @@ export default function App() {
                         </div>
                       ) : null
                     }
-                  />
+                  />}
                   <LibraryToolbar
                     sort={sort}
                     onChange={setSort}
@@ -864,7 +865,7 @@ export default function App() {
         />
       )}
 
-      {groupMenu && (
+      {user && groupMenu && (
         <GroupMenu
           appid={groupMenu.appid}
           gameName={menuGameName}
