@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutsideClose } from '@/lib/outsideClose';
 import { useScrollLock } from '@/lib/scrollLock';
 import { FolderOpen, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import type { InstalledGame } from '@/types';
@@ -40,6 +41,8 @@ export default function AddGameDialog({ helperOnline, editing, onClose: onCloseN
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [copied, setCopied] = useState(false);
   useScrollLock();
+  const closeRef = useRef<() => void>(() => {});
+  const outsideClose = useOutsideClose(() => closeRef.current());
   const [closing, setClosing] = useState(false);
   const alive = useRef(true);
   const closeNowRef = useRef(onCloseNow);
@@ -157,10 +160,13 @@ export default function AddGameDialog({ helperOnline, editing, onClose: onCloseN
   const busy = step !== 'idle';
   const hue = placeholderHue(name || 'Jogo');
 
+  closeRef.current = busy ? () => {} : onClose;
+
   return (
     <div
       className="panel-backdrop fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/55 p-4 backdrop-blur-sm"
       data-closing={closing ? '' : undefined}
+      {...outsideClose}
     >
       <div
         role="dialog"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useOutsideClose } from '@/lib/outsideClose';
 import { useScrollLock } from '@/lib/scrollLock';
 import type { CSSProperties } from 'react';
 import {
@@ -165,6 +166,8 @@ export default function GameDetail({
   const originRef = useRef(origin);
   originRef.current = origin;
   useScrollLock();
+  const closeRef = useRef<() => void>(() => {});
+  const outsideClose = useOutsideClose(() => closeRef.current());
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   // A faixa do topo é larga, então usa a arte horizontal (library_hero) e deixa a capa vertical por último.
@@ -443,9 +446,12 @@ export default function GameDetail({
       ? Math.round((achievements.achieved / achievements.total) * 100)
       : 0;
 
+  closeRef.current = requestClose;
+
   return (
     <div
       ref={backdropRef}
+      {...outsideClose}
       className="fixed inset-0 z-40 flex items-stretch justify-center bg-canvas/[0.78] p-0 backdrop-blur-md md:p-5"
     >
       {/* Moldura da luz do cursor: o painel rola, então o brilho da borda fica numa camada parada por cima. */}

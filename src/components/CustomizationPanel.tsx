@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutsideClose } from '@/lib/outsideClose';
 import { useScrollLock } from '@/lib/scrollLock';
 import type { CSSProperties, ReactNode } from 'react';
 import { Check, RotateCcw, X } from 'lucide-react';
@@ -29,6 +30,8 @@ export default function CustomizationPanel({
   const [closing, setClosing] = useState(false);
   const closeTimer = useRef<number | null>(null);
   useScrollLock();
+  const closeRef = useRef<() => void>(() => {});
+  const outsideClose = useOutsideClose(() => closeRef.current());
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const motionRef = useRef(theme.motion);
@@ -70,10 +73,13 @@ export default function CustomizationPanel({
     return () => window.removeEventListener('keydown', onKey);
   }, [requestClose]);
 
+  closeRef.current = requestClose;
+
   return (
     <div
       className="panel-backdrop fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-sm"
       data-closing={closing ? '' : undefined}
+      {...outsideClose}
     >
       <aside
         role="dialog"
