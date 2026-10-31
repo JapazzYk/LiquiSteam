@@ -24,7 +24,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
       : source === 'account'
         ? 'Status vindo da sua conta na Steam (pode atrasar alguns segundos; com o Helper instalado fica exato)'
         : 'Status aproximado: o site não tem como saber com certeza se a Steam está aberta. Com o Helper instalado fica exato';
-  const dot = source === 'helper' ? 'bg-ok' : source === 'account' ? 'bg-[rgb(var(--accent-rgb))]' : 'bg-white/25';
+  const dot = source === 'helper' ? 'bg-ok' : source === 'account' ? 'bg-[rgb(var(--accent-rgb))]' : 'bg-[rgb(var(--ink)/0.4)]';
 
   return (
     <button
@@ -50,7 +50,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
       {running && <Power className="ml-1 h-3.5 w-3.5 opacity-60" />}
       <span
         aria-hidden
-        className={`absolute right-2.5 top-2 h-1.5 w-1.5 rounded-full ${dot}`}
+        className={`absolute right-2.5 top-2 z-10 h-1.5 w-1.5 rounded-full ${dot}`}
       />
     </button>
   );
