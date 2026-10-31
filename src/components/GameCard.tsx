@@ -91,7 +91,7 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
     <div
       className="game-card-wrap"
       style={{ '--i': index } as CSSProperties}
-      draggable={!!collectionsUi}
+      draggable={!!collectionsUi?.enabled}
       onDragStart={(event) => {
         // Arrastar o cartão até um grupo (ou Favoritos) na faixa acima da biblioteca.
         event.dataTransfer.setData(DRAG_TYPE, String(game.appid));

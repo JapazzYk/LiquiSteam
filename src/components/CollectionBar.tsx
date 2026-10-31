@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { DragEvent } from 'react';
-import { Check, Folder, LayoutGrid, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import { Check, Folder, LayoutGrid, Lock, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
 import { DRAG_TYPE, MAX_GROUPS, MAX_GROUP_NAME, type CollectionsApi } from '@/lib/collections';
 
 export type CollectionFilter = 'all' | 'favorites' | string; // string = id de um grupo
@@ -15,10 +15,13 @@ interface CollectionBarProps {
   totalCount: number;
   // Algo à direita da faixa (ex.: escolher entre jogos instalados e toda a conta).
   rightSlot?: ReactNode;
+  // Sem a Steam conectada: Favoritos e grupos aparecem bloqueados e avisam ao serem tocados.
+  locked?: boolean;
+  onLocked?: () => void;
 }
 
 // Faixa de filtros da biblioteca: Todos, Favoritos e os grupos. Aceita jogos arrastados dos cartões.
-export default function CollectionBar({ api, active, onSelect, available, totalCount, rightSlot }: CollectionBarProps) {
+export default function CollectionBar({ api, active, onSelect, available, totalCount, rightSlot, locked = false, onLocked }: CollectionBarProps) {
   const { favorites, groups } = api.collections;
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -74,6 +77,29 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
     if (activeGroup) api.renameGroup(activeGroup.id, draft);
     setRenaming(false);
   };
+
+  if (locked) {
+    const lockedTitle = 'Disponível depois de entrar com a Steam';
+    return (
+      <div className="fx-soft mb-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Favoritos e grupos (bloqueado)">
+        <span className="coll-chip coll-chip-on">
+          <LayoutGrid className="h-3.5 w-3.5" />
+          Todos <span className="coll-count">{totalCount}</span>
+        </span>
+        <button type="button" className="coll-chip coll-chip-locked" title={lockedTitle} aria-disabled onClick={onLocked}>
+          <Star className="h-3.5 w-3.5" />
+          Favoritos
+          <Lock className="h-3 w-3" />
+        </button>
+        <button type="button" className="coll-chip coll-chip-locked" title={lockedTitle} aria-disabled onClick={onLocked}>
+          <Plus className="h-3.5 w-3.5" />
+          Novo grupo
+          <Lock className="h-3 w-3" />
+        </button>
+        <span className="text-xs text-white/40">Favoritos e grupos: entre com a Steam para usar</span>
+      </div>
+    );
+  }
 
   return (
     <div className="fx-soft mb-4 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Favoritos e grupos">

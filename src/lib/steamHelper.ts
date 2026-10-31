@@ -35,6 +35,26 @@ export function writeHelperHint(value: boolean): void {
   }
 }
 
+// Helper desativado pelo usuário (sem desinstalar): o site deixa de falar com ele até ser reativado.
+const DISABLED_KEY = 'liquid_helper_disabled';
+
+export function readHelperDisabled(): boolean {
+  try {
+    return localStorage.getItem(DISABLED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeHelperDisabled(value: boolean): void {
+  try {
+    if (value) localStorage.setItem(DISABLED_KEY, '1');
+    else localStorage.removeItem(DISABLED_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 // "loopback-network" é a permissão atual do Chrome; "local-network-access" é o nome antigo.
 const PERMISSION_NAMES = ['loopback-network', 'local-network-access'];
 
@@ -76,6 +96,7 @@ async function call(
   timeoutMs: number,
   requireOk = true
 ): Promise<Response | null> {
+  if (readHelperDisabled()) return null;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -281,6 +302,7 @@ export async function helperSaveCustomGame(input: {
   exePick?: string;
   coverPick?: string;
 }): Promise<string | null> {
+  if (readHelperDisabled()) return null;
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 15000);
   try {

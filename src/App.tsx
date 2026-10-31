@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Settings as SettingsIcon, RefreshCw, Star, Loader2, Search, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine, Plus } from 'lucide-react';
+import { Settings as SettingsIcon, RefreshCw, Star, Loader2, Search, Lock, SlidersHorizontal, UserCircle2, SearchX, FolderOpen, ArrowDownToLine, Plus } from 'lucide-react';
 import LiquidBackground from '@/components/LiquidBackground';
 import SearchBar from '@/components/SearchBar';
 import AccountPanel from '@/components/AccountPanel';
@@ -98,6 +98,14 @@ export default function App() {
   // Favoritos e grupos; o filtro escolhido na faixa acima da biblioteca.
   const collectionsApi = useCollections(user?.steamId ?? null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
+  // Aviso "entre com a Steam para usar favoritos e grupos".
+  const [lockedNotice, setLockedNotice] = useState(false);
+  const lockedPresence = usePresence(lockedNotice, 220);
+  useEffect(() => {
+    if (!lockedNotice) return;
+    const timer = window.setTimeout(() => setLockedNotice(false), 4500);
+    return () => window.clearTimeout(timer);
+  }, [lockedNotice]);
   const [groupMenu, setGroupMenu] = useState<{ appid: number; anchor: HTMLElement } | null>(null);
   // Biblioteca: só o que está instalado neste computador ou todos os jogos da conta Steam.
   const [scope, setScopeState] = useState<'installed' | 'account'>(() => {
@@ -153,6 +161,8 @@ export default function App() {
     stopGame,
     requestAccess: requestHelperAccess,
     forgetHint: forgetHelperHint,
+    helperDisabled,
+    setHelperDisabled,
   } = useSteamStatus(!!user && hasKey);
   const updates = useUpdates({ helperOnline: steamHelper === 'online', active: view === 'updates' });
   const skin = getSkin(theme.skin);
@@ -339,8 +349,12 @@ export default function App() {
   }, []);
 
   // Quando o helper passa a responder, lê os jogos por ele também.
+  const prevHelper = useRef(steamHelper);
   useEffect(() => {
-    if (steamHelper === 'online') void loadLibrary();
+    const before = prevHelper.current;
+    prevHelper.current = steamHelper;
+    // Reler quando o Helper passa a responder, ou deixa de responder (desativado): os jogos dele somem.
+    if (steamHelper === 'online' || (before === 'online' && steamHelper === 'offline')) void loadLibrary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steamHelper]);
 
@@ -478,8 +492,13 @@ export default function App() {
   const storeResults = storeSearchOn ? storeHits.filter((hit) => !available.has(hit.appid)) : [];
 
   const collectionsUi = useMemo<CollectionsUi>(
-    () => ({ api: collectionsApi, openGroupMenu: (appid, anchor) => setGroupMenu({ appid, anchor }) }),
-    [collectionsApi]
+    () => ({
+      api: collectionsApi,
+      openGroupMenu: (appid, anchor) => setGroupMenu({ appid, anchor }),
+      enabled: !!user,
+      notifyLocked: () => setLockedNotice(true),
+    }),
+    [collectionsApi, user]
   );
   const menuGameName =
     groupMenu === null
@@ -513,7 +532,7 @@ export default function App() {
   };
 
   return (
-    <CollectionsContext.Provider value={user ? collectionsUi : null}>
+    <CollectionsContext.Provider value={collectionsUi}>
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
       {skin.glow && theme.glowIntensity > 0 && <CursorGlow />}
@@ -570,6 +589,8 @@ export default function App() {
                     onChanged={refreshSteam}
                     onRequestAccess={requestHelperAccess}
                     onForget={forgetHelperHint}
+                    disabled={helperDisabled}
+                    onToggleDisabled={setHelperDisabled}
                   />
                 )}
               </div>
@@ -712,7 +733,9 @@ export default function App() {
               {source.length > 0 && (
                 <>
                   {stats && <LibrarySummary stats={stats} />}
-                  {user && <CollectionBar
+                  <CollectionBar
+                    locked={!user}
+                    onLocked={() => setLockedNotice(true)}
                     api={collectionsApi}
                     active={effectiveFilter}
                     onSelect={setFilter}
@@ -746,7 +769,7 @@ export default function App() {
                         </div>
                       ) : null
                     }
-                  />}
+                  />
                   <LibraryToolbar
                     sort={sort}
                     onChange={setSort}
@@ -873,6 +896,29 @@ export default function App() {
           api={collectionsApi}
           onClose={() => setGroupMenu(null)}
         />
+      )}
+
+      {lockedPresence.mounted && (
+        <div className="pointer-events-none fixed bottom-5 left-1/2 z-[75] -translate-x-1/2 px-4">
+          <div
+            role="status"
+            className={`${lockedPresence.closing ? 'fx-out' : 'fx-in'} overlay-surface pointer-events-auto flex items-center gap-3 rounded-full px-5 py-3`}
+          >
+            <Lock className="theme-accent h-4 w-4 shrink-0" />
+            <p className="text-sm text-white/85">Favoritos e grupos ficam disponíveis depois que você entra com a Steam.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLockedNotice(false);
+                setSelectedGame(null);
+                goTo('account');
+              }}
+              className="ml-1 flex h-8 shrink-0 items-center rounded-full bg-[var(--accent-color)] px-4 text-sm font-medium text-[color:var(--on-accent)] transition hover:brightness-110"
+            >
+              Entrar
+            </button>
+          </div>
+        </div>
       )}
 
       {connect.mounted && <ConnectingScreen steps={connectSteps} closing={connect.closing} />}

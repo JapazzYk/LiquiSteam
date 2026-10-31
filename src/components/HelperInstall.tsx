@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, MonitorCheck, MonitorDown, ShieldAlert, Trash2, X } from 'lucide-react';
+import { Check, Copy, MonitorCheck, MonitorDown, Power, PowerOff, ShieldAlert, Trash2, X } from 'lucide-react';
 import { usePresence } from '@/lib/motion';
 import { helperUninstall, type HelperAccess, type HelperAccessResult } from '@/lib/steamHelper';
 
@@ -23,6 +23,8 @@ interface HelperInstallProps {
   onChanged: () => void; // pede ao app para conferir o helper de novo
   onRequestAccess: () => Promise<HelperAccessResult>; // abre o pop-up de permissão do navegador
   onForget: () => void; // "não tenho o helper": esconde o botão de permissão
+  disabled: boolean; // o usuário desativou o helper (continua instalado)
+  onToggleDisabled: (disabled: boolean) => void;
 }
 
 export default function HelperInstall({
@@ -32,6 +34,8 @@ export default function HelperInstall({
   onChanged,
   onRequestAccess,
   onForget,
+  disabled,
+  onToggleDisabled,
 }: HelperInstallProps) {
   const [open, setOpen] = useState(false);
   const pop = usePresence(open);
@@ -147,8 +151,32 @@ export default function HelperInstall({
     </>
   );
 
-  const Icon = installed ? MonitorCheck : needsAccess ? ShieldAlert : MonitorDown;
-  const label = installed ? 'Helper funcionando' : needsAccess ? 'Permitir Helper' : 'Helper';
+  const Icon = disabled ? PowerOff : installed ? MonitorCheck : needsAccess ? ShieldAlert : MonitorDown;
+  const label = disabled ? 'Helper desativado' : installed ? 'Helper funcionando' : needsAccess ? 'Permitir Helper' : 'Helper';
+
+  // Sempre visível dentro do pop-up (mesmo com o Helper funcionando), para quem quiser tirar a permissão.
+  const accessLabel =
+    access === 'granted'
+      ? 'Permitida: este site pode falar com o Helper.'
+      : access === 'denied'
+        ? 'Bloqueada: o site não consegue falar com o Helper.'
+        : access === 'prompt'
+          ? 'Ainda não decidida: o navegador vai perguntar quando você pedir.'
+          : 'Este navegador não informa essa permissão (ou não exige).';
+  const permissionInfo = (
+    <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+      <p className="text-[13px] font-medium text-white/85">Permissão do navegador</p>
+      <p className="mt-1 text-xs leading-relaxed text-white/60">
+        Para falar com o Helper, o navegador pede a permissão "apps e serviços neste dispositivo". Situação agora:{' '}
+        <span className="text-white/85">{accessLabel}</span>
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-white/50">
+        Para tirar ou mudar essa permissão: clique no ícone ao lado esquerdo do endereço do site (cadeado ou dois
+        traços), abra "Configurações do site", procure "Apps e serviços neste dispositivo" e escolha "Bloquear" ou
+        "Redefinir". Isso não desinstala o Helper.
+      </p>
+    </div>
+  );
 
   return (
     <div ref={rootRef} className="relative">
@@ -172,9 +200,9 @@ export default function HelperInstall({
         }
         className="reveal relative flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
       >
-        <Icon className={`h-4 w-4 ${installed ? 'text-ok' : needsAccess ? 'text-warn' : ''}`} />
+        <Icon className={`h-4 w-4 ${disabled ? 'text-white/50' : installed ? 'text-ok' : needsAccess ? 'text-warn' : ''}`} />
         <span className="hidden whitespace-nowrap xl:inline">
-          {label} {!installed && !needsAccess && <span className="text-white/45">· opcional</span>}
+          {label} {!installed && !needsAccess && !disabled && <span className="text-white/45">· opcional</span>}
         </span>
       </button>
 
@@ -186,8 +214,8 @@ export default function HelperInstall({
         >
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight text-white">
-              {installed ? 'LiquiSteam Helper' : needsAccess ? 'Falta uma permissão do navegador' : 'O que é o Helper?'}
-              {!needsAccess && (
+              {disabled ? 'Helper desativado' : installed ? 'LiquiSteam Helper' : needsAccess ? 'Falta uma permissão do navegador' : 'O que é o Helper?'}
+              {!needsAccess && !disabled && (
                 <span className="ml-2 rounded-full border border-white/15 px-2 py-0.5 align-middle text-[10px] font-medium uppercase tracking-wide text-white/55">
                   Opcional
                 </span>
@@ -203,7 +231,23 @@ export default function HelperInstall({
             </button>
           </div>
 
-          {installed ? (
+          {disabled ? (
+            <>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/65">
+                O Helper continua instalado no seu computador, mas o site não está falando com ele. Por isso a Steam e
+                os jogos não são controlados daqui, os jogos de fora da Steam e as atualizações ficam indisponíveis, e o
+                status da Steam volta a ser aproximado. Nada foi apagado.
+              </p>
+              <button
+                type="button"
+                onClick={() => onToggleDisabled(false)}
+                className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
+              >
+                <Power className="h-4 w-4" />
+                Reativar o Helper
+              </button>
+            </>
+          ) : installed ? (
             <>
               <p className="mt-2 text-[13px] leading-relaxed text-white/65">
                 Está tudo certo: o Helper está funcionando neste computador. Graças a ele o LiquiSteam sabe se a Steam
@@ -221,8 +265,20 @@ export default function HelperInstall({
               {removeState === 'idle' && (
                 <button
                   type="button"
-                  onClick={() => setRemoveState('confirm')}
+                  onClick={() => onToggleDisabled(true)}
+                  title="O site para de usar o Helper, mas ele continua instalado. Dá para reativar a qualquer momento."
                   className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-sm font-medium text-white/85 transition hover:border-white/30 hover:text-white"
+                >
+                  <PowerOff className="h-4 w-4" />
+                  Desativar (sem desinstalar)
+                </button>
+              )}
+
+              {removeState === 'idle' && (
+                <button
+                  type="button"
+                  onClick={() => setRemoveState('confirm')}
+                  className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-sm font-medium text-white/85 transition hover:border-white/30 hover:text-white"
                 >
                   <Trash2 className="h-4 w-4" />
                   Desinstalar helper
@@ -338,6 +394,7 @@ export default function HelperInstall({
               </p>
             </>
           )}
+          {!(needsAccess && !copiedInstall && !disabled && !installed) && permissionInfo}
         </div>
       )}
     </div>

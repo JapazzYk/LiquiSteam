@@ -216,6 +216,10 @@ export interface CollectionsUi {
   api: CollectionsApi;
   // Abre o menu "guardar em…" ao lado do botão que o chamou.
   openGroupMenu: (appid: number, anchor: HTMLElement) => void;
+  // false = sem a Steam conectada: os botões aparecem, mas bloqueados.
+  enabled: boolean;
+  // Avisa que a função só existe depois de entrar com a Steam.
+  notifyLocked: () => void;
 }
 
 export const CollectionsContext = createContext<CollectionsUi | null>(null);

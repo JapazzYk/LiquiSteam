@@ -6,6 +6,8 @@ import {
   helperStopGame,
   isFirefox,
   readHelperHint,
+  readHelperDisabled,
+  writeHelperDisabled,
   watchHelperAccess,
   writeHelperHint,
   type HelperAccess,
@@ -56,6 +58,8 @@ export function useSteamStatus(accountAvailable: boolean) {
   const [source, setSource] = useState<StatusSource>('estimate');
   const [access, setAccess] = useState<HelperAccess>('unsupported');
   const [hint, setHint] = useState<boolean>(() => readHelperHint());
+  // O usuário desativou o helper (continua instalado): o site não fala com ele.
+  const [helperDisabled, setHelperDisabledState] = useState<boolean>(() => readHelperDisabled());
   // Jogo em execução: AppID (0 = nenhum). null = sem helper, ou helper antigo que não informa.
   const [runningGame, setRunningGame] = useState<number | null>(null);
   // Jogos de fora da Steam em execução (ids); null = sem helper, ou helper antigo que não informa.
@@ -112,7 +116,8 @@ export function useSteamStatus(accountAvailable: boolean) {
       if (stopped) return;
       setAccess(nextAccess);
       const canProbe =
-        nextAccess === 'granted' || (nextAccess === 'unsupported' && (!isFirefox() || readHelperHint()));
+        !readHelperDisabled() &&
+        (nextAccess === 'granted' || (nextAccess === 'unsupported' && (!isFirefox() || readHelperHint())));
       const status = canProbe ? await helperStatus() : null;
       const fromHelper = status ? status.steam : null;
       if (stopped) return;
@@ -262,9 +267,18 @@ export function useSteamStatus(accountAvailable: boolean) {
     setHint(false);
   }, []);
 
+  // Desativa ou reativa o helper sem desinstalar: o site para de falar com ele (ou volta a falar).
+  const setHelperDisabled = useCallback((value: boolean) => {
+    writeHelperDisabled(value);
+    setHelperDisabledState(value);
+    tickRef.current();
+  }, []);
+
   return {
     status,
     helper,
+    helperDisabled,
+    setHelperDisabled,
     source,
     access,
     hint,

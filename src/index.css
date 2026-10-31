@@ -2400,3 +2400,35 @@ button.coll-chip:hover {
   width: 44px;
   height: 44px;
 }
+
+/* Sem a Steam conectada: os botões aparecem apagados, com um cadeado, e explicam ao serem tocados. */
+.coll-actions[data-locked] .coll-btn {
+  position: relative;
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.coll-actions[data-locked] .coll-btn:hover {
+  color: rgb(var(--ink) / 0.9);
+  border-color: rgb(var(--ink) / 0.4);
+  transform: none;
+}
+
+.coll-lock {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 12px;
+  height: 12px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(var(--bg));
+  border: 1px solid rgb(var(--ink) / 0.3);
+  color: rgb(var(--ink) / 0.9);
+}
+
+.coll-chip-locked {
+  opacity: 0.55;
+  border-style: dashed;
+  cursor: pointer;
+}
