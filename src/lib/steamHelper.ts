@@ -325,17 +325,19 @@ export async function helperRemoveCustomGame(id: string): Promise<boolean> {
 }
 
 // ok = pedido enviado; missing-file = o executável não está mais lá; no-process = não achei o jogo
-// rodando; unsupported = helper antigo ou falha.
-export type CustomCommandResult = 'ok' | 'missing-file' | 'no-process' | 'unsupported';
+// rodando; failed = o Helper tentou e o Windows recusou; unreachable = o Helper não respondeu;
+// unsupported = helper antigo, sem essa função.
+export type CustomCommandResult = 'ok' | 'missing-file' | 'no-process' | 'failed' | 'unreachable' | 'unsupported';
 
 async function customCommand(path: string): Promise<CustomCommandResult> {
   const response = await call(path, 'POST', 10000, false);
-  if (!response) return 'unsupported';
+  if (!response) return 'unreachable';
   if (response.ok) return 'ok';
   try {
     const data = (await response.json()) as { error?: string };
     if (data.error === 'missing-file') return 'missing-file';
     if (data.error === 'no-process' || data.error === 'unknown-game') return 'no-process';
+    if (data.error === 'launch-failed' || data.error === 'internal') return 'failed';
   } catch {
     // resposta inválida
   }

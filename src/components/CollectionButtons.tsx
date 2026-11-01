@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { FolderPlus, Lock, Star } from 'lucide-react';
 import { useCollectionsUi } from '@/lib/collections';
@@ -11,11 +12,30 @@ interface CollectionButtonsProps {
 // por isso são <span role="button">, e o clique não chega ao cartão.
 export default function CollectionButtons({ appid, className = '' }: CollectionButtonsProps) {
   const ui = useCollectionsUi();
+  // Animação curta ao favoritar ('on') ou desfavoritar ('off').
+  const [pop, setPop] = useState<'on' | 'off' | null>(null);
+  const popTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (popTimer.current !== null) window.clearTimeout(popTimer.current);
+    },
+    []
+  );
   if (!ui) return null;
   const locked = !ui.enabled;
   const favorite = !locked && ui.api.isFavorite(appid);
   const inGroups = locked ? 0 : ui.api.groupsOf(appid).length;
   const lockedTitle = 'Disponível depois de entrar com a Steam';
+  const toggleFavorite = () => {
+    if (locked) {
+      ui.notifyLocked();
+      return;
+    }
+    setPop(favorite ? 'off' : 'on');
+    if (popTimer.current !== null) window.clearTimeout(popTimer.current);
+    popTimer.current = window.setTimeout(() => setPop(null), 750);
+    ui.api.toggleFavorite(appid);
+  };
 
   const stop = (event: MouseEvent | KeyboardEvent) => {
     event.stopPropagation();
@@ -34,16 +54,16 @@ export default function CollectionButtons({ appid, className = '' }: CollectionB
         tabIndex={0}
         className="coll-btn"
         data-on={favorite ? '' : undefined}
+        data-pop={pop ?? undefined}
         aria-pressed={favorite}
         aria-disabled={locked}
         aria-label={locked ? `Favoritar (${lockedTitle})` : favorite ? 'Tirar dos favoritos' : 'Adicionar aos favoritos'}
         title={locked ? lockedTitle : favorite ? 'Tirar dos favoritos' : 'Favoritar'}
         onClick={(event) => {
           stop(event);
-          if (locked) ui.notifyLocked();
-          else ui.api.toggleFavorite(appid);
+          toggleFavorite();
         }}
-        onKeyDown={onKey(() => (locked ? ui.notifyLocked() : ui.api.toggleFavorite(appid)))}
+        onKeyDown={onKey(toggleFavorite)}
       >
         <Star className="h-4 w-4" fill={favorite ? 'currentColor' : 'none'} />
         {locked && <Lock className="coll-lock" />}
@@ -53,6 +73,7 @@ export default function CollectionButtons({ appid, className = '' }: CollectionB
         tabIndex={0}
         className="coll-btn"
         data-on={inGroups > 0 ? '' : undefined}
+        data-kind="folder"
         aria-haspopup={locked ? undefined : 'dialog'}
         aria-disabled={locked}
         aria-label={locked ? `Guardar em um grupo (${lockedTitle})` : 'Guardar em um grupo'}

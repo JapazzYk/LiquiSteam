@@ -99,6 +99,9 @@ export default function App() {
   const collectionsApi = useCollections(user?.steamId ?? null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
   // Aviso "entre com a Steam para usar favoritos e grupos".
+  // Voltas dos ícones do topo: cada clique gira o ícone mais um pouco.
+  const [refreshTurns, setRefreshTurns] = useState(0);
+  const [plusTurns, setPlusTurns] = useState(0);
   const [lockedNotice, setLockedNotice] = useState(false);
   const lockedPresence = usePresence(lockedNotice, 220);
   useEffect(() => {
@@ -479,6 +482,7 @@ export default function App() {
             installdir: '',
             library_image: libraryImageUrl(hit.appid),
             header_image: headerImageUrl(hit.appid),
+            unowned: true,
           }))
         );
         setStoreSearching(false);
@@ -598,31 +602,38 @@ export default function App() {
             {view === 'library' && !showDemo && (
               <button
                 type="button"
-                onClick={handleRefresh}
+                onClick={() => {
+                  setRefreshTurns((n) => n + 1);
+                  void handleRefresh();
+                }}
                 disabled={loading}
-                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white disabled:opacity-50"
+                data-busy={loading ? '' : undefined}
+                className="icon-btn icon-btn-refresh fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white disabled:opacity-50"
                 aria-label="Atualizar biblioteca"
                 title="Reler os jogos instalados (use depois de instalar ou desinstalar algo)"
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'motion-safe:animate-spin' : ''}`} />
+                <RefreshCw className="h-4 w-4" style={{ '--turn': `${refreshTurns * 360}deg` } as CSSProperties} />
               </button>
             )}
             {view === 'library' && (
               <button
                 type="button"
-                onClick={() => setCustomDialog('new')}
-                className="fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+                onClick={() => {
+                  setPlusTurns((n) => n + 1);
+                  setCustomDialog('new');
+                }}
+                className="icon-btn icon-btn-plus fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white"
                 aria-label="Adicionar jogo de fora da Steam"
                 title="Adicionar um jogo que não é da Steam (Epic, GOG, emulador…)"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" style={{ '--turn': `${plusTurns * 180}deg` } as CSSProperties} />
               </button>
             )}
             <InstallButton />
             <button
               type="button"
               onClick={() => goTo(view === 'updates' ? 'library' : 'updates')}
-              className={`reveal relative grid h-10 w-10 place-items-center rounded-full border backdrop-blur-xl transition-all ${
+              className={`icon-btn icon-btn-download reveal relative grid h-10 w-10 place-items-center rounded-full border backdrop-blur-xl ${
                 view === 'updates'
                   ? 'theme-accent-border theme-accent-surface text-white'
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
@@ -634,7 +645,7 @@ export default function App() {
             >
               <ArrowDownToLine className="h-4 w-4" />
               {updates.pendingCount > 0 && (
-                <span className="absolute -right-1 -top-1 z-10 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--accent-color)] px-1 text-[10px] font-semibold leading-none text-[color:var(--on-accent)] opacity-100 shadow-[0_0_0_2px_rgb(var(--bg))]">
+                <span key={updates.pendingCount} className="icon-badge absolute -right-1 -top-1 z-10 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--accent-color)] px-1 text-[10px] font-semibold leading-none text-[color:var(--on-accent)] opacity-100 shadow-[0_0_0_2px_rgb(var(--bg))]">
                   {updates.pendingCount > 99 ? '99+' : updates.pendingCount}
                 </span>
               )}
@@ -642,7 +653,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => setCustomizationOpen(true)}
-              className="reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+              className="icon-btn icon-btn-sliders reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white"
               aria-label="Aparência"
               title="Aparência: tema, cores e animações"
             >
@@ -651,7 +662,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => goTo(view === 'account' ? 'library' : 'account')}
-              className={`reveal relative flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl transition-all ${
+              className={`icon-btn icon-btn-account reveal relative flex h-10 items-center gap-2 rounded-full border backdrop-blur-xl ${
                 view === 'account'
                   ? 'theme-accent-border theme-accent-surface text-white'
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { DragEvent } from 'react';
 import { Check, Folder, LayoutGrid, Lock, Pencil, Plus, Star, Trash2, X } from 'lucide-react';
+import { motionDisabled } from '@/lib/motion';
 import { DRAG_TYPE, MAX_GROUPS, MAX_GROUP_NAME, type CollectionsApi } from '@/lib/collections';
 
 export type CollectionFilter = 'all' | 'favorites' | string; // string = id de um grupo
@@ -28,6 +29,9 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState('');
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // Grupo saindo (animação de exclusão) e grupo que acabou de ser criado ou renomeado (brilho).
+  const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeGroup = groups.find((g) => g.id === active) ?? null;
 
@@ -38,6 +42,11 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
     setConfirmDelete(false);
     setRenaming(false);
   }, [active]);
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = window.setTimeout(() => setFlashId(null), 1100);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
   useEffect(() => {
     if (!confirmDelete) return;
     const timer = window.setTimeout(() => setConfirmDelete(false), 3500);
@@ -65,17 +74,38 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
   });
 
   const chip = (key: string, selected: boolean) =>
-    `coll-chip ${selected ? 'coll-chip-on' : ''} ${dropTarget === key ? 'coll-chip-drop' : ''}`;
+    `coll-chip ${selected ? 'coll-chip-on' : ''} ${dropTarget === key ? 'coll-chip-drop' : ''} ${flashId === key ? 'coll-chip-flash' : ''} ${leavingId === key ? 'coll-chip-out' : ''}`;
 
   const submitCreate = () => {
     const id = api.createGroup(draft);
     setDraft('');
     setCreating(false);
-    if (id) onSelect(id);
+    if (id) {
+      onSelect(id);
+      setFlashId(id);
+    }
   };
   const submitRename = () => {
-    if (activeGroup) api.renameGroup(activeGroup.id, draft);
+    if (activeGroup) {
+      api.renameGroup(activeGroup.id, draft);
+      setFlashId(activeGroup.id);
+    }
     setRenaming(false);
+  };
+  // Excluir: o grupo encolhe e some, e só então é removido.
+  const removeGroup = (id: string) => {
+    setConfirmDelete(false);
+    const finish = () => {
+      api.deleteGroup(id);
+      onSelect('all');
+      setLeavingId(null);
+    };
+    if (motionDisabled()) {
+      finish();
+      return;
+    }
+    setLeavingId(id);
+    window.setTimeout(finish, 280);
   };
 
   if (locked) {
@@ -118,11 +148,11 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
         Favoritos <span className="coll-count">{count(favorites)}</span>
       </button>
 
-      {groups.map((group) =>
+      {groups.map((group, index) =>
         renaming && activeGroup?.id === group.id ? (
           <form
             key={group.id}
-            className="coll-chip coll-chip-on gap-1"
+            className="coll-chip coll-chip-on coll-chip-edit gap-1"
             onSubmit={(event) => {
               event.preventDefault();
               submitRename();
@@ -146,6 +176,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
             key={group.id}
             type="button"
             className={chip(group.id, active === group.id)}
+            style={{ '--i': index } as CSSProperties}
             aria-pressed={active === group.id}
             onClick={() => onSelect(group.id)}
             {...dropProps(group.id, (appid) => api.addToGroup(group.id, appid))}
@@ -159,7 +190,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
 
       {creating ? (
         <form
-          className="coll-chip coll-chip-on gap-1"
+          className="coll-chip coll-chip-on coll-chip-edit gap-1"
           onSubmit={(event) => {
             event.preventDefault();
             submitCreate();
@@ -233,8 +264,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
                 setConfirmDelete(true);
                 return;
               }
-              api.deleteGroup(activeGroup.id);
-              onSelect('all');
+              removeGroup(activeGroup.id);
             }}
           >
             <Trash2 className="h-3.5 w-3.5" />

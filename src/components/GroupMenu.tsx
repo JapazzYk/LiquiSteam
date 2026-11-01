@@ -96,7 +96,7 @@ export default function GroupMenu({ appid, gameName, anchor, api, onClose: close
           <button type="button" className="group-menu-row" onClick={() => api.toggleFavorite(appid)}>
             <Star className="h-4 w-4 text-[color:var(--accent-color)]" fill={api.isFavorite(appid) ? 'currentColor' : 'none'} />
             <span className="min-w-0 flex-1 truncate text-left">Favoritos</span>
-            {api.isFavorite(appid) && <Check className="h-4 w-4 text-ok" />}
+            {api.isFavorite(appid) && <Check className="coll-check h-4 w-4 text-ok" />}
           </button>
         </li>
         {groups.map((group) => (
@@ -104,7 +104,7 @@ export default function GroupMenu({ appid, gameName, anchor, api, onClose: close
             <button type="button" className="group-menu-row" onClick={() => api.toggleInGroup(group.id, appid)}>
               <Folder className="h-4 w-4 text-white/60" />
               <span className="min-w-0 flex-1 truncate text-left">{group.name}</span>
-              {inGroup(group.id) && <Check className="h-4 w-4 text-ok" />}
+              {inGroup(group.id) && <Check className="coll-check h-4 w-4 text-ok" />}
             </button>
           </li>
         ))}

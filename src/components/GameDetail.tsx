@@ -45,6 +45,9 @@ import { loadNote, saveNote } from '@/lib/notes';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import type { OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
+import { customLastLaunch, markCustomLaunched } from '@/lib/customGames';
+import { formatAgo, formatDateTime } from '@/lib/format';
+import type { CustomCommandResult } from '@/lib/steamHelper';
 
 interface GameDetailProps {
   game: InstalledGame;
@@ -60,8 +63,8 @@ interface GameDetailProps {
   playtimes: Map<number, PlaytimeEntry> | null;
   libraryGames: InstalledGame[];
   customRunning: string[] | null;
-  onLaunchCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
-  onStopCustom: (id: string) => Promise<'ok' | 'missing-file' | 'no-process' | 'unsupported'>;
+  onLaunchCustom: (id: string) => Promise<CustomCommandResult>;
+  onStopCustom: (id: string) => Promise<CustomCommandResult>;
   onEditCustom: (game: InstalledGame) => void;
   onBoost: () => void; // depois de iniciar/encerrar: confere o estado com mais frequência
   onStopGame: (appid: number) => Promise<'ok' | 'no-process' | 'unsupported'>;
@@ -199,7 +202,8 @@ export default function GameDetail({
   const { fit: heroFit, onLoad: onHeroLoad } = useArtFit(1920 / 620, 0.4);
 
   const steamRunning = steamStatus === 'running' || steamStatus === 'starting';
-  const storeUrl = `https://store.steampowered.com/app/${game.appid}`;
+  // A loja abre dentro do cliente da Steam (steam://), não no navegador.
+  const storeUrl = `steam://store/${game.appid}`;
 
   // Load everything in parallel when the overlay opens.
   useEffect(() => {
@@ -415,12 +419,18 @@ export default function GameDetail({
     if (gameAware) setGameBusy('launching');
     if (isCustom && game.customId) {
       const result = await onLaunchCustom(game.customId);
-      if (result !== 'ok') {
+      if (result === 'ok') {
+        markCustomLaunched(game.customId);
+      } else {
         setGameBusy(null);
         setStopError(
           result === 'missing-file'
             ? 'O arquivo deste jogo não está mais no lugar onde você o escolheu. Clique em Editar e escolha o programa (.exe) de novo.'
-            : 'Não consegui abrir o jogo. O Helper pode estar desligado ou desatualizado: abra o botão "Helper" na biblioteca e atualize-o.'
+            : result === 'failed'
+              ? 'O Windows não deixou o Helper abrir este programa. Tente abri-lo uma vez fora do LiquiSteam: se ele pedir permissão de administrador, aceite o aviso do Windows.'
+              : result === 'unreachable'
+                ? 'O site não conseguiu falar com o Helper. Abra o botão "Helper" na biblioteca e veja se ele está funcionando e não está desativado.'
+                : 'O Helper instalado é antigo e não sabe abrir este tipo de jogo. Abra o botão "Helper" na biblioteca e atualize-o.'
         );
       }
       onBoost();
@@ -446,7 +456,9 @@ export default function GameDetail({
       setStopError(
         result === 'no-process' || result === 'missing-file'
           ? 'Não encontrei o jogo aberto para fechar. Feche-o pela janela do próprio jogo.'
-          : 'Não consegui fechar o jogo. O Helper pode estar desatualizado: abra o botão "Helper" na biblioteca e atualize-o.'
+          : result === 'unreachable'
+            ? 'O site não conseguiu falar com o Helper. Abra o botão "Helper" na biblioteca e veja se ele está funcionando.'
+            : 'Não consegui fechar o jogo. Se ele estiver rodando como administrador, o Helper não pode fechá-lo: use a janela do próprio jogo. Se o problema continuar, atualize o Helper.'
       );
     }
   };
@@ -515,7 +527,16 @@ export default function GameDetail({
               {game.name}
             </h2>
             <div className="detail-rise flex flex-wrap items-center gap-3" style={stagger(260)}>
-              {game.notInstalled ? (
+              {game.unowned ? (
+                <a
+                  href={storeUrl}
+                  title="Abre a página deste jogo dentro da Steam"
+                  className="reveal relative flex h-11 items-center gap-2.5 overflow-hidden rounded-full bg-[var(--accent-color)] px-6 text-sm font-semibold text-[color:var(--on-accent)] transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  <ExternalLink className="h-5 w-5" />
+                  Ver na Steam
+                </a>
+              ) : game.notInstalled ? (
                 <a
                   href={`steam://install/${game.appid}`}
                   title="Abre a Steam na página de instalação deste jogo"
@@ -577,11 +598,10 @@ export default function GameDetail({
                   )}
                 </button>
               )}
-              {!isCustom && (
+              {!isCustom && !game.unowned && (
               <a
                 href={storeUrl}
-                target="_blank"
-                rel="noreferrer"
+                title="Abre a página da loja deste jogo dentro da Steam"
                 className="reveal relative flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm font-light text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               >
                 <ExternalLink className="h-4 w-4" />
@@ -644,6 +664,7 @@ export default function GameDetail({
               details={details}
               playFacts={playtimes ? playtimeFacts(game, playtimes, libraryGames) : []}
               storeFacts={details ? gameFacts(details) : []}
+              lastPlayed={game.unowned || !playtimes ? null : (playtimes.get(game.appid)?.lastPlayed ?? 0)}
             />
           )}
           {tab === 'achievements' && (
@@ -699,11 +720,19 @@ function CustomOverview({ game, onEdit }: { game: InstalledGame; onEdit: () => v
   const added = game.added
     ? new Date(game.added).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
+  const lastOpened = game.customId ? customLastLaunch(game.customId) : null;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <StatCard icon={<SteamIcon className="h-4 w-4" />} label="Origem" value="Fora da Steam" />
         <StatCard icon={<Calendar className="h-4 w-4" />} label="Adicionado em" value={added} />
+        <StatCard
+          icon={<Clock className="h-4 w-4" />}
+          label="Última vez aberto"
+          value={lastOpened ? formatAgo(lastOpened) : 'Ainda não aberto aqui'}
+          hint={lastOpened ? formatDateTime(lastOpened) : 'Conta só as aberturas feitas pelo LiquiSteam'}
+          accent={lastOpened ? 'theme-accent' : 'text-white/60'}
+        />
       </div>
       <button
         type="button"
@@ -725,11 +754,13 @@ function StatCard({
   label,
   value,
   accent,
+  hint,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   accent?: string;
+  hint?: string;
 }) {
   return (
     <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
@@ -740,6 +771,7 @@ function StatCard({
       <p className={`text-2xl font-semibold tracking-tight ${accent ?? 'text-white'}`}>
         {value}
       </p>
+      {hint && <p className="mt-1 text-xs font-light text-white/45">{hint}</p>}
     </div>
   );
 }
@@ -754,6 +786,7 @@ function OverviewTab({
   details,
   playFacts,
   storeFacts,
+  lastPlayed,
 }: {
   game: InstalledGame;
   achPct: number;
@@ -764,6 +797,8 @@ function OverviewTab({
   details: GameDetails | null;
   playFacts: string[];
   storeFacts: string[];
+  // Última sessão (segundos desde 1970): 0 = nunca jogado, null = sem informação.
+  lastPlayed: number | null;
 }) {
   const size = game.size_on_disk ? formatSize(game.size_on_disk) : '—';
   const playtime =
@@ -778,7 +813,7 @@ function OverviewTab({
       {details?.shortDescription && (
         <p className="max-w-3xl text-[15px] font-light leading-relaxed text-white/70">{details.shortDescription}</p>
       )}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           icon={<HardDrive className="h-4 w-4" />}
           label="Tamanho"
@@ -789,6 +824,13 @@ function OverviewTab({
           label="Tempo de jogo"
           value={playtime}
           accent={playtimeMinutes != null ? 'theme-accent' : 'text-white/60'}
+        />
+        <StatCard
+          icon={<Calendar className="h-4 w-4" />}
+          label="Última sessão"
+          value={lastPlayed === null ? '—' : lastPlayed > 0 ? formatAgo(lastPlayed * 1000) : 'Nunca jogado'}
+          hint={lastPlayed !== null && lastPlayed > 0 ? formatDateTime(lastPlayed * 1000) : undefined}
+          accent={lastPlayed ? 'theme-accent' : 'text-white/60'}
         />
         <StatCard
           icon={<Trophy className="h-4 w-4" />}

@@ -25,3 +25,23 @@ export function placeholderHue(name: string): number {
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) % 360;
   return hash;
 }
+
+// Quando o jogo de fora da Steam foi aberto pelo LiquiSteam pela última vez (só neste navegador).
+const LAUNCH_KEY = 'liquid_custom_last_';
+
+export function markCustomLaunched(customId: string): void {
+  try {
+    localStorage.setItem(LAUNCH_KEY + customId, String(Date.now()));
+  } catch {
+    // ignora
+  }
+}
+
+export function customLastLaunch(customId: string): number | null {
+  try {
+    const value = Number(localStorage.getItem(LAUNCH_KEY + customId));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}

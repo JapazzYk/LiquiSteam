@@ -32,7 +32,7 @@ export default function LayoutSwitch({ value, onChange }: LayoutSwitchProps) {
             aria-label={layout.name}
             title={layout.name}
             onClick={() => onChange(layout.id)}
-            className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${
+            className={`layout-btn grid h-8 w-8 place-items-center rounded-full transition-colors ${
               active ? 'theme-accent-surface text-white' : 'text-white/50 hover:text-white'
             }`}
           >

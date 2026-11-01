@@ -80,4 +80,5 @@ export const demoGames: InstalledGame[] = demoAppIds.map((g) => ({
   installdir: '',
   library_image: libraryImageUrl(g.appid),
   header_image: headerImageUrl(g.appid),
+  unowned: true,
 }));

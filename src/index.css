@@ -2422,3 +2422,279 @@ a,
 [role='button'] {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ------------------------------------------------------------------ */
+/* Animações dos botões                                                */
+/* ------------------------------------------------------------------ */
+.icon-btn {
+  transition: transform 0.25s var(--ease-out), border-color 0.25s ease, color 0.25s ease, background-color 0.25s ease,
+    box-shadow 0.3s ease, opacity 0.2s ease;
+}
+
+.icon-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.22);
+}
+
+.icon-btn:active {
+  transform: translateY(0) scale(0.9);
+  box-shadow: none;
+}
+
+.icon-btn svg {
+  transform: rotate(var(--turn, 0deg));
+  transition: transform 0.7s var(--ease-out);
+}
+
+/* Atualizar: gira meia volta ao passar o mouse, uma volta a cada clique e sem parar enquanto lê. */
+.icon-btn-refresh:hover svg {
+  transform: rotate(calc(var(--turn, 0deg) + 120deg));
+}
+
+.icon-btn-refresh[data-busy] svg {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+/* Adicionar: o + gira e cresce. */
+.icon-btn-plus:hover svg {
+  transform: rotate(calc(var(--turn, 0deg) + 90deg)) scale(1.18);
+  transition-duration: 0.4s;
+}
+
+/* Atualizações: a seta desce e volta, como um download. */
+.icon-btn-download:hover svg {
+  animation: icon-download 0.9s ease-in-out infinite;
+}
+
+/* Aparência: os controles deslizantes giram para a vertical. */
+.icon-btn-sliders:hover svg {
+  transform: rotate(90deg) scale(1.1);
+  transition-duration: 0.5s;
+}
+
+.icon-btn-account:hover svg {
+  transform: scale(1.12);
+}
+
+/* Contador de atualizações: aparece com um pulo. */
+.icon-badge {
+  animation: icon-pop 0.5s var(--ease-out) backwards;
+}
+
+/* Layout ativo: o ícone dá um pulinho ao ser escolhido. */
+.layout-switch [aria-pressed='true'] svg {
+  animation: icon-pop 0.45s var(--ease-out);
+}
+
+.layout-btn:hover svg {
+  transform: scale(1.12);
+}
+
+.layout-btn svg {
+  transition: transform 0.25s var(--ease-out);
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(calc(var(--turn, 0deg) + 360deg));
+  }
+}
+
+@keyframes icon-download {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(4px);
+  }
+  70% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes icon-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Estrela dos favoritos: pula, gira e solta um anel. */
+.coll-btn {
+  position: relative;
+}
+
+.coll-btn svg {
+  transition: transform 0.25s var(--ease-out);
+}
+
+.coll-btn:hover svg {
+  transform: scale(1.15) rotate(-8deg);
+}
+
+.coll-btn[data-pop='on'] svg {
+  animation: star-pop 0.7s var(--ease-out);
+}
+
+.coll-btn[data-pop='off'] svg {
+  animation: star-drop 0.4s ease;
+}
+
+.coll-btn[data-pop='on']::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  border: 2px solid var(--accent-color);
+  pointer-events: none;
+  animation: coll-ring 0.65s ease-out forwards;
+}
+
+.coll-btn[data-pop='on']::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 999px;
+  background: var(--accent-color);
+  pointer-events: none;
+  box-shadow: 0 -16px 0 var(--accent-color), 0 16px 0 var(--accent-color), -16px 0 0 var(--accent-color),
+    16px 0 0 var(--accent-color), 11px -11px 0 var(--accent-color), -11px 11px 0 var(--accent-color),
+    11px 11px 0 var(--accent-color), -11px -11px 0 var(--accent-color);
+  animation: coll-burst 0.6s ease-out forwards;
+}
+
+@keyframes star-pop {
+  0% {
+    transform: scale(0.3) rotate(-60deg);
+  }
+  55% {
+    transform: scale(1.5) rotate(18deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes star-drop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.55) rotate(-25deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes coll-ring {
+  from {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+@keyframes coll-burst {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.coll-check {
+  animation: icon-pop 0.35s var(--ease-out);
+}
+
+/* Faixa de grupos: os chips entram em cascata, o campo de nome se abre, o grupo novo brilha e o excluído some. */
+.coll-chip {
+  max-width: 260px;
+  animation: coll-chip-in 0.4s var(--ease-out) calc(var(--i, 0) * 45ms) backwards;
+}
+
+.coll-chip-edit {
+  animation: coll-edit-in 0.32s var(--ease-out) backwards;
+}
+
+/* Brilho de "acabou de criar": um anel que se abre (num pseudo-elemento, para não reiniciar a entrada do chip). */
+.coll-chip {
+  position: relative;
+}
+
+.coll-chip-flash::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid var(--accent-color);
+  pointer-events: none;
+  animation: coll-ring 0.9s ease-out forwards;
+}
+
+.coll-chip-out {
+  pointer-events: none;
+  overflow: hidden;
+  animation: coll-chip-out 0.28s ease forwards;
+}
+
+@keyframes coll-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+}
+
+@keyframes coll-edit-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.8);
+    max-width: 70px;
+  }
+}
+
+@keyframes coll-chip-out {
+  to {
+    opacity: 0;
+    transform: scale(0.5);
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+    margin-left: -8px;
+  }
+}
+
+/* Sem animação quando o sistema pede menos movimento ou o estilo "Nenhuma" está escolhido. */
+@media (prefers-reduced-motion: reduce) {
+  :is(.icon-btn, .icon-btn svg, .icon-badge, .layout-switch [aria-pressed='true'] svg, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .layout-btn svg),
+  .coll-btn::before,
+  .coll-btn::after,
+  .coll-chip-flash::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+[data-motion='none'] :is(.icon-btn, .icon-btn svg, .icon-badge, .layout-switch [aria-pressed='true'] svg, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .layout-btn svg),
+[data-motion='none'] .coll-btn::before,
+[data-motion='none'] .coll-btn::after,
+[data-motion='none'] .coll-chip-flash::after {
+  animation: none !important;
+  transition: none !important;
+}

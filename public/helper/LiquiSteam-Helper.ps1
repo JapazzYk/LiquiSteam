@@ -285,9 +285,28 @@ function Start-Pick([string]$kind) {
     $template = @'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Windows.Forms -TypeDefinition 'using System; using System.Windows.Forms; public class HwndOwner : IWin32Window { IntPtr h; public HwndOwner(IntPtr hwnd) { h = hwnd; } public IntPtr Handle { get { return h; } } }'
-Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra); [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string cls, string title); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags);'
+Add-Type -Namespace LiquiSteam -Name Front -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra); [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern System.IntPtr FindWindow(string cls, string title); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h, System.IntPtr after, int x, int y, int cx, int cy, uint flags); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(System.IntPtr h, out uint pid); [System.Runtime.InteropServices.DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId(); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool BringWindowToTop(System.IntPtr h); [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void SwitchToThisWindow(System.IntPtr h, bool altTab);'
 $script:pickTitle = '__TITLE__'
+$script:pickLog = '__LOG__'
 $script:pickTries = 0
+function Write-PickLog([string]$text) {
+    try { Add-Content -LiteralPath $script:pickLog -Value ((Get-Date -Format 'HH:mm:ss.fff') + ' ' + $text) } catch { }
+}
+# Traz uma janela para a frente de varias formas: o Windows ignora a primeira se o programa esta em segundo plano.
+function Show-OnTop([System.IntPtr]$h) {
+    $fg = [LiquiSteam.Front]::GetForegroundWindow()
+    $procId = [uint32]0
+    $fgThread = [LiquiSteam.Front]::GetWindowThreadProcessId($fg, [ref]$procId)
+    $me = [LiquiSteam.Front]::GetCurrentThreadId()
+    $attached = $false
+    if ($fgThread -ne 0 -and $fgThread -ne $me) { $attached = [LiquiSteam.Front]::AttachThreadInput($me, $fgThread, $true) }
+    [LiquiSteam.Front]::SwitchToThisWindow($h, $true)
+    [void][LiquiSteam.Front]::BringWindowToTop($h)
+    [void][LiquiSteam.Front]::SetWindowPos($h, [System.IntPtr]::new(-1), 0, 0, 0, 0, 0x43)
+    [void][LiquiSteam.Front]::SetForegroundWindow($h)
+    if ($attached) { [void][LiquiSteam.Front]::AttachThreadInput($me, $fgThread, $false) }
+}
+Write-PickLog 'inicio, dona=__OWNER__'
 $owner = New-Object System.Windows.Forms.Form
 $owner.TopMost = $true
 $owner.ShowInTaskbar = $false
@@ -296,25 +315,23 @@ $owner.Width = 1
 $owner.Height = 1
 $owner.StartPosition = 'CenterScreen'
 $owner.Show()
-# O Windows nao deixa um programa em segundo plano passar na frente do navegador. Apertar e soltar a tecla
-# Alt solta esse bloqueio, e so entao a janela e trazida para a frente.
+# Apertar e soltar a tecla Alt tambem solta o bloqueio de primeiro plano do Windows.
 [LiquiSteam.Front]::keybd_event(0x12, 0, 0, [System.UIntPtr]::Zero)
-[void][LiquiSteam.Front]::SetForegroundWindow($owner.Handle)
+Show-OnTop $owner.Handle
 [LiquiSteam.Front]::keybd_event(0x12, 0, 2, [System.UIntPtr]::Zero)
 $owner.Activate()
-# Garantia: assim que a janela de escolha existe, marca como "sempre por cima" e traz para a frente.
-# O temporizador roda enquanto a janela esta aberta.
+# Assim que a janela de escolha existe, traz para a frente. O temporizador roda enquanto ela esta aberta.
 $timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 150
+$timer.Interval = 120
 $timer.Add_Tick({
     $script:pickTries = $script:pickTries + 1
     $h = [LiquiSteam.Front]::FindWindow($null, $script:pickTitle)
     if ($h -ne [System.IntPtr]::Zero) {
-        [void][LiquiSteam.Front]::SetWindowPos($h, [System.IntPtr]::new(-1), 0, 0, 0, 0, 0x43)
-        [void][LiquiSteam.Front]::SetForegroundWindow($h)
-        if ($script:pickTries -gt 6) { $timer.Stop() }
+        Show-OnTop $h
+        if ($script:pickTries -eq 1 -or $script:pickTries % 10 -eq 0) { Write-PickLog ('janela achada: ' + $h.ToInt64()) }
+        if ($script:pickTries -gt 12) { $timer.Stop() }
     }
-    if ($script:pickTries -gt 80) { $timer.Stop() }
+    if ($script:pickTries -gt 100) { $timer.Stop() }
 })
 $timer.Start()
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -327,10 +344,11 @@ $browser = [int64]__OWNER__
 if ($browser -ne 0) { $dialogOwner = New-Object HwndOwner ([System.IntPtr]::new($browser)) }
 if ($dialog.ShowDialog($dialogOwner) -eq [System.Windows.Forms.DialogResult]::OK) { $result = $dialog.FileName }
 $timer.Stop()
+Write-PickLog ('fechou, tentativas=' + $script:pickTries)
 $owner.Close()
 [System.IO.File]::WriteAllText('__OUT__', $result, (New-Object System.Text.UTF8Encoding($false)))
 '@
-    $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''")).Replace('__OWNER__', [string]$ownerHandle)
+    $code = $template.Replace('__TITLE__', $title).Replace('__FILTER__', $filter).Replace('__OUT__', $out.Replace("'", "''")).Replace('__OWNER__', [string]$ownerHandle).Replace('__LOG__', (Join-Path ([System.IO.Path]::GetTempPath()) 'liquisteam-pick.log'))
     $encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($code))
     Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -ArgumentList @('-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
     $script:picks[$id] = @{ kind = $kind; out = $out; path = $null; done = $false; cover = $null }
@@ -463,8 +481,23 @@ function Start-CustomGame([string]$id) {
     $game = Find-CustomGame $id
     if (-not $game) { return 'unknown-game' }
     if (-not (Test-Path -LiteralPath $game.exe)) { return 'missing-file' }
-    Start-Process -FilePath $game.exe -WorkingDirectory (Split-Path -Parent $game.exe)
-    return 'ok'
+    $folder = Split-Path -Parent $game.exe
+    try {
+        Start-Process -FilePath $game.exe -WorkingDirectory $folder -ErrorAction Stop
+        return 'ok'
+    } catch {
+        $text = [string]$_.Exception.Message
+        # Programas que exigem permissao de administrador: abre com o aviso do Windows (UAC).
+        if ($text -match '740|eleva|elevat|administrador|administrator') {
+            try {
+                Start-Process -FilePath $game.exe -WorkingDirectory $folder -Verb RunAs -ErrorAction Stop
+                return 'ok'
+            } catch {
+                return 'launch-failed'
+            }
+        }
+        return 'launch-failed'
+    }
 }
 
 # Ids dos jogos de fora da Steam que estao rodando (pelo nome do processo).
@@ -490,6 +523,16 @@ function Stop-CustomGame([string]$id) {
         $exe = $null
         try { $exe = $p.Path } catch { }
         if ($exe -and ($exe -ieq $game.exe)) { [void]$targets.Add($p) }
+    }
+    # Pelo nome do processo, do mesmo jeito que o site descobre que o jogo esta aberto (o caminho de
+    # alguns processos nao pode ser lido).
+    $procName = [System.IO.Path]::GetFileNameWithoutExtension($game.exe)
+    if ($procName) {
+        foreach ($p in [System.Diagnostics.Process]::GetProcessesByName($procName)) {
+            $already = $false
+            foreach ($t in $targets) { if ($t.Id -eq $p.Id) { $already = $true } }
+            if (-not $already) { [void]$targets.Add($p) }
+        }
     }
     $folder = (Split-Path -Parent $game.exe).TrimEnd('\')
     $leaf = Split-Path -Leaf $folder
@@ -549,7 +592,7 @@ function Handle-Request($context) {
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
         $custom = @(Get-RunningCustomIds)
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 6; steam = $steamState; game = $game; custom = $custom }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 8; steam = $steamState; game = $game; custom = $custom }
         return
     }
 
@@ -692,7 +735,8 @@ while ($listener.IsListening -and -not $script:quit) {
     try {
         Handle-Request $context
     } catch {
-        # Um pedido com problema nao derruba o servico.
+        # Um pedido com problema nao derruba o servico; o site recebe um erro em vez de uma resposta vazia.
+        try { Send-Json $context.Response 500 @{ error = 'internal' } } catch { }
     } finally {
         $context.Response.Close()
     }
