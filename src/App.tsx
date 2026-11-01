@@ -19,7 +19,6 @@ import LibraryView from '@/components/LibraryView';
 import LibraryToolbar from '@/components/LibraryToolbar';
 import LibrarySummary from '@/components/LibrarySummary';
 import LayoutSwitch from '@/components/LayoutSwitch';
-import { useUiPulse } from '@/lib/pulse';
 import CollectionBar, { type CollectionFilter } from '@/components/CollectionBar';
 import GroupMenu from '@/components/GroupMenu';
 import ConnectingScreen from '@/components/ConnectingScreen';
@@ -100,7 +99,6 @@ export default function App() {
   const collectionsApi = useCollections(user?.steamId ?? null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
   // Aviso "entre com a Steam para usar favoritos e grupos".
-  useUiPulse();
   // O ícone de atualizar gira enquanto lê e só para ao completar a volta (sem corte seco).
   const [refreshSpinning, setRefreshSpinning] = useState(false);
   useEffect(() => {
