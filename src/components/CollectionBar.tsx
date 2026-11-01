@@ -32,6 +32,19 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
   // Grupo saindo (animação de exclusão) e grupo que acabou de ser criado ou renomeado (brilho).
   const [leavingId, setLeavingId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  // O campo de nome sai com animação (encolhe) antes de sumir.
+  const [editorLeaving, setEditorLeaving] = useState(false);
+  const leaveEditor = (done: () => void) => {
+    if (motionDisabled()) {
+      done();
+      return;
+    }
+    setEditorLeaving(true);
+    window.setTimeout(() => {
+      setEditorLeaving(false);
+      done();
+    }, 260);
+  };
   const inputRef = useRef<HTMLInputElement>(null);
   const activeGroup = groups.find((g) => g.id === active) ?? null;
 
@@ -77,9 +90,12 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
     `coll-chip ${selected ? 'coll-chip-on' : ''} ${dropTarget === key ? 'coll-chip-drop' : ''} ${flashId === key ? 'coll-chip-flash' : ''} ${leavingId === key ? 'coll-chip-out' : ''}`;
 
   const submitCreate = () => {
+    if (!draft.trim()) return;
     const id = api.createGroup(draft);
-    setDraft('');
-    setCreating(false);
+    leaveEditor(() => {
+      setDraft('');
+      setCreating(false);
+    });
     if (id) {
       onSelect(id);
       setFlashId(id);
@@ -90,7 +106,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
       api.renameGroup(activeGroup.id, draft);
       setFlashId(activeGroup.id);
     }
-    setRenaming(false);
+    leaveEditor(() => setRenaming(false));
   };
   // Excluir: o grupo encolhe e some, e só então é removido.
   const removeGroup = (id: string) => {
@@ -152,7 +168,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
         renaming && activeGroup?.id === group.id ? (
           <form
             key={group.id}
-            className="coll-chip coll-chip-on coll-chip-edit gap-1"
+            className={`coll-chip coll-chip-on coll-chip-edit gap-1 ${editorLeaving ? 'coll-chip-out' : ''}`}
             onSubmit={(event) => {
               event.preventDefault();
               submitRename();
@@ -163,11 +179,11 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
               value={draft}
               maxLength={MAX_GROUP_NAME}
               onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => event.key === 'Escape' && setRenaming(false)}
+              onKeyDown={(event) => event.key === 'Escape' && leaveEditor(() => setRenaming(false))}
               aria-label="Novo nome do grupo"
               className="w-28 bg-transparent text-xs text-white focus:outline-none"
             />
-            <button type="submit" aria-label="Salvar nome" className="grid h-5 w-5 place-items-center text-ok">
+            <button type="submit" aria-label="Salvar nome" className="coll-confirm grid h-5 w-5 place-items-center text-ok">
               <Check className="h-3.5 w-3.5" />
             </button>
           </form>
@@ -190,7 +206,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
 
       {creating ? (
         <form
-          className="coll-chip coll-chip-on coll-chip-edit gap-1"
+          className={`coll-chip coll-chip-on coll-chip-edit gap-1 ${editorLeaving ? 'coll-chip-out' : ''}`}
           onSubmit={(event) => {
             event.preventDefault();
             submitCreate();
@@ -201,41 +217,51 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
             value={draft}
             maxLength={MAX_GROUP_NAME}
             onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => event.key === 'Escape' && (setCreating(false), setDraft(''))}
+            onKeyDown={(event) =>
+              event.key === 'Escape' &&
+              leaveEditor(() => {
+                setCreating(false);
+                setDraft('');
+              })
+            }
             placeholder="Nome do grupo"
             aria-label="Nome do novo grupo"
             className="w-32 bg-transparent text-xs text-white placeholder:text-white/40 focus:outline-none"
           />
-          <button type="submit" disabled={!draft.trim()} aria-label="Criar grupo" className="grid h-5 w-5 place-items-center text-ok disabled:opacity-40">
+          <button type="submit" disabled={!draft.trim()} aria-label="Criar grupo" className="coll-confirm grid h-5 w-5 place-items-center text-ok">
             <Check className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
             aria-label="Cancelar"
-            onClick={() => {
-              setCreating(false);
-              setDraft('');
-            }}
-            className="grid h-5 w-5 place-items-center text-white/50 hover:text-white"
+            onClick={() =>
+              leaveEditor(() => {
+                setCreating(false);
+                setDraft('');
+              })
+            }
+            className="coll-cancel grid h-5 w-5 place-items-center text-white/50 hover:text-white"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </form>
-      ) : (
-        groups.length < MAX_GROUPS && (
-          <button
-            type="button"
-            className="coll-chip coll-chip-add"
-            title="Criar um grupo (pasta) para organizar os seus jogos"
-            onClick={() => {
-              setDraft('');
-              setCreating(true);
-            }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Novo grupo
-          </button>
-        )
+      ) : null}
+
+      {groups.length < MAX_GROUPS && (
+        <button
+          type="button"
+          className="coll-chip coll-chip-add"
+          data-hidden={creating ? '' : undefined}
+          tabIndex={creating ? -1 : 0}
+          title="Criar um grupo (pasta) para organizar os seus jogos"
+          onClick={() => {
+            setDraft('');
+            setCreating(true);
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Novo grupo
+        </button>
       )}
 
       {rightSlot && <span className="ml-auto">{rightSlot}</span>}

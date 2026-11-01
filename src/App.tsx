@@ -102,6 +102,11 @@ export default function App() {
   // Voltas dos ícones do topo: cada clique gira o ícone mais um pouco.
   const [refreshTurns, setRefreshTurns] = useState(0);
   const [plusTurns, setPlusTurns] = useState(0);
+  // O ícone de atualizar gira enquanto lê e só para ao completar a volta (sem corte seco).
+  const [refreshSpinning, setRefreshSpinning] = useState(false);
+  useEffect(() => {
+    if (loading) setRefreshSpinning(true);
+  }, [loading]);
   const [lockedNotice, setLockedNotice] = useState(false);
   const lockedPresence = usePresence(lockedNotice, 220);
   useEffect(() => {
@@ -607,12 +612,18 @@ export default function App() {
                   void handleRefresh();
                 }}
                 disabled={loading}
-                data-busy={loading ? '' : undefined}
+                data-busy={refreshSpinning ? '' : undefined}
                 className="icon-btn icon-btn-refresh fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white disabled:opacity-50"
                 aria-label="Atualizar biblioteca"
                 title="Reler os jogos instalados (use depois de instalar ou desinstalar algo)"
               >
-                <RefreshCw className="h-4 w-4" style={{ '--turn': `${refreshTurns * 360}deg` } as CSSProperties} />
+                <RefreshCw
+                  className="h-4 w-4"
+                  style={{ '--turn': `${refreshTurns * 360}deg` } as CSSProperties}
+                  onAnimationIteration={() => {
+                    if (!loading) setRefreshSpinning(false);
+                  }}
+                />
               </button>
             )}
             {view === 'library' && (

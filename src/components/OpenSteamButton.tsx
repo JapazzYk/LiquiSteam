@@ -24,13 +24,14 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
       : source === 'account'
         ? 'Status vindo da sua conta na Steam (pode atrasar alguns segundos; com o Helper instalado fica exato)'
         : 'Status aproximado: o site não tem como saber com certeza se a Steam está aberta. Com o Helper instalado fica exato';
-  const dot = source === 'helper' ? 'bg-ok' : source === 'account' ? 'bg-[rgb(var(--accent-rgb))]' : 'bg-[rgb(var(--ink)/0.4)]';
+  // O ponto só acende quando a Steam está de fato aberta; pisca enquanto abre; fica apagado nos demais casos.
+  const dotState = running ? 'running' : starting ? 'starting' : 'off';
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className={`reveal group relative flex h-10 items-center gap-2.5 overflow-hidden rounded-full border px-5 text-sm font-medium backdrop-blur-xl transition-all ${
+      className={`reveal group relative flex h-10 items-center gap-2.5 overflow-hidden rounded-full border px-5 text-sm font-medium backdrop-blur-xl fx-press ${
         running
           ? 'border-ok/40 bg-ok/15 text-white hover:bg-ok/20'
           : 'border-white/15 bg-white/[0.07] text-white hover:border-[rgba(var(--accent-rgb),0.55)]'
@@ -48,10 +49,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
         {starting ? 'Iniciando Steam…' : running ? 'Encerrar Steam' : 'Abrir Steam'}
       </span>
       {running && <Power className="ml-1 h-3.5 w-3.5 opacity-60" />}
-      <span
-        aria-hidden
-        className={`absolute right-2.5 top-2 z-10 h-1.5 w-1.5 rounded-full ${dot}`}
-      />
+      <span key={dotState} aria-hidden className="steam-dot" data-state={dotState} />
     </button>
   );
 }

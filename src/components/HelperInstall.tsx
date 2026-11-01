@@ -198,7 +198,7 @@ export default function HelperInstall({
               ? 'O navegador ainda precisa da sua permissão para falar com o Helper'
               : 'Helper opcional: deixa o status da Steam sempre exato'
         }
-        className="reveal relative flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+        className="fx-press reveal relative flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/[0.07] px-3 text-sm text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white"
       >
         <Icon className={`h-4 w-4 ${disabled ? 'text-white/50' : installed ? 'text-ok' : needsAccess ? 'text-warn' : ''}`} />
         <span className="hidden whitespace-nowrap xl:inline">
