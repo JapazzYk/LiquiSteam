@@ -10,7 +10,7 @@ import { placeholderHue } from '@/lib/customGames';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { DRAG_TYPE, useCollectionsUi } from '@/lib/collections';
 import CollectionButtons from '@/components/CollectionButtons';
-import GameChips from '@/components/GameChips';
+import GameInfo from '@/components/GameInfo';
 
 interface GameCardProps {
   game: InstalledGame;
@@ -184,11 +184,7 @@ export default function GameCard({ game, index, onOpen, entry, running = false, 
 
         <div className="game-card-meta">
           <h3 className="game-card-title">{game.name}</h3>
-          <div className="game-card-chipbox">
-            <div className="game-card-chips">
-              <GameChips game={game} entry={entry} running={running} />
-            </div>
-          </div>
+          <GameInfo game={game} entry={entry} running={running} max={3} />
         </div>
 
         <span className="game-card-sheen" aria-hidden />

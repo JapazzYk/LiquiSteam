@@ -25,7 +25,7 @@ import {
   Download,
 } from 'lucide-react';
 import CollectionButtons from '@/components/CollectionButtons';
-import GameOverview, { HeroMeta } from '@/components/GameOverview';
+import GameOverview, { GameStats, HeroMeta } from '@/components/GameOverview';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
 import { launchGame } from '@/lib/steamLaunch';
@@ -517,7 +517,7 @@ export default function GameDetail({
       >
         {/* Hero: full game art */}
         <div
-          className="detail-hero relative h-[50vh] min-h-[360px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]"
+          className="detail-hero relative h-[56vh] min-h-[420px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]"
           data-fit={heroFit}
           style={artBackdrop(artworkSource) as CSSProperties}
         >
@@ -538,7 +538,7 @@ export default function GameDetail({
           <div className="absolute inset-0 bg-gradient-to-r from-canvas/80 via-transparent to-transparent" />
 
           {/* Title + run */}
-          <div className="absolute inset-x-0 bottom-0 px-6 pb-6 md:px-10 md:pb-8">
+          <div className={`absolute inset-x-0 bottom-0 px-6 md:px-10 ${isCustom ? 'pb-6 md:pb-8' : 'pb-20 md:pb-24'}`}>
             <p className="detail-rise mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/60" style={stagger(120)}>
               {game.custom
                 ? 'Jogo fora da Steam'
@@ -655,6 +655,23 @@ export default function GameDetail({
           </div>
         </div>
 
+        {/* Faixa de números, sobreposta à base da arte */}
+        {!isCustom && (
+          <div className="detail-stats detail-rise relative z-10 -mt-14 px-6 md:-mt-16 md:px-10" style={stagger(300)}>
+            <GameStats
+              game={game}
+              details={details}
+              loadingDetails={loadingDetails}
+              achievements={achievements}
+              playtimeMinutes={playtimeMinutes}
+              loadingPlaytime={loadingPlaytime}
+              entry={playtimes?.get(game.appid)}
+              libraryTotalMinutes={libraryTotalMinutes}
+              lastPlayed={game.unowned || !playtimes ? null : (playtimes.get(game.appid)?.lastPlayed ?? 0)}
+            />
+          </div>
+        )}
+
         {/* Tabs + content */}
         <div className="mx-auto w-full flex-1 px-6 py-6 md:px-10 md:py-8">
           <div
@@ -716,14 +733,9 @@ export default function GameDetail({
               details={details}
               loadingDetails={loadingDetails}
               achievements={achievements}
-              playtimeMinutes={playtimeMinutes}
-              loadingPlaytime={loadingPlaytime}
-              entry={playtimes?.get(game.appid)}
-              libraryTotalMinutes={libraryTotalMinutes}
               hasSync={!!(user && hasKey)}
               playFacts={playtimes ? playtimeFacts(game, playtimes, libraryGames) : []}
               news={news}
-              lastPlayed={game.unowned || !playtimes ? null : (playtimes.get(game.appid)?.lastPlayed ?? 0)}
               onJump={(next) => setTab(next)}
             />
           )}

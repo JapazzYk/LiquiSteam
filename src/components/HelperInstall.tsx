@@ -258,13 +258,30 @@ export default function HelperInstall({
                 Versão do Helper: {helperVersion() ?? 'antiga'}
                 {(helperVersion() ?? 0) >= CURRENT_HELPER_VERSION ? ' (atualizado)' : ` (há uma mais nova: ${CURRENT_HELPER_VERSION})`}
               </p>
-              <button
-                type="button"
-                onClick={() => copy('install')}
-                className="mt-2 text-[13px] text-white/60 underline underline-offset-2 transition-colors hover:text-white"
-              >
-                {copied === 'install' ? 'Comando copiado' : 'Copiar o comando para atualizar o Helper'}
-              </button>
+              {(helperVersion() ?? 0) < CURRENT_HELPER_VERSION ? (
+                <div className="mt-3 rounded-xl border border-[rgba(var(--accent-rgb),0.35)] bg-[rgba(var(--accent-rgb),0.08)] p-3">
+                  <p className="text-[13px] leading-relaxed text-white/80">
+                    Há uma versão nova do Helper, com correções (por exemplo, para abrir jogos de fora da Steam). Copie o
+                    comando, cole no PowerShell e aperte Enter.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => copy('install')}
+                    className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--accent-color)] text-sm font-semibold text-[color:var(--on-accent)] transition hover:brightness-110"
+                  >
+                    {copied === 'install' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied === 'install' ? 'Comando copiado' : 'Copiar o comando para atualizar'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => copy('install')}
+                  className="mt-2 text-[13px] text-white/60 underline underline-offset-2 transition-colors hover:text-white"
+                >
+                  {copied === 'install' ? 'Comando copiado' : 'Copiar o comando para reinstalar o Helper'}
+                </button>
+              )}
 
               {removeState === 'idle' && (
                 <button

@@ -75,7 +75,7 @@ function Tile({
   bar?: number;
 }) {
   return (
-    <div className={`${CARD} p-5`}>
+    <div className={`${CARD} stat-tile p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-2 text-white/50">
@@ -156,9 +156,9 @@ export function HeroMeta({ game, details, loading }: { game: InstalledGame; deta
 }
 
 // ---------------------------------------------------------------------------------------------
-// Visão geral
+// Faixa de números (fica sobreposta à base da arte, logo abaixo do título)
 // ---------------------------------------------------------------------------------------------
-interface GameOverviewProps {
+interface GameStatsProps {
   game: InstalledGame;
   details: GameDetails | null;
   loadingDetails: boolean;
@@ -167,14 +167,10 @@ interface GameOverviewProps {
   loadingPlaytime: boolean;
   entry: PlaytimeEntry | undefined;
   libraryTotalMinutes: number;
-  hasSync: boolean;
-  playFacts: string[];
-  news: NewsItem[];
   lastPlayed: number | null;
-  onJump: (tab: JumpTab) => void;
 }
 
-export default function GameOverview({
+export function GameStats({
   game,
   details,
   loadingDetails,
@@ -183,21 +179,14 @@ export default function GameOverview({
   loadingPlaytime,
   entry,
   libraryTotalMinutes,
-  hasSync,
-  playFacts,
-  news,
   lastPlayed,
-  onJump,
-}: GameOverviewProps) {
+}: GameStatsProps) {
   const minutes = playtimeMinutes ?? entry?.forever ?? null;
   const share = minutes !== null && libraryTotalMinutes > 0 ? minutes / libraryTotalMinutes : null;
   const achPct = achievements && achievements.total > 0 ? achievements.achieved / achievements.total : 0;
   const recent = lastPlayed !== null && lastPlayed > 0 && Date.now() / 1000 - lastPlayed < 14 * 86400;
-  const media = (details?.movies.length ?? 0) + (details?.screenshots?.length ?? 0);
-
   return (
-    <div className="fx-stack space-y-6">
-      {/* Faixa de números */}
+    <div className="fx-stack">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {game.unowned ? (
           <>
@@ -267,6 +256,38 @@ export default function GameOverview({
         )}
       </div>
 
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Visão geral
+// ---------------------------------------------------------------------------------------------
+interface GameOverviewProps {
+  game: InstalledGame;
+  details: GameDetails | null;
+  loadingDetails: boolean;
+  achievements: AchievementSummary | null;
+  hasSync: boolean;
+  playFacts: string[];
+  news: NewsItem[];
+  onJump: (tab: JumpTab) => void;
+}
+
+export default function GameOverview({
+  game,
+  details,
+  loadingDetails,
+  achievements,
+  hasSync,
+  playFacts,
+  news,
+  onJump,
+}: GameOverviewProps) {
+  const media = (details?.movies.length ?? 0) + (details?.screenshots?.length ?? 0);
+
+  return (
+    <div className="fx-stack space-y-6">
       {!hasSync && !game.unowned && (
         <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
           Seu tempo de jogo e suas conquistas pessoais ainda não aparecem aqui. Para mostrá-los, entre com a Steam e cole a sua
@@ -308,40 +329,51 @@ export default function GameOverview({
               title="Trailers e imagens"
               icon={<Clapperboard className="h-4 w-4" />}
               action={
-                <button type="button" onClick={() => onJump('media')} className="text-xs text-white/55 hover:text-white">
+                <button type="button" onClick={() => onJump('media')} data-hover-fx className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
                   Ver tudo ({media})
                 </button>
               }
             >
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:grid-rows-2">
                 {details.movies[0] && (
                   <button
                     type="button"
                     onClick={() => onJump('media')}
                     aria-label="Abrir os trailers"
-                    className="relative col-span-2 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40"
+                    data-hover-fx
+                    className="media-tile relative col-span-2 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40 sm:row-span-2 sm:aspect-auto"
                   >
                     {details.movies[0].thumbnail && (
                       <img src={details.movies[0].thumbnail} alt="" loading="lazy" className="h-full w-full object-cover" />
                     )}
-                    <span className="absolute inset-0 grid place-items-center bg-black/25">
-                      <span className="grid h-12 w-12 place-items-center rounded-full border border-white/40 bg-black/50 backdrop-blur-md">
-                        <Play className="h-5 w-5 fill-white text-white" />
+                    <span className="absolute inset-0 grid place-items-center bg-gradient-to-t from-black/60 via-black/10 to-transparent">
+                      <span className="grid h-14 w-14 place-items-center rounded-full border border-white/40 bg-black/50 backdrop-blur-md">
+                        <Play className="h-6 w-6 fill-white text-white" />
                       </span>
+                    </span>
+                    <span className="absolute bottom-2 left-3 text-xs font-medium text-white/90">
+                      {details.movies.length > 1 ? `${details.movies.length} trailers` : 'Trailer'}
                     </span>
                   </button>
                 )}
-                {(details.screenshots ?? []).slice(0, details.movies[0] ? 2 : 4).map((shot) => (
-                  <button
-                    key={shot.id}
-                    type="button"
-                    onClick={() => onJump('media')}
-                    aria-label="Abrir as imagens"
-                    className="relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40"
-                  >
-                    <img src={shot.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  </button>
-                ))}
+                {(details.screenshots ?? []).slice(0, details.movies[0] ? 4 : 8).map((shot, index, shown) => {
+                  const rest = (details.screenshots?.length ?? 0) - shown.length;
+                  return (
+                    <button
+                      key={shot.id}
+                      type="button"
+                      onClick={() => onJump('media')}
+                      aria-label="Abrir as imagens"
+                      data-hover-fx
+                      className="media-tile relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40"
+                    >
+                      <img src={shot.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      {index === shown.length - 1 && rest > 0 && (
+                        <span className="absolute inset-0 grid place-items-center bg-black/55 text-sm font-semibold text-white">+{rest}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </Panel>
           )}
@@ -360,7 +392,7 @@ export default function GameOverview({
           )}
         </div>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 lg:sticky lg:top-16 lg:self-start">
           <Panel title="Ficha do jogo" icon={<HardDrive className="h-4 w-4" />}>
             {details ? (
               <dl className="grid text-sm">
@@ -418,7 +450,7 @@ export default function GameOverview({
               title="Últimas notícias"
               icon={<Newspaper className="h-4 w-4" />}
               action={
-                <button type="button" onClick={() => onJump('news')} className="text-xs text-white/55 hover:text-white">
+                <button type="button" onClick={() => onJump('news')} data-hover-fx className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
                   Ver todas
                 </button>
               }

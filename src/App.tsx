@@ -925,6 +925,7 @@ export default function App() {
             <p className="text-sm text-white/85">Favoritos e grupos ficam disponíveis depois que você entra com a Steam.</p>
             <button
               type="button"
+              data-hover-fx
               onClick={() => {
                 setLockedNotice(false);
                 setSelectedGame(null);

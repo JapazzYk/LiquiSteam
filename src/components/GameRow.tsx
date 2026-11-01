@@ -5,7 +5,7 @@ import type { InstalledGame } from '@/types';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import { uniqueUrls } from '@/lib/format';
 import type { PlaytimeEntry } from '@/lib/steamMeta';
-import GameChips from '@/components/GameChips';
+import GameInfo from '@/components/GameInfo';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { placeholderHue } from '@/lib/customGames';
@@ -71,9 +71,7 @@ export default function GameRow({ game, onOpen, entry, running = false }: GameRo
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] font-medium tracking-tight text-white">{game.name}</p>
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <GameChips game={game} entry={entry} running={running} />
-        </div>
+        <GameInfo game={game} entry={entry} running={running} className="mt-1" />
       </div>
       <CollectionButtons appid={game.appid} />
       <ChevronRight className="h-4 w-4 shrink-0 text-white/35 transition-colors group-hover:text-[color:var(--accent-color)]" />
