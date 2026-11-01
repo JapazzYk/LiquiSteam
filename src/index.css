@@ -2446,113 +2446,125 @@ a,
 }
 
 /* ------------------------------------------------------------------ */
-/* Animações dos botões                                                */
-/* Regra geral: ao passar o mouse, vai rápido; ao soltar ou sair, volta com uma mola (--spring), que passa   */
-/* um pouco do ponto e assenta, em vez de voltar de uma vez.                                                */
+/* Sistema de movimento                                                */
+/* Uma linguagem só para o site inteiro: suave, sem pulos nem pulsos.   */
+/*  - sobe 2 px ao passar o mouse, afunda um pouco ao clicar;           */
+/*  - sempre volta ao normal com a mesma curva suave (sem corte seco);  */
+/*  - entradas: surgem com fade e um deslize curto.                     */
+/* Mudou aqui, mudou em tudo.                                           */
 /* ------------------------------------------------------------------ */
 :root {
-  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: var(--ease-smooth);
+  --t-fast: 0.18s;
+  --t-base: 0.32s;
+  --t-slow: 0.5s;
 }
 
+/* Base para qualquer botão, link e campo: cores, borda, sombra e posição mudam com suavidade.
+   Com :where() a regra não tem peso, então qualquer estilo mais específico continua mandando. */
+:where(button, [role='button'], a[href], summary, label, select) {
+  transition: color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
+    opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth);
+}
+
+:where(input, textarea) {
+  transition: color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth);
+}
+
+/* Clique: todo botão afunda um pouco e volta suave. */
+:where(button, [role='button'], a[href]):not(:disabled, [aria-disabled='true']):active {
+  transform: scale(0.97);
+  transition-duration: var(--t-fast);
+}
+
+/* Botões e pílulas do topo e das barras. */
 .icon-btn,
 .fx-press {
-  transition: transform 0.6s var(--spring), box-shadow 0.6s var(--spring), border-color 0.3s ease, color 0.3s ease,
-    background-color 0.3s ease, opacity 0.2s ease;
+  transition: transform var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth), color var(--t-base) var(--ease-smooth),
+    background-color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
 }
 
 .icon-btn:hover:not(:disabled),
 .fx-press:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.22);
-  transition: transform 0.28s var(--ease-out), box-shadow 0.28s var(--ease-out), border-color 0.3s ease, color 0.3s ease,
-    background-color 0.3s ease, opacity 0.2s ease;
+  box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.18);
 }
 
 .icon-btn:active:not(:disabled),
 .fx-press:active:not(:disabled) {
-  transform: translateY(0) scale(0.92);
+  transform: translateY(0) scale(0.96);
   box-shadow: none;
-  transition-duration: 0.08s;
+  transition-duration: var(--t-fast);
 }
 
+/* Cartões e linhas clicáveis (resumo, estatísticas, notícias): sobem de leve. */
+.fx-lift {
+  transition: transform var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth);
+}
+
+.fx-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+/* Ícones: movimento curto e suave, e o retorno usa a mesma curva (duração maior, para parecer fluido). */
 .icon-btn svg {
   transform: rotate(var(--turn, 0deg));
-  transition: transform 0.85s var(--spring);
-}
-
-/* Atualizar: inclina ao passar o mouse, dá uma volta a cada clique e gira sem parar enquanto lê. */
-.icon-btn-refresh:hover svg {
-  transform: rotate(calc(var(--turn, 0deg) + 100deg));
-  transition-duration: 0.4s;
-  transition-timing-function: var(--ease-out);
+  transition: transform var(--t-slow) var(--ease-smooth);
 }
 
 .icon-btn-refresh[data-busy] svg {
-  animation: icon-spin 0.9s linear infinite;
+  animation: icon-spin 1s linear infinite;
 }
 
-/* Adicionar: o + gira e cresce; ao sair, volta balançando. */
 .icon-btn-plus:hover svg {
-  transform: rotate(calc(var(--turn, 0deg) + 90deg)) scale(1.18);
-  transition-duration: 0.4s;
-  transition-timing-function: var(--ease-out);
+  transform: rotate(calc(var(--turn, 0deg) + 90deg));
 }
 
-/* Atualizações: a seta desce ao passar o mouse e volta quicando. */
 .icon-btn-download:hover svg {
-  transform: translateY(4px);
-  transition-duration: 0.3s;
-  transition-timing-function: var(--ease-out);
+  transform: translateY(3px);
 }
 
-/* Aparência: os controles deslizantes giram para a vertical e voltam com mola. */
 .icon-btn-sliders:hover svg {
-  transform: rotate(90deg) scale(1.1);
-  transition-duration: 0.45s;
-  transition-timing-function: var(--ease-out);
+  transform: rotate(90deg);
 }
 
-.icon-btn-account:hover svg {
-  transform: scale(1.14);
-  transition-duration: 0.3s;
-  transition-timing-function: var(--ease-out);
+.icon-btn-refresh:hover svg {
+  transform: rotate(calc(var(--turn, 0deg) + 60deg));
 }
 
-/* Contador de atualizações: aparece com um pulo. */
-.icon-badge {
-  animation: icon-pop 0.5s var(--spring) backwards;
+/* Contadores e ícones que aparecem: fade com uma leve subida de escala, sem passar do ponto. */
+.icon-badge,
+.steam-dot {
+  animation: fade-scale-in var(--t-base) var(--ease-smooth) backwards;
 }
 
-/* Grupos de botões lado a lado (layout, ordenar, instalados/toda a conta): crescem ao passar o mouse,
-   afundam ao clicar e voltam com mola; o escolhido dá um pulinho. */
+/* Grupos de botões lado a lado (layout, ordenar, instalados/toda a conta). */
 .layout-switch button {
-  transition: transform 0.55s var(--spring), background-color 0.3s ease, color 0.25s ease, opacity 0.2s ease;
+  transition: transform var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
+    color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
 }
 
 .layout-switch button:hover:not(:disabled) {
-  transform: scale(1.07);
-  transition: transform 0.25s var(--ease-out), background-color 0.3s ease, color 0.25s ease, opacity 0.2s ease;
+  transform: scale(1.04);
 }
 
 .layout-switch button:active:not(:disabled) {
-  transform: scale(0.88);
-  transition-duration: 0.08s;
-}
-
-.layout-switch button[aria-pressed='true'] {
-  animation: seg-pop 0.5s var(--spring);
-}
-
-.layout-switch [aria-pressed='true'] svg {
-  animation: icon-pop 0.45s var(--spring);
-}
-
-.layout-btn:hover svg {
-  transform: scale(1.12);
+  transform: scale(0.95);
+  transition-duration: var(--t-fast);
 }
 
 .layout-btn svg {
-  transition: transform 0.45s var(--spring);
+  transition: transform var(--t-base) var(--ease-smooth);
+}
+
+.layout-btn:hover svg {
+  transform: scale(1.08);
 }
 
 @keyframes icon-spin {
@@ -2561,49 +2573,38 @@ a,
   }
 }
 
-@keyframes icon-pop {
-  0% {
-    transform: scale(0.4);
-  }
-  60% {
-    transform: scale(1.25);
-  }
-  100% {
-    transform: scale(1);
+@keyframes fade-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
   }
 }
 
-@keyframes seg-pop {
-  0% {
-    transform: scale(0.82);
-  }
-  60% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* Estrela dos favoritos: pula, gira e solta um anel. */
+/* Favoritos: a estrela entra crescendo e solta um anel que se apaga. */
 .coll-btn {
   position: relative;
+  transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
+    transform var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth);
+}
+
+.coll-btn:hover {
+  transform: scale(1.05);
 }
 
 .coll-btn svg {
-  transition: transform 0.25s var(--ease-out);
+  transition: transform var(--t-base) var(--ease-smooth);
 }
 
 .coll-btn:hover svg {
-  transform: scale(1.15) rotate(-8deg);
+  transform: scale(1.08);
 }
 
 .coll-btn[data-pop='on'] svg {
-  animation: star-pop 0.7s var(--ease-out);
+  animation: star-in var(--t-slow) var(--ease-smooth);
 }
 
 .coll-btn[data-pop='off'] svg {
-  animation: star-drop 0.4s ease;
+  animation: star-out var(--t-base) var(--ease-smooth);
 }
 
 .coll-btn[data-pop='on']::before {
@@ -2613,88 +2614,81 @@ a,
   border-radius: 999px;
   border: 2px solid var(--accent-color);
   pointer-events: none;
-  animation: coll-ring 0.65s ease-out forwards;
+  animation: soft-ring 0.7s var(--ease-smooth) forwards;
 }
 
-.coll-btn[data-pop='on']::after {
-  content: '';
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 4px;
-  height: 4px;
-  margin: -2px 0 0 -2px;
-  border-radius: 999px;
-  background: var(--accent-color);
-  pointer-events: none;
-  box-shadow: 0 -16px 0 var(--accent-color), 0 16px 0 var(--accent-color), -16px 0 0 var(--accent-color),
-    16px 0 0 var(--accent-color), 11px -11px 0 var(--accent-color), -11px 11px 0 var(--accent-color),
-    11px 11px 0 var(--accent-color), -11px -11px 0 var(--accent-color);
-  animation: coll-burst 0.6s ease-out forwards;
-}
-
-@keyframes star-pop {
-  0% {
-    transform: scale(0.3) rotate(-60deg);
-  }
-  55% {
-    transform: scale(1.5) rotate(18deg);
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes star-drop {
-  0% {
-    transform: scale(1);
-  }
-  40% {
-    transform: scale(0.55) rotate(-25deg);
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes coll-ring {
+@keyframes star-in {
   from {
+    transform: scale(0.6) rotate(-25deg);
+  }
+}
+
+@keyframes star-out {
+  50% {
     transform: scale(0.8);
-    opacity: 1;
-  }
-  to {
-    transform: scale(1.9);
-    opacity: 0;
   }
 }
 
-@keyframes coll-burst {
+@keyframes soft-ring {
   from {
-    transform: scale(0.4);
-    opacity: 1;
+    transform: scale(0.9);
+    opacity: 0.9;
   }
   to {
-    transform: scale(1.5);
+    transform: scale(1.7);
     opacity: 0;
   }
 }
 
 .coll-check {
-  animation: icon-pop 0.35s var(--ease-out);
+  animation: fade-scale-in var(--t-base) var(--ease-smooth);
 }
 
-/* Faixa de grupos: os chips entram em cascata, o campo de nome se abre, o grupo novo brilha e o excluído some. */
+/* Faixa de grupos: os chips entram em cascata, o campo de nome se abre, o grupo novo ganha um anel e o excluído some. */
 .coll-chip {
+  position: relative;
   max-width: 260px;
-  animation: coll-chip-in 0.4s var(--ease-out) calc(var(--i, 0) * 45ms) backwards;
+  animation: slide-fade-in var(--t-slow) var(--ease-smooth) calc(var(--i, 0) * 40ms) backwards;
+  transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
+    background-color var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth),
+    max-width var(--t-slow) var(--ease-smooth), padding var(--t-slow) var(--ease-smooth),
+    opacity var(--t-base) var(--ease-smooth);
+}
+
+button.coll-chip:hover {
+  transform: translateY(-2px);
+}
+
+button.coll-chip:active {
+  transform: scale(0.96);
+  transition-duration: var(--t-fast);
+}
+
+.coll-chip-drop,
+button.coll-chip.coll-chip-drop {
+  transform: scale(1.05);
+}
+
+.coll-mini {
+  transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
+    background-color var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth);
+}
+
+.coll-mini:hover {
+  transform: translateY(-2px);
+}
+
+.coll-mini:active {
+  transform: scale(0.94);
+  transition-duration: var(--t-fast);
 }
 
 .coll-chip-edit {
-  animation: coll-edit-in 0.32s var(--ease-out) backwards;
+  animation: slide-fade-in var(--t-base) var(--ease-smooth) backwards;
 }
 
-/* Brilho de "acabou de criar": um anel que se abre (num pseudo-elemento, para não reiniciar a entrada do chip). */
-.coll-chip {
-  position: relative;
+.coll-chip-edit:focus-within {
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.2);
 }
 
 .coll-chip-flash::after {
@@ -2704,225 +2698,32 @@ a,
   border-radius: inherit;
   border: 2px solid var(--accent-color);
   pointer-events: none;
-  animation: coll-ring 0.9s ease-out forwards;
+  animation: soft-ring 0.9s var(--ease-smooth) forwards;
 }
 
 .coll-chip-out {
   pointer-events: none;
   overflow: hidden;
-  animation: coll-chip-out 0.28s ease forwards;
-}
-
-@keyframes coll-chip-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.85);
-  }
-}
-
-@keyframes coll-edit-in {
-  from {
-    opacity: 0;
-    transform: translateX(-10px) scale(0.8);
-    max-width: 70px;
-  }
-}
-
-@keyframes coll-chip-out {
-  to {
-    opacity: 0;
-    transform: scale(0.5);
-    max-width: 0;
-    padding-left: 0;
-    padding-right: 0;
-    border-width: 0;
-    margin-left: -8px;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Barra de busca                                                      */
-/* ------------------------------------------------------------------ */
-.search-bar {
-  transition: transform 0.6s var(--spring), box-shadow 0.6s var(--spring), border-color 0.3s ease,
-    background-color 0.3s ease;
-}
-
-.search-bar:focus-within {
-  transform: translateY(-2px);
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.16), 0 12px 32px rgba(var(--accent-rgb), 0.22);
-  transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out), border-color 0.3s ease,
-    background-color 0.3s ease;
-}
-
-.search-icon {
-  transition: transform 0.7s var(--spring), color 0.3s ease;
-}
-
-.search-bar:focus-within .search-icon,
-.search-bar[data-filled] .search-icon {
-  color: var(--accent-color);
-}
-
-.search-bar:focus-within .search-icon {
-  transform: scale(1.18) rotate(-10deg);
-  transition-duration: 0.35s;
-  transition-timing-function: var(--ease-out);
-}
-
-/* Enquanto digita, a lupa balança. */
-.search-bar[data-typing] .search-icon {
-  animation: search-wiggle 0.42s ease;
-}
-
-.search-line {
-  position: absolute;
-  left: 50%;
-  bottom: -1px;
-  height: 2px;
-  width: 0;
-  max-width: calc(100% - 36px);
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-  transform: translateX(-50%);
-  opacity: 0;
-  pointer-events: none;
-  transition: width 0.7s var(--spring), opacity 0.35s ease;
-}
-
-.search-bar:focus-within .search-line {
-  width: 72%;
-  opacity: 1;
-  transition-duration: 0.45s;
-}
-
-/* Limpar: entra com um pulo, gira ao passar o mouse e sai encolhendo. */
-.search-clear {
-  opacity: 0;
-  transform: scale(0.4) rotate(-90deg);
-  pointer-events: none;
-  transition: opacity 0.25s ease, transform 0.5s var(--spring), background-color 0.25s ease, color 0.25s ease;
-}
-
-.search-clear[data-show] {
-  opacity: 1;
-  transform: scale(1) rotate(0deg);
-  pointer-events: auto;
-}
-
-.search-clear[data-show]:hover {
-  transform: scale(1.12) rotate(90deg);
-}
-
-.search-clear[data-show]:active {
-  transform: scale(0.8) rotate(90deg);
-  transition-duration: 0.08s;
-}
-
-@keyframes search-wiggle {
-  0%,
-  100% {
-    transform: scale(1.18) rotate(-10deg);
-  }
-  30% {
-    transform: scale(1.18) rotate(8deg);
-  }
-  60% {
-    transform: scale(1.18) rotate(-16deg);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Ponto de status da Steam: só acende com a Steam aberta              */
-/* ------------------------------------------------------------------ */
-.steam-dot {
-  position: absolute;
-  right: 10px;
-  top: 8px;
-  z-index: 10;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgb(var(--ink) / 0.28);
-  box-shadow: 0 0 0 0 transparent;
-  transition: background-color 0.5s ease, box-shadow 0.5s ease;
-  animation: icon-pop 0.55s var(--spring) backwards;
-}
-
-.steam-dot[data-state='running'] {
-  background: rgb(var(--ok));
-  box-shadow: 0 0 9px 1px rgb(var(--ok) / 0.75);
-}
-
-.steam-dot[data-state='running']::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  border: 1.5px solid rgb(var(--ok));
-  animation: steam-ping 2.2s ease-out infinite;
-}
-
-.steam-dot[data-state='starting'] {
-  background: rgb(var(--warn));
-  box-shadow: 0 0 8px 1px rgb(var(--warn) / 0.6);
-  animation: steam-blink 1s ease-in-out infinite;
-}
-
-@keyframes steam-ping {
-  from {
-    transform: scale(0.7);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(2.6);
-    opacity: 0;
-  }
-}
-
-@keyframes steam-blink {
-  50% {
-    opacity: 0.35;
-    transform: scale(0.8);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Campo de nome do grupo e botão "Novo grupo"                         */
-/* ------------------------------------------------------------------ */
-.coll-chip-edit {
-  transition: box-shadow 0.6s var(--spring), transform 0.55s var(--spring), border-color 0.3s ease;
-}
-
-.coll-chip-edit:focus-within {
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.22);
-  transition-duration: 0.3s;
+  animation: chip-out var(--t-base) var(--ease-smooth) forwards;
 }
 
 .coll-confirm,
 .coll-cancel {
-  transition: transform 0.55s var(--spring), opacity 0.25s ease, color 0.25s ease;
+  transition: transform var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth),
+    color var(--t-base) var(--ease-smooth);
 }
 
 .coll-confirm:disabled {
   opacity: 0.35;
-  transform: scale(0.75);
+  transform: scale(0.85);
 }
 
 .coll-confirm:not(:disabled):hover {
-  transform: scale(1.3) rotate(-8deg);
-  transition-duration: 0.25s;
+  transform: scale(1.15);
 }
 
 .coll-cancel:hover {
-  transform: rotate(90deg) scale(1.15);
-  transition-duration: 0.3s;
-}
-
-.coll-confirm:not(:disabled):active,
-.coll-cancel:active {
-  transform: scale(0.8);
-  transition-duration: 0.08s;
+  transform: rotate(90deg);
 }
 
 /* O "Novo grupo" encolhe enquanto o campo de nome está aberto e volta crescendo quando ele fecha. */
@@ -2937,23 +2738,143 @@ a,
   pointer-events: none;
 }
 
+@keyframes slide-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes chip-out {
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+    margin-left: -8px;
+  }
+}
+
+/* Barra de busca: ao focar, sobe de leve, ganha um halo e uma linha que se abre do centro. */
+.search-bar {
+  transition: transform var(--t-base) var(--ease-smooth), box-shadow var(--t-slow) var(--ease-smooth),
+    border-color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth);
+}
+
+.search-bar:focus-within {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.14), 0 10px 28px rgba(var(--accent-rgb), 0.18);
+}
+
+.search-icon {
+  transition: transform var(--t-slow) var(--ease-smooth), color var(--t-base) var(--ease-smooth);
+}
+
+.search-bar:focus-within .search-icon,
+.search-bar[data-filled] .search-icon {
+  color: var(--accent-color);
+}
+
+.search-bar:focus-within .search-icon {
+  transform: scale(1.1);
+}
+
+.search-line {
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  height: 2px;
+  width: 0;
+  max-width: calc(100% - 36px);
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: width var(--t-slow) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
+}
+
+.search-bar:focus-within .search-line {
+  width: 72%;
+  opacity: 1;
+}
+
+.search-clear {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+  transition: opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth),
+    background-color var(--t-base) var(--ease-smooth), color var(--t-base) var(--ease-smooth);
+}
+
+.search-clear[data-show] {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.search-clear[data-show]:hover {
+  transform: rotate(90deg);
+}
+
+/* Ponto de status da Steam: acende (verde, fixo) só com a Steam aberta; âmbar enquanto abre; apagado nos demais casos. */
+.steam-dot {
+  position: absolute;
+  right: 10px;
+  top: 8px;
+  z-index: 10;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgb(var(--ink) / 0.28);
+  box-shadow: 0 0 0 0 transparent;
+  transition: background-color var(--t-slow) var(--ease-smooth), box-shadow var(--t-slow) var(--ease-smooth);
+}
+
+.steam-dot[data-state='running'] {
+  background: rgb(var(--ok));
+  box-shadow: 0 0 8px 1px rgb(var(--ok) / 0.6);
+}
+
+.steam-dot[data-state='starting'] {
+  background: rgb(var(--warn));
+  box-shadow: 0 0 8px 1px rgb(var(--warn) / 0.5);
+}
+
 /* Sem animação quando o sistema pede menos movimento ou o estilo "Nenhuma" está escolhido. */
 @media (prefers-reduced-motion: reduce) {
-  :is(.icon-btn, .icon-btn svg, .fx-press, .icon-badge, .layout-switch button, .layout-switch [aria-pressed='true'] svg, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
+  :is(.icon-btn, .icon-btn svg, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
   .coll-btn::before,
-  .coll-btn::after,
-  .coll-chip-flash::after,
-  .steam-dot::after {
+  .coll-chip-flash::after {
     animation: none !important;
     transition: none !important;
   }
 }
 
-[data-motion='none'] :is(.icon-btn, .icon-btn svg, .fx-press, .icon-badge, .layout-switch button, .layout-switch [aria-pressed='true'] svg, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
+[data-motion='none'] :is(.icon-btn, .icon-btn svg, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
 [data-motion='none'] .coll-btn::before,
-[data-motion='none'] .coll-btn::after,
-[data-motion='none'] .coll-chip-flash::after,
-[data-motion='none'] .steam-dot::after {
+[data-motion='none'] .coll-chip-flash::after {
   animation: none !important;
   transition: none !important;
+}
+
+/* Quem pede menos movimento: só trocas de cor, sem deslocamentos. */
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role='button'], a[href], summary, label, select, input, textarea) {
+    transition-duration: 0.01ms;
+  }
+
+  :where(button, [role='button'], a[href]):active {
+    transform: none;
+  }
+}
+
+[data-motion='none'] :where(button, [role='button'], a[href], summary, label, select, input, textarea) {
+  transition-duration: 0.01ms;
+}
+
+[data-motion='none'] :where(button, [role='button'], a[href]):active {
+  transform: none;
 }

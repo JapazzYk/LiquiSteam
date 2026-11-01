@@ -123,7 +123,7 @@ export default function UpdatesView({ updates, helper, onBack }: UpdatesViewProp
           </div>
           <div className="grid gap-3">
             {pending.map((item) => (
-              <div key={item.appid} className={`${CARD} p-4`}>
+              <div key={item.appid} className={`fx-lift ${CARD} p-4`}>
                 <div className="flex items-center gap-4">
                   <img
                     src={headerImageUrl(item.appid)}

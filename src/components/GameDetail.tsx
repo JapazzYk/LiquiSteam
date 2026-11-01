@@ -47,7 +47,7 @@ import type { OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { customLastLaunch, markCustomLaunched } from '@/lib/customGames';
 import { formatAgo, formatDateTime } from '@/lib/format';
-import type { CustomCommandResult } from '@/lib/steamHelper';
+import { helperLastDetail, type CustomCommandResult } from '@/lib/steamHelper';
 
 interface GameDetailProps {
   game: InstalledGame;
@@ -427,7 +427,7 @@ export default function GameDetail({
           result === 'missing-file'
             ? 'O arquivo deste jogo não está mais no lugar onde você o escolheu. Clique em Editar e escolha o programa (.exe) de novo.'
             : result === 'failed'
-              ? 'O Windows não deixou o Helper abrir este programa. Tente abri-lo uma vez fora do LiquiSteam: se ele pedir permissão de administrador, aceite o aviso do Windows.'
+              ? `O Windows não deixou o Helper abrir este programa${helperLastDetail() ? ` (${helperLastDetail()})` : ''}. Tente abri-lo uma vez fora do LiquiSteam: se ele pedir permissão de administrador, aceite o aviso do Windows.`
               : result === 'unreachable'
                 ? 'O site não conseguiu falar com o Helper. Abra o botão "Helper" na biblioteca e veja se ele está funcionando e não está desativado.'
                 : 'O Helper instalado é antigo e não sabe abrir este tipo de jogo. Abra o botão "Helper" na biblioteca e atualize-o.'
@@ -723,7 +723,7 @@ function CustomOverview({ game, onEdit }: { game: InstalledGame; onEdit: () => v
   const lastOpened = game.customId ? customLastLaunch(game.customId) : null;
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <div className="fx-stack grid grid-cols-2 gap-4 md:grid-cols-3">
         <StatCard icon={<SteamIcon className="h-4 w-4" />} label="Origem" value="Fora da Steam" />
         <StatCard icon={<Calendar className="h-4 w-4" />} label="Adicionado em" value={added} />
         <StatCard
@@ -763,7 +763,7 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+    <div className="fx-lift reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
       <div className="mb-2 flex items-center gap-2 text-white/50">
         {icon}
         <span className="text-xs font-medium">{label}</span>
@@ -813,7 +813,7 @@ function OverviewTab({
       {details?.shortDescription && (
         <p className="max-w-3xl text-[15px] font-light leading-relaxed text-white/70">{details.shortDescription}</p>
       )}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="fx-stack grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           icon={<HardDrive className="h-4 w-4" />}
           label="Tamanho"
@@ -880,7 +880,7 @@ function OverviewTab({
       )}
 
       {(playFacts.length > 0 || storeFacts.length > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="fx-stack grid gap-4 md:grid-cols-2">
           {playFacts.length > 0 && <FactsCard title="Suas horas" icon={<Clock className="h-4 w-4" />} facts={playFacts} />}
           {storeFacts.length > 0 && (
             <FactsCard title="Curiosidades do jogo" icon={<Sparkles className="h-4 w-4" />} facts={storeFacts} />
@@ -901,7 +901,7 @@ function OverviewTab({
 
 function FactsCard({ title, icon, facts }: { title: string; icon: React.ReactNode; facts: string[] }) {
   return (
-    <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
+    <div className="fx-lift reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
       <div className="mb-3 flex items-center gap-2 text-white/60">
         <span className="theme-accent">{icon}</span>
         <span className="text-sm font-medium text-white/85">{title}</span>
@@ -1298,14 +1298,14 @@ function NewsTab({ loading, news }: { loading: boolean; news: NewsItem[] }) {
     );
   }
   return (
-    <div className="grid gap-3">
+    <div className="fx-stack grid gap-3">
       {news.map((n, i) => (
         <a
           key={i}
           href={n.url}
           target="_blank"
           rel="noreferrer"
-          className="reveal theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl transition-all hover:border-white/30 hover:bg-white/[0.08]"
+          className="fx-lift reveal theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl hover:border-white/30 hover:bg-white/[0.08]"
         >
           <div className="mb-2 flex items-center gap-3 text-xs font-light text-white/45">
             <Calendar className="h-3.5 w-3.5" />

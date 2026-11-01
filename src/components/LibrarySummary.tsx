@@ -42,7 +42,7 @@ export default function LibrarySummary({ stats }: { stats: LibraryStats }) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="reveal theme-glass relative min-w-0 overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-4 backdrop-blur-xl"
+          className="fx-lift reveal theme-glass relative min-w-0 overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-4 backdrop-blur-xl"
         >
           <div className="mb-1.5 flex items-center gap-2 text-white/50">
             {item.icon}

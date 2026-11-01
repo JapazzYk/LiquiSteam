@@ -329,12 +329,20 @@ export async function helperRemoveCustomGame(id: string): Promise<boolean> {
 // unsupported = helper antigo, sem essa função.
 export type CustomCommandResult = 'ok' | 'missing-file' | 'no-process' | 'failed' | 'unreachable' | 'unsupported';
 
+// Motivo da última falha, como o Windows descreveu (vem do Helper); vazio quando não houve.
+let lastCustomDetail = '';
+export function helperLastDetail(): string {
+  return lastCustomDetail;
+}
+
 async function customCommand(path: string): Promise<CustomCommandResult> {
+  lastCustomDetail = '';
   const response = await call(path, 'POST', 10000, false);
   if (!response) return 'unreachable';
   if (response.ok) return 'ok';
   try {
-    const data = (await response.json()) as { error?: string };
+    const data = (await response.json()) as { error?: string; detail?: string };
+    if (typeof data.detail === 'string') lastCustomDetail = data.detail.trim().slice(0, 240);
     if (data.error === 'missing-file') return 'missing-file';
     if (data.error === 'no-process' || data.error === 'unknown-game') return 'no-process';
     if (data.error === 'launch-failed' || data.error === 'internal') return 'failed';
