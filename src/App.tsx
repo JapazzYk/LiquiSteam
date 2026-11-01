@@ -19,7 +19,7 @@ import LibraryView from '@/components/LibraryView';
 import LibraryToolbar from '@/components/LibraryToolbar';
 import LibrarySummary from '@/components/LibrarySummary';
 import LayoutSwitch from '@/components/LayoutSwitch';
-import { useUiMotion } from '@/lib/iconDraw';
+import { useUiPulse } from '@/lib/pulse';
 import CollectionBar, { type CollectionFilter } from '@/components/CollectionBar';
 import GroupMenu from '@/components/GroupMenu';
 import ConnectingScreen from '@/components/ConnectingScreen';
@@ -100,7 +100,7 @@ export default function App() {
   const collectionsApi = useCollections(user?.steamId ?? null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
   // Aviso "entre com a Steam para usar favoritos e grupos".
-  useUiMotion();
+  useUiPulse();
   // O ícone de atualizar gira enquanto lê e só para ao completar a volta (sem corte seco).
   const [refreshSpinning, setRefreshSpinning] = useState(false);
   useEffect(() => {
@@ -925,7 +925,6 @@ export default function App() {
             <p className="text-sm text-white/85">Favoritos e grupos ficam disponíveis depois que você entra com a Steam.</p>
             <button
               type="button"
-              data-hover-fx
               onClick={() => {
                 setLockedNotice(false);
                 setSelectedGame(null);

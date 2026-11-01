@@ -2447,12 +2447,10 @@ a,
 
 /* ------------------------------------------------------------------ */
 /* Sistema de movimento                                                */
-/* Uma linguagem só para o site inteiro: limpa, sem zoom e sem saltos.  */
-/*  - tudo acontece no CLIQUE: o ícone é "redesenhado" (iconDraw.ts) e   */
-/*    o botão dá um toque curto de escala; passar o mouse só muda cor;   */
-/*  - tudo volta ao normal pela mesma curva suave, sem cortes secos;     */
-/*  - pulsos: anéis lentos e suaves (steam, "recente", favoritos);       */
-/*  - entradas: fade com deslize curto.                                  */
+/* Um efeito único para todos os botões: um PULSO leve (pulse.ts), um   */
+/* anel fino na cor de destaque que se abre e some, ao passar o mouse e */
+/* ao clicar. Sem subir, girar, crescer nem redesenhar ícones.          */
+/* Estados contínuos (ponto da Steam, "recente") usam o mesmo pulso.    */
 /* Mudou aqui, mudou em tudo.                                           */
 /* ------------------------------------------------------------------ */
 :root {
@@ -2493,25 +2491,11 @@ a,
 }
 
 
-/* ÍCONES: um efeito só, para todos (inclusive o X de fechar). O traço é redesenhado quando você clica (o atributo data-draw é posto por iconDraw.ts). */
-svg.lucide [pathLength] {
-  stroke-dasharray: 1.001 2;
-  stroke-dashoffset: 0;
-}
-
-:is(button, [role='button'], a[href], summary)[data-draw] svg.lucide [pathLength] {
-  animation: icon-draw 0.6s var(--ease-smooth);
-}
-
-@keyframes icon-draw {
-  from {
-    stroke-dashoffset: 1.001;
-    opacity: 0.25;
-  }
-  to {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
+/* Pulso único dos botões (pulse.ts): anel fino na cor de destaque ao passar o mouse e ao clicar. */
+.coll-confirm,
+.coll-cancel,
+.search-clear {
+  border-radius: 999px;
 }
 
 /* Atualizar: gira sem parar enquanto lê (e só para ao fechar a volta). */
@@ -2737,41 +2721,31 @@ button.coll-chip.coll-chip-drop {
 /* Ponto de status da Steam: acende (verde, com pulso lento) só com a Steam aberta; âmbar enquanto abre; apagado nos demais casos. */
 .steam-dot {
   position: absolute;
-  right: 10px;
-  top: 8px;
+  right: 9px;
+  top: 50%;
   z-index: 10;
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  margin-top: -3.5px;
+  border-radius: 50%;
   background: rgb(var(--ink) / 0.28);
-  box-shadow: 0 0 0 0 transparent;
   transition: background-color var(--t-slow) var(--ease-smooth), box-shadow var(--t-slow) var(--ease-smooth);
 }
 
 .steam-dot[data-state='running'] {
   background: rgb(var(--ok));
-  box-shadow: 0 0 8px 1px rgb(var(--ok) / 0.6);
-}
-
-.steam-dot[data-state='running']::after,
-.steam-dot[data-state='starting']::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  border: 1.5px solid rgb(var(--ok));
-  pointer-events: none;
-  animation: pulse-ring var(--pulse) ease-out infinite;
+  color: rgb(var(--ok));
 }
 
 .steam-dot[data-state='starting'] {
   background: rgb(var(--warn));
-  box-shadow: 0 0 8px 1px rgb(var(--warn) / 0.5);
+  color: rgb(var(--warn));
 }
 
-.steam-dot[data-state='starting']::after {
-  border-color: rgb(var(--warn));
-  animation-duration: 1.4s;
+/* Pulso do ponto: um anel que sai do centro do próprio ponto (box-shadow), sem pseudo-elemento nem recorte. */
+.steam-dot[data-state='running'],
+.steam-dot[data-state='starting'] {
+  animation: dot-pulse var(--pulse) ease-out infinite;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2842,12 +2816,12 @@ button.coll-chip.coll-chip-drop {
 }
 
 @keyframes dot-pulse {
-  0%,
-  100% {
+  0% {
     box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent);
   }
-  50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 0%, transparent);
+  70%,
+  100% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 0%, transparent);
   }
 }
 
@@ -2872,57 +2846,6 @@ button.coll-chip.coll-chip-drop {
 [data-skin='graphite'] .ginfo {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
-}
-
-/* ------------------------------------------------------------------ */
-/* Botões que somem depois do clique (fechar, cancelar, voltar...):    */
-/* como não dá tempo de ver a animação do clique, eles animam no hover. */
-/* ------------------------------------------------------------------ */
-:is(
-    button[aria-label^='Fechar'],
-    button[aria-label='Dispensar'],
-    button[aria-label='Limpar busca'],
-    button[aria-label='Cancelar'],
-    button[aria-label^='Voltar'],
-    .coll-chip-add,
-    .coll-confirm,
-    .coll-cancel,
-    [data-hover-fx]
-  ) {
-  transition: transform var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
-    color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
-    border-color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
-}
-
-:is(
-    button[aria-label^='Fechar'],
-    button[aria-label='Dispensar'],
-    button[aria-label='Limpar busca'],
-    button[aria-label='Cancelar'],
-    button[aria-label^='Voltar'],
-    .coll-chip-add,
-    .coll-confirm,
-    .coll-cancel,
-    [data-hover-fx]
-  ):hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(var(--accent-rgb), 0.2);
-}
-
-:is(
-    button[aria-label^='Fechar'],
-    button[aria-label='Dispensar'],
-    button[aria-label='Limpar busca'],
-    button[aria-label='Cancelar'],
-    button[aria-label^='Voltar'],
-    .coll-chip-add,
-    .coll-confirm,
-    .coll-cancel,
-    [data-hover-fx]
-  ):hover:not(:disabled)
-  svg.lucide
-  [pathLength] {
-  animation: icon-draw 0.6s var(--ease-smooth);
 }
 
 /* ------------------------------------------------------------------ */
@@ -2970,8 +2893,7 @@ button.coll-chip.coll-chip-drop {
   :where(button, [role='button'], a[href], summary, label, select, input, textarea),
   .coll-btn::before,
   .coll-chip-flash::after,
-  .steam-dot::after,
-  svg.lucide [pathLength] {
+  .steam-dot::after {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
@@ -2981,8 +2903,7 @@ button.coll-chip.coll-chip-drop {
 [data-motion='none'] :where(button, [role='button'], a[href], summary, label, select, input, textarea),
 [data-motion='none'] .coll-btn::before,
 [data-motion='none'] .coll-chip-flash::after,
-[data-motion='none'] .steam-dot::after,
-[data-motion='none'] svg.lucide [pathLength] {
+[data-motion='none'] .steam-dot::after {
   animation: none !important;
   transition-duration: 0.01ms !important;
 }

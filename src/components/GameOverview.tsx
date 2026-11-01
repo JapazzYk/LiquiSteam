@@ -329,7 +329,7 @@ export default function GameOverview({
               title="Trailers e imagens"
               icon={<Clapperboard className="h-4 w-4" />}
               action={
-                <button type="button" onClick={() => onJump('media')} data-hover-fx className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
+                <button type="button" onClick={() => onJump('media')} className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
                   Ver tudo ({media})
                 </button>
               }
@@ -340,7 +340,6 @@ export default function GameOverview({
                     type="button"
                     onClick={() => onJump('media')}
                     aria-label="Abrir os trailers"
-                    data-hover-fx
                     className="media-tile relative col-span-2 aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40 sm:row-span-2 sm:aspect-auto"
                   >
                     {details.movies[0].thumbnail && (
@@ -364,7 +363,6 @@ export default function GameOverview({
                       type="button"
                       onClick={() => onJump('media')}
                       aria-label="Abrir as imagens"
-                      data-hover-fx
                       className="media-tile relative aspect-video overflow-hidden rounded-xl border border-white/10 bg-black/40"
                     >
                       <img src={shot.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -450,7 +448,7 @@ export default function GameOverview({
               title="Últimas notícias"
               icon={<Newspaper className="h-4 w-4" />}
               action={
-                <button type="button" onClick={() => onJump('news')} data-hover-fx className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
+                <button type="button" onClick={() => onJump('news')} className="rounded-full px-2 py-1 text-xs text-white/55 hover:text-white">
                   Ver todas
                 </button>
               }

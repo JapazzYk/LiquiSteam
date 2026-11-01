@@ -89,7 +89,6 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
           <div className="detail-rise mt-8 grid gap-3" style={stagger(760)}>
             <button
               type="button"
-              data-hover-fx
               onClick={() => {
                 window.location.href = steamLoginUrl();
               }}
@@ -100,7 +99,6 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
             </button>
             <button
               type="button"
-              data-hover-fx
               onClick={onContinue}
               className="h-11 w-full rounded-xl text-sm text-white/65 transition-colors hover:text-white"
             >
@@ -113,7 +111,6 @@ export default function WelcomeScreen({ closing, onContinue, onNeverShow }: Welc
           </p>
           <button
             type="button"
-            data-hover-fx
             onClick={onNeverShow}
             className="detail-rise mt-3 text-[11px] text-white/35 underline underline-offset-2 transition-colors hover:text-white/70"
             style={stagger(900)}
