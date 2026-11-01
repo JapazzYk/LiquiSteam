@@ -194,7 +194,15 @@ function toHttps(url: string): string {
 function normalizeDetails(data: GameDetails): GameDetails {
   return {
     ...data,
-    shortDescription: looksForeign(data.shortDescription) ? '' : data.shortDescription,
+    shortDescription: looksForeign(data.shortDescription) ? '' : (data.shortDescription ?? ''),
+    // Listas e campos que versões antigas da função do Supabase podem não enviar.
+    developers: data.developers ?? [],
+    publishers: data.publishers ?? [],
+    genres: data.genres ?? [],
+    categories: data.categories ?? [],
+    languages: data.languages ?? '',
+    releaseDate: data.releaseDate ?? '',
+    platforms: data.platforms ?? { windows: false, mac: false, linux: false },
     // Poucos trailers: os 3 primeiros bastam, o resto só poluiria a aba de mídia.
     movies: (data.movies ?? []).slice(0, 3).map((m) => ({
       ...m,

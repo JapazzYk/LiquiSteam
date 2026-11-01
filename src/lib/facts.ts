@@ -1,5 +1,5 @@
 import type { InstalledGame } from '@/types';
-import type { GameDetails, PlaytimeEntry } from '@/lib/steamMeta';
+import type { PlaytimeEntry } from '@/lib/steamMeta';
 
 // "48 h", "1,5 h", "35 min".
 export function formatHours(minutes: number): string {
@@ -93,45 +93,6 @@ export function playtimeFacts(
     else if (days === 1) facts.push('Você jogou ontem.');
     else if (days < 60) facts.push(`Faz ${days} dias desde a última vez que você jogou.`);
     else facts.push(`Faz ${Math.round(days / 30)} meses desde a última vez que você jogou.`);
-  }
-  return facts;
-}
-
-// Curiosidades sobre o jogo, vindas da loja da Steam.
-export function gameFacts(details: GameDetails): string[] {
-  const facts: string[] = [];
-  if (details.releaseDate) {
-    facts.push(details.comingSoon ? `Lançamento previsto: ${details.releaseDate}.` : `Lançado em ${details.releaseDate}.`);
-  }
-  if (details.developers.length > 0) {
-    const publisher = details.publishers.find((p) => !details.developers.includes(p));
-    facts.push(
-      `Desenvolvido por ${details.developers.slice(0, 2).join(' e ')}${publisher ? `, publicado por ${publisher}` : ''}.`
-    );
-  }
-  if (details.genres.length > 0) facts.push(`Gêneros: ${details.genres.slice(0, 4).join(', ')}.`);
-  if (details.metacritic !== null) facts.push(`Nota da crítica no Metacritic: ${details.metacritic}.`);
-  if (details.recommendations !== null && details.recommendations > 0) {
-    facts.push(`${details.recommendations.toLocaleString('pt-BR')} jogadores recomendaram o jogo na Steam.`);
-  }
-  if (details.achievements !== null && details.achievements > 0) {
-    facts.push(`Tem ${details.achievements} conquistas para desbloquear.`);
-  }
-  if (details.languages) {
-    facts.push(
-      /portugu[eê]s\s*-\s*brasil/i.test(details.languages)
-        ? 'Tem tradução para o português do Brasil.'
-        : 'Não tem tradução oficial para o português do Brasil.'
-    );
-  }
-  if (details.controllerSupport === 'full') facts.push('Tem suporte completo a controle.');
-  if (details.dlcCount > 0) facts.push(`Tem ${details.dlcCount} ${plural(details.dlcCount, 'conteúdo extra', 'conteúdos extras')} (DLC).`);
-  if (details.price) {
-    facts.push(
-      details.price.free
-        ? 'É gratuito.'
-        : `Preço atual na loja: ${details.price.final}${details.price.discount > 0 ? ` (${details.price.discount}% de desconto)` : ''}.`
-    );
   }
   return facts;
 }

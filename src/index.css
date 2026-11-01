@@ -2448,8 +2448,8 @@ a,
 /* ------------------------------------------------------------------ */
 /* Sistema de movimento                                                */
 /* Uma linguagem só para o site inteiro: limpa, sem zoom e sem saltos.  */
-/*  - ícones: o traço é "redesenhado" (iconDraw.ts) ao passar o mouse;   */
-/*  - botões: sobem 2 px e, ao clicar, dão um toque curto de escala;     */
+/*  - tudo acontece no CLIQUE: o ícone é "redesenhado" (iconDraw.ts) e   */
+/*    o botão dá um toque curto de escala; passar o mouse só muda cor;   */
 /*  - tudo volta ao normal pela mesma curva suave, sem cortes secos;     */
 /*  - pulsos: anéis lentos e suaves (steam, "recente", favoritos);       */
 /*  - entradas: fade com deslize curto.                                  */
@@ -2485,11 +2485,6 @@ a,
     background-color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
 }
 
-.icon-btn:hover:not(:disabled),
-.fx-press:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.18);
-}
 
 /* Cartões e linhas clicáveis (resumo, estatísticas, notícias): sobem de leve. */
 .fx-lift {
@@ -2497,18 +2492,14 @@ a,
     border-color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth);
 }
 
-.fx-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-}
 
-/* ÍCONES: um efeito só, para todos (inclusive o X de fechar). O traço é redesenhado ao passar o mouse ou focar. */
+/* ÍCONES: um efeito só, para todos (inclusive o X de fechar). O traço é redesenhado quando você clica (o atributo data-draw é posto por iconDraw.ts). */
 svg.lucide [pathLength] {
   stroke-dasharray: 1.001 2;
   stroke-dashoffset: 0;
 }
 
-:is(button, [role='button'], a[href], summary):is(:hover, :focus-visible) svg.lucide [pathLength] {
+:is(button, [role='button'], a[href], summary)[data-draw] svg.lucide [pathLength] {
   animation: icon-draw 0.6s var(--ease-smooth);
 }
 
@@ -2584,19 +2575,11 @@ svg.lucide [pathLength] {
     color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth);
 }
 
-.layout-switch button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
 /* Favoritos: o botão acende com fade; a estrela se preenche e solta um anel suave. */
 .coll-btn {
   position: relative;
   transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
     transform var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth);
-}
-
-.coll-btn:hover {
-  transform: translateY(-1px);
 }
 
 .coll-btn svg.star-fill,
@@ -2632,10 +2615,6 @@ svg.lucide [pathLength] {
     opacity var(--t-base) var(--ease-smooth);
 }
 
-button.coll-chip:hover {
-  transform: translateY(-2px);
-}
-
 .coll-chip-drop,
 button.coll-chip.coll-chip-drop {
   transform: translateY(-2px);
@@ -2645,10 +2624,6 @@ button.coll-chip.coll-chip-drop {
 .coll-mini {
   transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
     background-color var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth);
-}
-
-.coll-mini:hover {
-  transform: translateY(-2px);
 }
 
 .coll-chip-edit {
@@ -2715,7 +2690,6 @@ button.coll-chip.coll-chip-drop {
 }
 
 .search-bar:focus-within {
-  transform: translateY(-1px);
   box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.14), 0 10px 28px rgba(var(--accent-rgb), 0.18);
 }
 
@@ -2810,37 +2784,7 @@ button.coll-chip.coll-chip-drop {
 }
 
 .game-card-chips,
-.game-card-genres {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  overflow: hidden;
-  white-space: nowrap;
-  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
-  mask-image: linear-gradient(90deg, #000 88%, transparent);
-  transition: opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth);
-}
-
-.game-card-genres {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
 /* Com o mouse sobre o cartão, os chips dão lugar aos gêneros do jogo. */
-.game-card:hover [data-genres] .game-card-chips,
-.game-card:focus-visible [data-genres] .game-card-chips {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.game-card:hover [data-genres] .game-card-genres,
-.game-card:focus-visible [data-genres] .game-card-genres {
-  opacity: 1;
-  transform: none;
-}
-
 .gchip {
   display: inline-flex;
   flex: none;
@@ -2881,20 +2825,6 @@ button.coll-chip.coll-chip-drop {
   color: rgb(var(--ink) / 0.6);
 }
 
-.gchip-genre {
-  background: rgba(var(--accent-rgb), 0.1);
-  border-color: rgba(var(--accent-rgb), 0.25);
-  color: rgb(var(--ink) / 0.85);
-}
-
-.gchip-dot {
-  position: relative;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
 .gchip-dot::after {
   content: '';
   position: absolute;
@@ -2905,31 +2835,32 @@ button.coll-chip.coll-chip-drop {
 }
 
 /* Barra do tempo de jogo, na base da capa: quanto este jogo pesa no seu tempo total. */
-.game-card-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 4;
-  height: 3px;
-  background: rgb(var(--ink) / 0.18);
-  pointer-events: none;
-}
-
-.game-card-bar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  transform-origin: left center;
-  transform: scaleX(var(--p, 0));
-  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.55), var(--accent-color));
-  animation: bar-grow 0.9s var(--ease-smooth) backwards;
-}
-
 @keyframes bar-grow {
   from {
     transform: scaleX(0);
   }
+}
+
+.tile-bar {
+  transform-origin: left center;
+  animation: bar-grow 0.9s var(--ease-smooth) backwards;
+}
+
+.ring-fill {
+  animation: ring-in 1.1s var(--ease-smooth) backwards;
+}
+
+@keyframes ring-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+/* Barra de abas da janela do jogo: acompanha a rolagem. */
+.detail-tabs {
+  background: rgb(var(--surface) / 0.9);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 [data-skin='arcade'] .gchip {
@@ -2957,7 +2888,7 @@ button.coll-chip.coll-chip-drop {
 
 /* Sem animação quando o sistema pede menos movimento ou o estilo "Nenhuma" está escolhido. */
 @media (prefers-reduced-motion: reduce) {
-  :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .game-card-genres, .gchip-dot, .game-card-bar::after),
+  :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .gchip-dot, .tile-bar, .ring-fill),
   :where(button, [role='button'], a[href], summary, label, select, input, textarea),
   .coll-btn::before,
   .coll-chip-flash::after,
@@ -2969,7 +2900,7 @@ button.coll-chip.coll-chip-drop {
   }
 }
 
-[data-motion='none'] :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .game-card-genres, .gchip-dot, .game-card-bar::after),
+[data-motion='none'] :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .gchip-dot, .tile-bar, .ring-fill),
 [data-motion='none'] :where(button, [role='button'], a[href], summary, label, select, input, textarea),
 [data-motion='none'] .coll-btn::before,
 [data-motion='none'] .coll-chip-flash::after,

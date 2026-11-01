@@ -19,13 +19,13 @@ import {
   Save,
   Gamepad2 as SteamIcon,
   Power,
-  Sparkles,
   Clapperboard,
   ChevronLeft,
   ChevronRight,
   Download,
 } from 'lucide-react';
 import CollectionButtons from '@/components/CollectionButtons';
+import GameOverview, { HeroMeta } from '@/components/GameOverview';
 import type { InstalledGame, SteamUser, GameNote, AchievementSummary, NewsItem } from '@/types';
 import type { SteamStatus } from '@/lib/useSteamStatus';
 import { launchGame } from '@/lib/steamLaunch';
@@ -40,7 +40,7 @@ import {
   type GameDetails,
   type PlaytimeEntry,
 } from '@/lib/steamMeta';
-import { gameFacts, playtimeFacts } from '@/lib/facts';
+import { playtimeFacts } from '@/lib/facts';
 import { loadNote, saveNote } from '@/lib/notes';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
 import type { OpenOrigin } from '@/lib/openOrigin';
@@ -402,7 +402,18 @@ export default function GameDetail({
   // Se o estado não mudar a tempo, volta ao normal.
   useEffect(() => {
     if (!gameBusy) return;
-    const timer = window.setTimeout(() => setGameBusy(null), gameBusy === 'launching' ? 40000 : 15000);
+    const timer = window.setTimeout(
+      () => {
+        setGameBusy(null);
+        // Jogo de fora da Steam: o Helper pediu ao Windows, mas o jogo não apareceu aberto.
+        if (gameBusy === 'launching' && isCustom) {
+          setStopError(
+            'O Windows aceitou o pedido, mas não vi o jogo aberto. Se a janela do jogo abriu, pode ignorar este aviso (alguns jogos abrem por outro programa e o LiquiSteam não consegue saber). Se nada abriu, tente abrir o .exe direto pelo Windows para ver o motivo: ele pode pedir permissão de administrador ou estar bloqueado pelo antivírus.'
+          );
+        }
+      },
+      gameBusy === 'launching' ? (isCustom ? 12000 : 40000) : 15000
+    );
     return () => window.clearTimeout(timer);
   }, [gameBusy]);
 
@@ -469,10 +480,12 @@ export default function GameDetail({
     }
   };
 
-  const achPct =
-    achievements && achievements.total > 0
-      ? Math.round((achievements.achieved / achievements.total) * 100)
-      : 0;
+  const mediaCount = (details?.movies.length ?? 0) + (details?.screenshots?.length ?? 0);
+  let libraryTotalMinutes = 0;
+  playtimes?.forEach((entry) => {
+    libraryTotalMinutes += entry.forever;
+  });
+
 
   closeRef.current = requestClose;
 
@@ -504,7 +517,7 @@ export default function GameDetail({
       >
         {/* Hero: full game art */}
         <div
-          className="detail-hero relative h-[42vh] min-h-[300px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]"
+          className="detail-hero relative h-[50vh] min-h-[360px] w-full shrink-0 overflow-hidden md:rounded-t-[32px]"
           data-fit={heroFit}
           style={artBackdrop(artworkSource) as CSSProperties}
         >
@@ -526,12 +539,24 @@ export default function GameDetail({
 
           {/* Title + run */}
           <div className="absolute inset-x-0 bottom-0 px-6 pb-6 md:px-10 md:pb-8">
+            <p className="detail-rise mb-2 text-xs font-medium uppercase tracking-[0.18em] text-white/60" style={stagger(120)}>
+              {game.custom
+                ? 'Jogo fora da Steam'
+                : details?.developers[0]
+                  ? details.developers[0]
+                  : game.unowned
+                    ? 'Loja da Steam'
+                    : 'Biblioteca Steam'}
+            </p>
             <h2
-              className="detail-rise mb-4 max-w-3xl text-3xl font-semibold tracking-[-0.03em] hero-title text-white md:text-5xl"
+              className="detail-rise mb-3 max-w-3xl text-3xl font-semibold tracking-[-0.03em] hero-title text-white md:text-5xl"
               style={stagger(180)}
             >
               {game.name}
             </h2>
+            <div className="detail-rise" style={stagger(220)}>
+              <HeroMeta game={game} details={details} loading={loadingDetails} />
+            </div>
             <div className="detail-rise flex flex-wrap items-center gap-3" style={stagger(260)}>
               {game.unowned ? (
                 <a
@@ -633,7 +658,7 @@ export default function GameDetail({
         {/* Tabs + content */}
         <div className="mx-auto w-full flex-1 px-6 py-6 md:px-10 md:py-8">
           <div
-            className="detail-rise mb-7 flex gap-5 overflow-x-auto border-b border-white/10 pb-px"
+            className="detail-rise detail-tabs sticky top-0 z-20 -mx-6 mb-7 flex gap-5 overflow-x-auto border-b border-white/10 px-6 pb-px pr-20 md:-mx-10 md:px-10 md:pr-24"
             style={stagger(340)}
           >
             <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={<HardDrive className="h-4 w-4" />}>
@@ -641,16 +666,42 @@ export default function GameDetail({
             </TabButton>
             {!isCustom && (
               <>
-                <TabButton active={tab === 'media'} onClick={() => setTab('media')} icon={<Clapperboard className="h-4 w-4" />}>
+                <TabButton
+                  active={tab === 'media'}
+                  onClick={() => setTab('media')}
+                  icon={<Clapperboard className="h-4 w-4" />}
+                  badge={mediaCount > 0 ? String(mediaCount) : undefined}
+                >
                   Mídia
                 </TabButton>
-                <TabButton active={tab === 'achievements'} onClick={() => setTab('achievements')} icon={<Trophy className="h-4 w-4" />}>
+                <TabButton
+                  active={tab === 'achievements'}
+                  onClick={() => setTab('achievements')}
+                  icon={<Trophy className="h-4 w-4" />}
+                  badge={
+                    achievements && achievements.total > 0
+                      ? achievements.hasPersonal
+                        ? `${achievements.achieved}/${achievements.total}`
+                        : String(achievements.total)
+                      : undefined
+                  }
+                >
                   Conquistas
                 </TabButton>
-                <TabButton active={tab === 'news'} onClick={() => setTab('news')} icon={<Newspaper className="h-4 w-4" />}>
+                <TabButton
+                  active={tab === 'news'}
+                  onClick={() => setTab('news')}
+                  icon={<Newspaper className="h-4 w-4" />}
+                  badge={news.length > 0 ? String(news.length) : undefined}
+                >
                   Atualizações
                 </TabButton>
-                <TabButton active={tab === 'notes'} onClick={() => setTab('notes')} icon={<StickyNote className="h-4 w-4" />}>
+                <TabButton
+                  active={tab === 'notes'}
+                  onClick={() => setTab('notes')}
+                  icon={<StickyNote className="h-4 w-4" />}
+                  badge={note?.content?.trim() ? '•' : undefined}
+                >
                   Anotações
                 </TabButton>
               </>
@@ -660,17 +711,20 @@ export default function GameDetail({
           <div key={tab} className="fx-in">
           {tab === 'overview' && isCustom && <CustomOverview game={game} onEdit={() => onEditCustom(game)} />}
           {tab === 'overview' && !isCustom && (
-            <OverviewTab
+            <GameOverview
               game={game}
-              achPct={achPct}
+              details={details}
+              loadingDetails={loadingDetails}
               achievements={achievements}
               playtimeMinutes={playtimeMinutes}
               loadingPlaytime={loadingPlaytime}
+              entry={playtimes?.get(game.appid)}
+              libraryTotalMinutes={libraryTotalMinutes}
               hasSync={!!(user && hasKey)}
-              details={details}
               playFacts={playtimes ? playtimeFacts(game, playtimes, libraryGames) : []}
-              storeFacts={details ? gameFacts(details) : []}
+              news={news}
               lastPlayed={game.unowned || !playtimes ? null : (playtimes.get(game.appid)?.lastPlayed ?? 0)}
+              onJump={(next) => setTab(next)}
             />
           )}
           {tab === 'achievements' && (
@@ -702,11 +756,13 @@ function TabButton({
   active,
   onClick,
   icon,
+  badge,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
+  badge?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -718,6 +774,15 @@ function TabButton({
     >
       {icon}
       {children}
+      {badge && (
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+            active ? 'bg-[rgba(var(--accent-rgb),0.2)] text-white' : 'bg-white/10 text-white/55'
+          }`}
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
@@ -782,150 +847,6 @@ function StatCard({
   );
 }
 
-function OverviewTab({
-  game,
-  achPct,
-  achievements,
-  playtimeMinutes,
-  loadingPlaytime,
-  hasSync,
-  details,
-  playFacts,
-  storeFacts,
-  lastPlayed,
-}: {
-  game: InstalledGame;
-  achPct: number;
-  achievements: AchievementSummary | null;
-  playtimeMinutes: number | null;
-  loadingPlaytime: boolean;
-  hasSync: boolean;
-  details: GameDetails | null;
-  playFacts: string[];
-  storeFacts: string[];
-  // Última sessão (segundos desde 1970): 0 = nunca jogado, null = sem informação.
-  lastPlayed: number | null;
-}) {
-  const size = game.size_on_disk ? formatSize(game.size_on_disk) : '—';
-  const playtime =
-    playtimeMinutes != null
-      ? formatPlaytime(playtimeMinutes)
-      : loadingPlaytime
-        ? 'Sincronizando…'
-        : '—';
-
-  return (
-    <div className="space-y-5">
-      {details?.shortDescription && (
-        <p className="max-w-3xl text-[15px] font-light leading-relaxed text-white/70">{details.shortDescription}</p>
-      )}
-      <div className="fx-stack grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard
-          icon={<HardDrive className="h-4 w-4" />}
-          label="Tamanho"
-          value={size}
-        />
-        <StatCard
-          icon={<Clock className="h-4 w-4" />}
-          label="Tempo de jogo"
-          value={playtime}
-          accent={playtimeMinutes != null ? 'theme-accent' : 'text-white/60'}
-        />
-        <StatCard
-          icon={<Calendar className="h-4 w-4" />}
-          label="Última sessão"
-          value={lastPlayed === null ? '—' : lastPlayed > 0 ? formatAgo(lastPlayed * 1000) : 'Nunca jogado'}
-          hint={lastPlayed !== null && lastPlayed > 0 ? formatDateTime(lastPlayed * 1000) : undefined}
-          accent={lastPlayed ? 'theme-accent' : 'text-white/60'}
-        />
-        <StatCard
-          icon={<Trophy className="h-4 w-4" />}
-          label="Conquistas"
-          value={
-            achievements?.hasPersonal
-              ? `${achievements.achieved}/${achievements.total}`
-              : achievements
-                ? `${achievements.total} disponíveis`
-                : '—'
-          }
-          accent={achievements?.hasPersonal ? 'theme-accent' : 'text-white/60'}
-        />
-        <StatCard
-          icon={<SteamIcon className="h-4 w-4" />}
-          label="App ID"
-          value={String(game.appid)}
-        />
-      </div>
-
-      {achievements && achievements.total > 0 && achievements.hasPersonal && (
-        <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-white/80">Progresso de conquistas</span>
-            <span className="text-sm font-light text-white/55">{achPct}%</span>
-          </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-[var(--accent-color)] transition-all"
-              style={{ width: `${achPct}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {!hasSync && (
-        <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
-          Seu tempo de jogo e suas conquistas pessoais ainda não aparecem aqui. Para mostrá-los, entre com a Steam e
-          cole a sua chave da Steam na tela de conta (é grátis e só permite leitura).
-        </div>
-      )}
-      {hasSync && achievements && !achievements.hasPersonal && (
-        <div className="rounded-2xl notice-warn border p-4 text-sm font-light leading-relaxed">
-          A Steam não liberou suas conquistas pessoais. Verifique se seu perfil e os detalhes dos jogos
-          estão públicos nas configurações de privacidade da Steam.
-        </div>
-      )}
-
-      {(playFacts.length > 0 || storeFacts.length > 0) && (
-        <div className="fx-stack grid gap-4 md:grid-cols-2">
-          {playFacts.length > 0 && <FactsCard title="Suas horas" icon={<Clock className="h-4 w-4" />} facts={playFacts} />}
-          {storeFacts.length > 0 && (
-            <FactsCard title="Curiosidades do jogo" icon={<Sparkles className="h-4 w-4" />} facts={storeFacts} />
-          )}
-        </div>
-      )}
-
-      <div className="reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
-        <p className="text-sm font-light leading-relaxed text-white/60">
-          Clique em <span className="font-medium text-white">Executar</span> para iniciar o jogo
-          pela Steam. A Steam precisa estar aberta em segundo plano — use o botão
-          <span className="font-medium text-white"> Abrir Steam</span> no topo do app.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function FactsCard({ title, icon, facts }: { title: string; icon: React.ReactNode; facts: string[] }) {
-  return (
-    <div className="fx-lift reveal theme-glass relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl">
-      <div className="mb-3 flex items-center gap-2 text-white/60">
-        <span className="theme-accent">{icon}</span>
-        <span className="text-sm font-medium text-white/85">{title}</span>
-      </div>
-      <ul className="grid gap-2">
-        {facts.map((fact) => (
-          <li key={fact} className="flex gap-2.5 text-sm font-light leading-relaxed text-white/65">
-            <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--accent-color)]" />
-            <span>{fact}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// Mídia do jogo, como na loja da Steam: um visualizador grande (o trailer principal primeiro, depois as
-// imagens) e uma faixa de miniaturas embaixo. Os arquivos tocam e aparecem do próprio servidor da Steam.
 type MediaItem =
   | { type: 'video'; id: string; name: string; url: string; hls: boolean; poster: string }
   | { type: 'image'; id: string; thumb: string; full: string };
@@ -1402,17 +1323,4 @@ function EmptyState({
   );
 }
 
-function formatSize(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = bytes / (1024 * 1024);
-  return `${Math.round(mb)} MB`;
-}
 
-function formatPlaytime(minutes: number): string {
-  if (minutes <= 0) return '0h';
-  const hours = minutes / 60;
-  if (hours < 1) return `${minutes}min`;
-  if (hours < 100) return `${hours.toFixed(1)}h`;
-  return `${Math.round(hours).toLocaleString('pt-BR')}h`;
-}

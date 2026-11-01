@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { InstalledGame } from '@/types';
 import type { LayoutId } from '@/lib/theme';
@@ -40,14 +39,6 @@ export default function LibraryView({
   const entryOf = (game: InstalledGame) => (playtimes && !game.custom ? playtimes.get(game.appid) : undefined);
   const isRunning = (game: InstalledGame) =>
     game.custom ? !!game.customId && !!customRunning?.includes(game.customId) : !!runningAppId && runningAppId === game.appid;
-  // Maior tempo de jogo da conta, para a barra de cada cartão.
-  const maxMinutes = useMemo(() => {
-    let max = 0;
-    playtimes?.forEach((entry) => {
-      if (entry.forever > max) max = entry.forever;
-    });
-    return max;
-  }, [playtimes]);
 
   if (loading && games.length === 0) return <LibrarySkeleton layout={layout} />;
 
@@ -84,7 +75,6 @@ export default function LibraryView({
                 index={index}
                 onOpen={onOpen}
                 entry={entryOf(game)}
-                maxMinutes={maxMinutes}
                 running={isRunning(game)}
                 trailerPreview={trailerPreview}
               />
@@ -104,7 +94,6 @@ export default function LibraryView({
                 index={index}
                 onOpen={onOpen}
                 entry={entryOf(game)}
-                maxMinutes={maxMinutes}
                 running={isRunning(game)}
                 trailerPreview={trailerPreview}
               />

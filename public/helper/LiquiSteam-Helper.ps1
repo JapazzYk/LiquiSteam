@@ -491,6 +491,12 @@ function Open-WithShell([string]$exe, [string]$folder, [bool]$elevate) {
     if ($proc) { $proc.Dispose() }
 }
 
+# Junta o motivo de cada tentativa que falhou (o site mostra tudo para a pessoa).
+function Add-LaunchDetail([string]$step, $info) {
+    $text = $step + ': ' + $info.message
+    if ($script:launchDetail) { $script:launchDetail = $script:launchDetail + ' | ' + $text } else { $script:launchDetail = $text }
+}
+
 # Mensagem do erro de verdade e se foi a pessoa que cancelou o aviso do Windows (codigo 1223).
 function Get-FailureInfo($errorRecord) {
     $ex = $errorRecord.Exception
@@ -511,7 +517,7 @@ function Start-CustomGame([string]$id) {
         return 'ok'
     } catch {
         $info = Get-FailureInfo $_
-        $script:launchDetail = $info.message
+        Add-LaunchDetail 'duplo clique' $info
         if ($info.cancelled) { return 'launch-failed' }
     }
     try {
@@ -519,7 +525,7 @@ function Start-CustomGame([string]$id) {
         return 'ok'
     } catch {
         $info = Get-FailureInfo $_
-        $script:launchDetail = $info.message
+        Add-LaunchDetail 'administrador' $info
         if ($info.cancelled) { return 'launch-failed' }
     }
     try {
@@ -527,15 +533,16 @@ function Start-CustomGame([string]$id) {
         return 'ok'
     } catch {
         $info = Get-FailureInfo $_
-        $script:launchDetail = $info.message
+        Add-LaunchDetail 'explorer' $info
     }
     try {
         Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'start', '""', ('"' + $game.exe + '"')) -WindowStyle Hidden -ErrorAction Stop
         return 'ok'
     } catch {
         $info = Get-FailureInfo $_
-        $script:launchDetail = $info.message
+        Add-LaunchDetail 'cmd' $info
     }
+    $script:launchDetail = $script:launchDetail + ' | arquivo: ' + $game.exe
     return 'launch-failed'
 }
 
@@ -631,7 +638,7 @@ function Handle-Request($context) {
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
         $custom = @(Get-RunningCustomIds)
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 10; steam = $steamState; game = $game; custom = $custom }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 11; steam = $steamState; game = $game; custom = $custom }
         return
     }
 

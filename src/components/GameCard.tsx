@@ -19,8 +19,6 @@ interface GameCardProps {
   onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
   // Tempo de jogo da Steam para este jogo (undefined = sem informação).
   entry?: PlaytimeEntry;
-  // Maior tempo de jogo da biblioteca: a barra do cartão mostra quanto este jogo representa dele.
-  maxMinutes?: number;
   // O jogo está aberto agora.
   running?: boolean;
   // Passar o mouse toca uma prévia do trailer.
@@ -32,7 +30,7 @@ const artworkIndexCache = new Map<number, number>();
 
 // A aparência do cartão (moldura, capa, legenda, movimento) vem do tema ativo,
 // em src/index.css. Aqui fica só a estrutura.
-export default function GameCard({ game, index, onOpen, entry, maxMinutes = 0, running = false, trailerPreview = false }: GameCardProps) {
+export default function GameCard({ game, index, onOpen, entry, running = false, trailerPreview = false }: GameCardProps) {
   // Jogo de fora da Steam: só a capa escolhida; nada é pedido à Steam.
   const artwork = game.custom
     ? uniqueUrls([game.library_image])
@@ -45,19 +43,15 @@ export default function GameCard({ game, index, onOpen, entry, maxMinutes = 0, r
   const [slides, setSlides] = useState<{ urls: string[]; index: number } | null>(null);
   const slideTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
-  // Gêneros do jogo: aparecem no lugar dos chips quando o mouse fica sobre o cartão.
-  const [genres, setGenres] = useState<string[]>([]);
   const collectionsUi = useCollectionsUi();
 
   // Prévia do trailer: só com mouse, depois de uma pausa, e uma vez por jogo (os detalhes ficam em cache).
   const startPreview = (event: PointerEvent<HTMLButtonElement>) => {
-    if (game.custom || event.pointerType !== 'mouse') return;
+    if (!trailerPreview || game.custom || event.pointerType !== 'mouse') return;
     if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
     hoverTimer.current = window.setTimeout(() => {
       void fetchGameDetails(game.appid).then((details) => {
         if (hoverTimer.current === null) return;
-        if (details?.genres.length) setGenres(details.genres.slice(0, 3));
-        if (!trailerPreview) return;
         const url = previewVideoUrl(details?.movies[0]);
         if (url) {
           setVideo({ url, ready: false });
@@ -178,13 +172,6 @@ export default function GameCard({ game, index, onOpen, entry, maxMinutes = 0, r
             </div>
           )}
           <div className="game-card-shade" />
-          {(entry?.forever ?? 0) > 0 && maxMinutes > 0 && (
-            <span
-              className="game-card-bar"
-              aria-hidden
-              style={{ '--p': Math.min(1, Math.sqrt((entry?.forever ?? 0) / maxMinutes)) } as CSSProperties}
-            />
-          )}
           <CollectionButtons appid={game.appid} className="game-card-coll" />
           <span className="game-card-rank" aria-hidden>
             {String(index + 1).padStart(2, '0')}
@@ -197,19 +184,10 @@ export default function GameCard({ game, index, onOpen, entry, maxMinutes = 0, r
 
         <div className="game-card-meta">
           <h3 className="game-card-title">{game.name}</h3>
-          <div className="game-card-chipbox" data-genres={genres.length > 0 ? '' : undefined}>
+          <div className="game-card-chipbox">
             <div className="game-card-chips">
               <GameChips game={game} entry={entry} running={running} />
             </div>
-            {genres.length > 0 && (
-              <div className="game-card-genres" aria-hidden>
-                {genres.map((genre) => (
-                  <span key={genre} className="gchip gchip-genre">
-                    {genre}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 

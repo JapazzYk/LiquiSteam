@@ -120,7 +120,7 @@ async function call(
 // Estado lido do helper. game = AppID do jogo em execução (0 = nenhum); null quando o helper é de uma
 // versão antiga, que ainda não informa o jogo.
 // Versão mais nova do Helper (o número vem do script em public/helper). Sobe a cada mudança no script.
-export const CURRENT_HELPER_VERSION = 10;
+export const CURRENT_HELPER_VERSION = 11;
 
 // Versão do Helper que respondeu por último (null = nenhuma resposta, ou Helper antigo que não informa).
 let lastHelperVersion: number | null = null;
@@ -352,7 +352,7 @@ async function customCommand(path: string): Promise<CustomCommandResult> {
   if (response.ok) return 'ok';
   try {
     const data = (await response.json()) as { error?: string; detail?: string };
-    if (typeof data.detail === 'string') lastCustomDetail = data.detail.trim().slice(0, 240);
+    if (typeof data.detail === 'string') lastCustomDetail = data.detail.trim().slice(0, 500);
     if (data.error === 'missing-file') return 'missing-file';
     if (data.error === 'no-process' || data.error === 'unknown-game') return 'no-process';
     if (data.error === 'launch-failed' || data.error === 'internal') return 'failed';
