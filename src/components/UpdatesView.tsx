@@ -24,6 +24,8 @@ function openSteamDownloads(): void {
 export default function UpdatesView({ updates, helper, onBack }: UpdatesViewProps) {
   const { pending, supported } = updates;
   const [copied, setCopied] = useState(false);
+  // Cada clique em atualizar gira o ícone uma volta, com suavidade.
+  const [turns, setTurns] = useState(0);
 
   const copyUpdateCommand = async () => {
     try {
@@ -52,12 +54,18 @@ export default function UpdatesView({ updates, helper, onBack }: UpdatesViewProp
         {helper === 'online' && supported && (
           <button
             type="button"
-            onClick={updates.refresh}
+            onClick={() => {
+              setTurns((n) => n + 1);
+              updates.refresh();
+            }}
             className="reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
             aria-label="Procurar atualizações de novo"
             title="Procurar atualizações de novo"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw
+              className="h-4 w-4"
+              style={{ transform: `rotate(${turns * 360}deg)`, transition: 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)' }}
+            />
           </button>
         )}
       </div>

@@ -38,6 +38,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
       }`}
       title={`${title}. ${hint}.`}
     >
+      <span key={dotState} className="steam-swap flex items-center gap-2.5">
       {starting ? (
         <Loader2 className="theme-accent h-4 w-4 animate-spin" />
       ) : running ? (
@@ -49,6 +50,7 @@ export default function OpenSteamButton({ status, source, onOpen, onStop }: Open
         {starting ? 'Iniciando Steam…' : running ? 'Encerrar Steam' : 'Abrir Steam'}
       </span>
       {running && <Power className="ml-1 h-3.5 w-3.5 opacity-60" />}
+      </span>
       <span key={dotState} aria-hidden className="steam-dot" data-state={dotState} />
     </button>
   );

@@ -2917,3 +2917,18 @@ button.coll-chip.coll-chip-drop {
 .group-menu-row svg.star-fill[data-fill] {
   fill-opacity: 1;
 }
+
+/* Botão da Steam: ao mudar de estado, o ícone e o texto aparecem com um fade suave (as cores já transitam). */
+.steam-swap {
+  animation: fade-in var(--t-base) var(--ease-smooth);
+}
+
+[data-motion='none'] .steam-swap {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .steam-swap {
+    animation: none;
+  }
+}
