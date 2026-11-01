@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Copy, MonitorCheck, MonitorDown, Power, PowerOff, ShieldAlert, Trash2, X } from 'lucide-react';
 import { usePresence } from '@/lib/motion';
-import { helperUninstall, type HelperAccess, type HelperAccessResult } from '@/lib/steamHelper';
+import { CURRENT_HELPER_VERSION, helperUninstall, helperVersion, type HelperAccess, type HelperAccessResult } from '@/lib/steamHelper';
 
 // Instalar e desinstalar o LiquiSteam Helper (Windows), ao lado do botão da Steam.
 // O helper é opcional: sem ele o site funciona, só que o status da Steam fica menos preciso.
@@ -253,6 +253,10 @@ export default function HelperInstall({
                 Está tudo certo: o Helper está funcionando neste computador. Graças a ele o LiquiSteam sabe se a Steam
                 e os seus jogos estão abertos, consegue abrir e fechar a Steam, executar jogos que não são da Steam
                 e mostrar as atualizações pendentes. Ele só obedece ao site do LiquiSteam e liga sozinho junto com o Windows.
+              </p>
+              <p className="mt-2 text-xs text-white/50">
+                Versão do Helper: {helperVersion() ?? 'antiga'}
+                {(helperVersion() ?? 0) >= CURRENT_HELPER_VERSION ? ' (atualizado)' : ` (há uma mais nova: ${CURRENT_HELPER_VERSION})`}
               </p>
               <button
                 type="button"

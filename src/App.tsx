@@ -19,6 +19,7 @@ import LibraryView from '@/components/LibraryView';
 import LibraryToolbar from '@/components/LibraryToolbar';
 import LibrarySummary from '@/components/LibrarySummary';
 import LayoutSwitch from '@/components/LayoutSwitch';
+import { useUiMotion } from '@/lib/iconDraw';
 import CollectionBar, { type CollectionFilter } from '@/components/CollectionBar';
 import GroupMenu from '@/components/GroupMenu';
 import ConnectingScreen from '@/components/ConnectingScreen';
@@ -99,9 +100,7 @@ export default function App() {
   const collectionsApi = useCollections(user?.steamId ?? null);
   const [filter, setFilter] = useState<CollectionFilter>('all');
   // Aviso "entre com a Steam para usar favoritos e grupos".
-  // Voltas dos ícones do topo: cada clique gira o ícone mais um pouco.
-  const [refreshTurns, setRefreshTurns] = useState(0);
-  const [plusTurns, setPlusTurns] = useState(0);
+  useUiMotion();
   // O ícone de atualizar gira enquanto lê e só para ao completar a volta (sem corte seco).
   const [refreshSpinning, setRefreshSpinning] = useState(false);
   useEffect(() => {
@@ -607,10 +606,7 @@ export default function App() {
             {view === 'library' && !showDemo && (
               <button
                 type="button"
-                onClick={() => {
-                  setRefreshTurns((n) => n + 1);
-                  void handleRefresh();
-                }}
+                onClick={() => void handleRefresh()}
                 disabled={loading}
                 data-busy={refreshSpinning ? '' : undefined}
                 className="icon-btn icon-btn-refresh fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white disabled:opacity-50"
@@ -619,7 +615,6 @@ export default function App() {
               >
                 <RefreshCw
                   className="h-4 w-4"
-                  style={{ '--turn': `${refreshTurns * 360}deg` } as CSSProperties}
                   onAnimationIteration={() => {
                     if (!loading) setRefreshSpinning(false);
                   }}
@@ -629,15 +624,12 @@ export default function App() {
             {view === 'library' && (
               <button
                 type="button"
-                onClick={() => {
-                  setPlusTurns((n) => n + 1);
-                  setCustomDialog('new');
-                }}
+                onClick={() => setCustomDialog('new')}
                 className="icon-btn icon-btn-plus fx-soft reveal relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[0.07] text-white/80 backdrop-blur-xl hover:border-white/30 hover:text-white"
                 aria-label="Adicionar jogo de fora da Steam"
                 title="Adicionar um jogo que não é da Steam (Epic, GOG, emulador…)"
               >
-                <Plus className="h-4 w-4" style={{ '--turn': `${plusTurns * 180}deg` } as CSSProperties} />
+                <Plus className="h-4 w-4" />
               </button>
             )}
             <InstallButton />
@@ -827,6 +819,8 @@ export default function App() {
                   trailerPreview={theme.trailerPreview}
                   featuredId={featuredId}
                   onShuffleFeatured={shuffleFeatured}
+                  runningAppId={runningGame}
+                  customRunning={customRunning}
                 />
               )}
 

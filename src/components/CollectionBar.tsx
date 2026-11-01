@@ -160,7 +160,7 @@ export default function CollectionBar({ api, active, onSelect, available, totalC
         onClick={() => onSelect('favorites')}
         {...dropProps('favorites', api.addToFavorites)}
       >
-        <Star className="h-3.5 w-3.5" fill={active === 'favorites' ? 'currentColor' : 'none'} />
+        <Star className="star-fill h-3.5 w-3.5" />
         Favoritos <span className="coll-count">{count(favorites)}</span>
       </button>
 

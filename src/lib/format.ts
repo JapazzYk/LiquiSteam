@@ -36,3 +36,18 @@ export function formatDateTime(ms: number): string {
     minute: '2-digit',
   });
 }
+
+// Versão curta de formatAgo para chips: "agora", "5 min", "3 h", "3 d", "2 m", "1 a".
+export function formatAgoShort(ms: number, now = Date.now()): string {
+  const seconds = Math.max(0, (now - ms) / 1000);
+  if (seconds < 60) return 'agora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} m`;
+  return `${Math.floor(days / 365)} a`;
+}

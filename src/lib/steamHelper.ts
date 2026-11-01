@@ -119,6 +119,15 @@ async function call(
 
 // Estado lido do helper. game = AppID do jogo em execução (0 = nenhum); null quando o helper é de uma
 // versão antiga, que ainda não informa o jogo.
+// Versão mais nova do Helper (o número vem do script em public/helper). Sobe a cada mudança no script.
+export const CURRENT_HELPER_VERSION = 10;
+
+// Versão do Helper que respondeu por último (null = nenhuma resposta, ou Helper antigo que não informa).
+let lastHelperVersion: number | null = null;
+export function helperVersion(): number | null {
+  return lastHelperVersion;
+}
+
 export interface HelperStatus {
   steam: HelperSteamState;
   game: number | null;
@@ -132,8 +141,9 @@ export async function helperStatus(timeoutMs = 1500): Promise<HelperStatus | nul
   const response = await call('/status', 'GET', timeoutMs);
   if (!response) return null;
   try {
-    const data = (await response.json()) as { app?: string; steam?: string; game?: unknown; custom?: unknown };
+    const data = (await response.json()) as { app?: string; steam?: string; game?: unknown; custom?: unknown; version?: unknown };
     if (data.app !== 'liquisteam-helper') return null;
+    lastHelperVersion = typeof data.version === 'number' ? data.version : null;
     if (data.steam === 'running' || data.steam === 'starting' || data.steam === 'not-running') {
       const custom = Array.isArray(data.custom) ? data.custom.filter((id): id is string => typeof id === 'string') : null;
       return { steam: data.steam, game: typeof data.game === 'number' ? data.game : null, custom };

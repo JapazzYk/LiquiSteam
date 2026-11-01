@@ -96,7 +96,7 @@
   --grid-gap: 20px;
   --card-art-ratio: 2 / 3; /* proporção da capa vertical da Steam (600x900) */
   --card-art-h: 150cqw; /* altura da capa = 1,5 x a largura do cartão */
-  --card-meta-h: 76px; /* altura fixa da legenda (nome em até 2 linhas + tamanho) */
+  --card-meta-h: 90px; /* altura fixa da legenda (nome em até 2 linhas + chips de informação) */
 }
 
 html,
@@ -2447,10 +2447,12 @@ a,
 
 /* ------------------------------------------------------------------ */
 /* Sistema de movimento                                                */
-/* Uma linguagem só para o site inteiro: suave, sem pulos nem pulsos.   */
-/*  - sobe 2 px ao passar o mouse, afunda um pouco ao clicar;           */
-/*  - sempre volta ao normal com a mesma curva suave (sem corte seco);  */
-/*  - entradas: surgem com fade e um deslize curto.                     */
+/* Uma linguagem só para o site inteiro: limpa, sem zoom e sem saltos.  */
+/*  - ícones: o traço é "redesenhado" (iconDraw.ts) ao passar o mouse;   */
+/*  - botões: sobem 2 px e, ao clicar, dão um toque curto de escala;     */
+/*  - tudo volta ao normal pela mesma curva suave, sem cortes secos;     */
+/*  - pulsos: anéis lentos e suaves (steam, "recente", favoritos);       */
+/*  - entradas: fade com deslize curto.                                  */
 /* Mudou aqui, mudou em tudo.                                           */
 /* ------------------------------------------------------------------ */
 :root {
@@ -2459,6 +2461,7 @@ a,
   --t-fast: 0.18s;
   --t-base: 0.32s;
   --t-slow: 0.5s;
+  --pulse: 2.6s;
 }
 
 /* Base para qualquer botão, link e campo: cores, borda, sombra e posição mudam com suavidade.
@@ -2472,12 +2475,6 @@ a,
 :where(input, textarea) {
   transition: color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
     border-color var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth);
-}
-
-/* Clique: todo botão afunda um pouco e volta suave. */
-:where(button, [role='button'], a[href]):not(:disabled, [aria-disabled='true']):active {
-  transform: scale(0.97);
-  transition-duration: var(--t-fast);
 }
 
 /* Botões e pílulas do topo e das barras. */
@@ -2494,13 +2491,6 @@ a,
   box-shadow: 0 8px 22px rgba(var(--accent-rgb), 0.18);
 }
 
-.icon-btn:active:not(:disabled),
-.fx-press:active:not(:disabled) {
-  transform: translateY(0) scale(0.96);
-  box-shadow: none;
-  transition-duration: var(--t-fast);
-}
-
 /* Cartões e linhas clicáveis (resumo, estatísticas, notícias): sobem de leve. */
 .fx-lift {
   transition: transform var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
@@ -2512,36 +2502,80 @@ a,
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
 }
 
-/* Ícones: movimento curto e suave, e o retorno usa a mesma curva (duração maior, para parecer fluido). */
-.icon-btn svg {
-  transform: rotate(var(--turn, 0deg));
-  transition: transform var(--t-slow) var(--ease-smooth);
+/* ÍCONES: um efeito só, para todos (inclusive o X de fechar). O traço é redesenhado ao passar o mouse ou focar. */
+svg.lucide [pathLength] {
+  stroke-dasharray: 1.001 2;
+  stroke-dashoffset: 0;
 }
 
+:is(button, [role='button'], a[href], summary):is(:hover, :focus-visible) svg.lucide [pathLength] {
+  animation: icon-draw 0.6s var(--ease-smooth);
+}
+
+@keyframes icon-draw {
+  from {
+    stroke-dashoffset: 1.001;
+    opacity: 0.25;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Atualizar: gira sem parar enquanto lê (e só para ao fechar a volta). */
 .icon-btn-refresh[data-busy] svg {
   animation: icon-spin 1s linear infinite;
 }
 
-.icon-btn-plus:hover svg {
-  transform: rotate(calc(var(--turn, 0deg) + 90deg));
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.icon-btn-download:hover svg {
-  transform: translateY(3px);
-}
-
-.icon-btn-sliders:hover svg {
-  transform: rotate(90deg);
-}
-
-.icon-btn-refresh:hover svg {
-  transform: rotate(calc(var(--turn, 0deg) + 60deg));
-}
-
-/* Contadores e ícones que aparecem: fade com uma leve subida de escala, sem passar do ponto. */
+/* Contadores e itens que aparecem: só fade, sem zoom. */
 .icon-badge,
-.steam-dot {
-  animation: fade-scale-in var(--t-base) var(--ease-smooth) backwards;
+.steam-dot,
+.coll-check {
+  animation: fade-in var(--t-base) var(--ease-smooth) backwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Anel suave que se abre e some (favoritar, grupo novo). */
+@keyframes soft-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Pulso lento e contínuo (anel que se abre e some). */
+@keyframes pulse-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 
 /* Grupos de botões lado a lado (layout, ordenar, instalados/toda a conta). */
@@ -2551,36 +2585,10 @@ a,
 }
 
 .layout-switch button:hover:not(:disabled) {
-  transform: scale(1.04);
+  transform: translateY(-1px);
 }
 
-.layout-switch button:active:not(:disabled) {
-  transform: scale(0.95);
-  transition-duration: var(--t-fast);
-}
-
-.layout-btn svg {
-  transition: transform var(--t-base) var(--ease-smooth);
-}
-
-.layout-btn:hover svg {
-  transform: scale(1.08);
-}
-
-@keyframes icon-spin {
-  to {
-    transform: rotate(calc(var(--turn, 0deg) + 360deg));
-  }
-}
-
-@keyframes fade-scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-}
-
-/* Favoritos: a estrela entra crescendo e solta um anel que se apaga. */
+/* Favoritos: o botão acende com fade; a estrela se preenche e solta um anel suave. */
 .coll-btn {
   position: relative;
   transition: color var(--t-base) var(--ease-smooth), border-color var(--t-base) var(--ease-smooth),
@@ -2588,23 +2596,19 @@ a,
 }
 
 .coll-btn:hover {
-  transform: scale(1.05);
+  transform: translateY(-1px);
 }
 
-.coll-btn svg {
-  transition: transform var(--t-base) var(--ease-smooth);
+.coll-btn svg.star-fill,
+.coll-chip svg.star-fill {
+  fill: currentColor;
+  fill-opacity: 0;
+  transition: fill-opacity var(--t-slow) var(--ease-smooth);
 }
 
-.coll-btn:hover svg {
-  transform: scale(1.08);
-}
-
-.coll-btn[data-pop='on'] svg {
-  animation: star-in var(--t-slow) var(--ease-smooth);
-}
-
-.coll-btn[data-pop='off'] svg {
-  animation: star-out var(--t-base) var(--ease-smooth);
+.coll-btn[data-on] svg.star-fill,
+.coll-chip[aria-pressed='true'] svg.star-fill {
+  fill-opacity: 1;
 }
 
 .coll-btn[data-pop='on']::before {
@@ -2614,34 +2618,7 @@ a,
   border-radius: 999px;
   border: 2px solid var(--accent-color);
   pointer-events: none;
-  animation: soft-ring 0.7s var(--ease-smooth) forwards;
-}
-
-@keyframes star-in {
-  from {
-    transform: scale(0.6) rotate(-25deg);
-  }
-}
-
-@keyframes star-out {
-  50% {
-    transform: scale(0.8);
-  }
-}
-
-@keyframes soft-ring {
-  from {
-    transform: scale(0.9);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(1.7);
-    opacity: 0;
-  }
-}
-
-.coll-check {
-  animation: fade-scale-in var(--t-base) var(--ease-smooth);
+  animation: soft-ring 0.8s var(--ease-smooth) forwards;
 }
 
 /* Faixa de grupos: os chips entram em cascata, o campo de nome se abre, o grupo novo ganha um anel e o excluído some. */
@@ -2659,14 +2636,10 @@ button.coll-chip:hover {
   transform: translateY(-2px);
 }
 
-button.coll-chip:active {
-  transform: scale(0.96);
-  transition-duration: var(--t-fast);
-}
-
 .coll-chip-drop,
 button.coll-chip.coll-chip-drop {
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.3);
 }
 
 .coll-mini {
@@ -2676,11 +2649,6 @@ button.coll-chip.coll-chip-drop {
 
 .coll-mini:hover {
   transform: translateY(-2px);
-}
-
-.coll-mini:active {
-  transform: scale(0.94);
-  transition-duration: var(--t-fast);
 }
 
 .coll-chip-edit {
@@ -2715,15 +2683,6 @@ button.coll-chip.coll-chip-drop {
 
 .coll-confirm:disabled {
   opacity: 0.35;
-  transform: scale(0.85);
-}
-
-.coll-confirm:not(:disabled):hover {
-  transform: scale(1.15);
-}
-
-.coll-cancel:hover {
-  transform: rotate(90deg);
 }
 
 /* O "Novo grupo" encolhe enquanto o campo de nome está aberto e volta crescendo quando ele fecha. */
@@ -2738,17 +2697,9 @@ button.coll-chip.coll-chip-drop {
   pointer-events: none;
 }
 
-@keyframes slide-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-
 @keyframes chip-out {
   to {
     opacity: 0;
-    transform: scale(0.9);
     max-width: 0;
     padding-left: 0;
     padding-right: 0;
@@ -2769,16 +2720,12 @@ button.coll-chip.coll-chip-drop {
 }
 
 .search-icon {
-  transition: transform var(--t-slow) var(--ease-smooth), color var(--t-base) var(--ease-smooth);
+  transition: color var(--t-base) var(--ease-smooth);
 }
 
 .search-bar:focus-within .search-icon,
 .search-bar[data-filled] .search-icon {
   color: var(--accent-color);
-}
-
-.search-bar:focus-within .search-icon {
-  transform: scale(1.1);
 }
 
 .search-line {
@@ -2803,23 +2750,17 @@ button.coll-chip.coll-chip-drop {
 
 .search-clear {
   opacity: 0;
-  transform: scale(0.8);
   pointer-events: none;
-  transition: opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth),
-    background-color var(--t-base) var(--ease-smooth), color var(--t-base) var(--ease-smooth);
+  transition: opacity var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
+    color var(--t-base) var(--ease-smooth);
 }
 
 .search-clear[data-show] {
   opacity: 1;
-  transform: scale(1);
   pointer-events: auto;
 }
 
-.search-clear[data-show]:hover {
-  transform: rotate(90deg);
-}
-
-/* Ponto de status da Steam: acende (verde, fixo) só com a Steam aberta; âmbar enquanto abre; apagado nos demais casos. */
+/* Ponto de status da Steam: acende (verde, com pulso lento) só com a Steam aberta; âmbar enquanto abre; apagado nos demais casos. */
 .steam-dot {
   position: absolute;
   right: 10px;
@@ -2838,43 +2779,213 @@ button.coll-chip.coll-chip-drop {
   box-shadow: 0 0 8px 1px rgb(var(--ok) / 0.6);
 }
 
+.steam-dot[data-state='running']::after,
+.steam-dot[data-state='starting']::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 1.5px solid rgb(var(--ok));
+  pointer-events: none;
+  animation: pulse-ring var(--pulse) ease-out infinite;
+}
+
 .steam-dot[data-state='starting'] {
   background: rgb(var(--warn));
   box-shadow: 0 0 8px 1px rgb(var(--warn) / 0.5);
 }
 
+.steam-dot[data-state='starting']::after {
+  border-color: rgb(var(--warn));
+  animation-duration: 1.4s;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cartões: chips de informação, barra de tempo de jogo, gêneros       */
+/* ------------------------------------------------------------------ */
+.game-card-chipbox {
+  position: relative;
+  height: 20px;
+  margin-top: 5px;
+}
+
+.game-card-chips,
+.game-card-genres {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+  transition: opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth);
+}
+
+.game-card-genres {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* Com o mouse sobre o cartão, os chips dão lugar aos gêneros do jogo. */
+.game-card:hover [data-genres] .game-card-chips,
+.game-card:focus-visible [data-genres] .game-card-chips {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.game-card:hover [data-genres] .game-card-genres,
+.game-card:focus-visible [data-genres] .game-card-genres {
+  opacity: 1;
+  transform: none;
+}
+
+.gchip {
+  display: inline-flex;
+  flex: none;
+  height: 18px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--ink) / 0.1);
+  background: rgb(var(--ink) / 0.07);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: rgb(var(--ink) / 0.72);
+  letter-spacing: 0;
+}
+
+.gchip svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+.gchip-recent {
+  color: var(--accent-color);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.gchip-live {
+  color: rgb(var(--ok));
+  border-color: rgb(var(--ok) / 0.4);
+  background: rgb(var(--ok) / 0.12);
+}
+
+.gchip-off {
+  border-style: dashed;
+  color: rgb(var(--ink) / 0.6);
+}
+
+.gchip-genre {
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.25);
+  color: rgb(var(--ink) / 0.85);
+}
+
+.gchip-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.gchip-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid currentColor;
+  animation: pulse-ring var(--pulse) ease-out infinite;
+}
+
+/* Barra do tempo de jogo, na base da capa: quanto este jogo pesa no seu tempo total. */
+.game-card-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  height: 3px;
+  background: rgb(var(--ink) / 0.18);
+  pointer-events: none;
+}
+
+.game-card-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(var(--p, 0));
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.55), var(--accent-color));
+  animation: bar-grow 0.9s var(--ease-smooth) backwards;
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+[data-skin='arcade'] .gchip {
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+}
+
+[data-skin='arcade'] .gchip svg {
+  width: 9px;
+  height: 9px;
+}
+
+[data-skin='graphite'] .gchip {
+  border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+}
+
+[data-skin='steam'] .gchip {
+  border-radius: 3px;
+}
+
 /* Sem animação quando o sistema pede menos movimento ou o estilo "Nenhuma" está escolhido. */
 @media (prefers-reduced-motion: reduce) {
-  :is(.icon-btn, .icon-btn svg, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
+  :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .game-card-genres, .gchip-dot, .game-card-bar::after),
+  :where(button, [role='button'], a[href], summary, label, select, input, textarea),
   .coll-btn::before,
-  .coll-chip-flash::after {
+  .coll-chip-flash::after,
+  .steam-dot::after,
+  .gchip-dot::after,
+  svg.lucide [pathLength] {
     animation: none !important;
-    transition: none !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-[data-motion='none'] :is(.icon-btn, .icon-btn svg, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-btn svg, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .layout-btn svg, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot),
+[data-motion='none'] :is(.icon-btn, .fx-press, .fx-lift, .icon-badge, .layout-switch button, .coll-btn, .coll-check, .coll-chip, .coll-chip-edit, .coll-chip-out, .coll-mini, .coll-confirm, .coll-cancel, .search-bar, .search-icon, .search-line, .search-clear, .steam-dot, .game-card-chips, .game-card-genres, .gchip-dot, .game-card-bar::after),
+[data-motion='none'] :where(button, [role='button'], a[href], summary, label, select, input, textarea),
 [data-motion='none'] .coll-btn::before,
-[data-motion='none'] .coll-chip-flash::after {
+[data-motion='none'] .coll-chip-flash::after,
+[data-motion='none'] .steam-dot::after,
+[data-motion='none'] .gchip-dot::after,
+[data-motion='none'] svg.lucide [pathLength] {
   animation: none !important;
-  transition: none !important;
+  transition-duration: 0.01ms !important;
 }
 
-/* Quem pede menos movimento: só trocas de cor, sem deslocamentos. */
-@media (prefers-reduced-motion: reduce) {
-  :where(button, [role='button'], a[href], summary, label, select, input, textarea) {
-    transition-duration: 0.01ms;
-  }
-
-  :where(button, [role='button'], a[href]):active {
-    transform: none;
-  }
+.group-menu-row svg.star-fill {
+  fill: currentColor;
+  fill-opacity: 0;
+  transition: fill-opacity var(--t-slow) var(--ease-smooth);
 }
 
-[data-motion='none'] :where(button, [role='button'], a[href], summary, label, select, input, textarea) {
-  transition-duration: 0.01ms;
-}
-
-[data-motion='none'] :where(button, [role='button'], a[href]):active {
-  transform: none;
+.group-menu-row svg.star-fill[data-fill] {
+  fill-opacity: 1;
 }

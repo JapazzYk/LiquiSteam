@@ -3,22 +3,26 @@ import type { CSSProperties, PointerEvent } from 'react';
 import { Gamepad2 } from 'lucide-react';
 import type { InstalledGame } from '@/types';
 import { gameArtworkUrls } from '@/lib/steamLibrary';
-import { formatSize, uniqueUrls } from '@/lib/format';
-import { formatHours } from '@/lib/facts';
-import { fetchGameDetails, previewVideoUrl } from '@/lib/steamMeta';
+import { uniqueUrls } from '@/lib/format';
+import { fetchGameDetails, previewVideoUrl, type PlaytimeEntry } from '@/lib/steamMeta';
 import { readOrigin, type OpenOrigin } from '@/lib/openOrigin';
 import { placeholderHue } from '@/lib/customGames';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { DRAG_TYPE, useCollectionsUi } from '@/lib/collections';
 import CollectionButtons from '@/components/CollectionButtons';
+import GameChips from '@/components/GameChips';
 
 interface GameCardProps {
   game: InstalledGame;
   // Posição na lista; o Arcade e o Grafite mostram como número e a entrada em cascata usa.
   index: number;
   onOpen: (game: InstalledGame, origin?: OpenOrigin) => void;
-  // Minutos jogados (Steam); undefined = não sei.
-  playtimeMinutes?: number;
+  // Tempo de jogo da Steam para este jogo (undefined = sem informação).
+  entry?: PlaytimeEntry;
+  // Maior tempo de jogo da biblioteca: a barra do cartão mostra quanto este jogo representa dele.
+  maxMinutes?: number;
+  // O jogo está aberto agora.
+  running?: boolean;
   // Passar o mouse toca uma prévia do trailer.
   trailerPreview?: boolean;
 }
@@ -28,7 +32,7 @@ const artworkIndexCache = new Map<number, number>();
 
 // A aparência do cartão (moldura, capa, legenda, movimento) vem do tema ativo,
 // em src/index.css. Aqui fica só a estrutura.
-export default function GameCard({ game, index, onOpen, playtimeMinutes, trailerPreview = false }: GameCardProps) {
+export default function GameCard({ game, index, onOpen, entry, maxMinutes = 0, running = false, trailerPreview = false }: GameCardProps) {
   // Jogo de fora da Steam: só a capa escolhida; nada é pedido à Steam.
   const artwork = game.custom
     ? uniqueUrls([game.library_image])
@@ -41,15 +45,19 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
   const [slides, setSlides] = useState<{ urls: string[]; index: number } | null>(null);
   const slideTimer = useRef<number | null>(null);
   const hoverTimer = useRef<number | null>(null);
+  // Gêneros do jogo: aparecem no lugar dos chips quando o mouse fica sobre o cartão.
+  const [genres, setGenres] = useState<string[]>([]);
   const collectionsUi = useCollectionsUi();
 
   // Prévia do trailer: só com mouse, depois de uma pausa, e uma vez por jogo (os detalhes ficam em cache).
   const startPreview = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!trailerPreview || game.custom || event.pointerType !== 'mouse') return;
+    if (game.custom || event.pointerType !== 'mouse') return;
     if (hoverTimer.current !== null) window.clearTimeout(hoverTimer.current);
     hoverTimer.current = window.setTimeout(() => {
       void fetchGameDetails(game.appid).then((details) => {
         if (hoverTimer.current === null) return;
+        if (details?.genres.length) setGenres(details.genres.slice(0, 3));
+        if (!trailerPreview) return;
         const url = previewVideoUrl(details?.movies[0]);
         if (url) {
           setVideo({ url, ready: false });
@@ -170,8 +178,14 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
             </div>
           )}
           <div className="game-card-shade" />
+          {(entry?.forever ?? 0) > 0 && maxMinutes > 0 && (
+            <span
+              className="game-card-bar"
+              aria-hidden
+              style={{ '--p': Math.min(1, Math.sqrt((entry?.forever ?? 0) / maxMinutes)) } as CSSProperties}
+            />
+          )}
           <CollectionButtons appid={game.appid} className="game-card-coll" />
-          {game.notInstalled && <span className="game-card-tag">Não instalado</span>}
           <span className="game-card-rank" aria-hidden>
             {String(index + 1).padStart(2, '0')}
           </span>
@@ -183,17 +197,20 @@ export default function GameCard({ game, index, onOpen, playtimeMinutes, trailer
 
         <div className="game-card-meta">
           <h3 className="game-card-title">{game.name}</h3>
-          {(game.size_on_disk && game.size_on_disk > 0) || (playtimeMinutes ?? 0) > 0 ? (
-            <p className="game-card-size">
-              {game.size_on_disk && game.size_on_disk > 0
-                ? playtimeMinutes && playtimeMinutes > 0
-                  ? formatSize(game.size_on_disk)
-                  : `${formatSize(game.size_on_disk)} instalado`
-                : null}
-              {game.size_on_disk && game.size_on_disk > 0 && playtimeMinutes && playtimeMinutes > 0 ? ' · ' : ''}
-              {playtimeMinutes && playtimeMinutes > 0 ? `${formatHours(playtimeMinutes)} jogadas` : null}
-            </p>
-          ) : null}
+          <div className="game-card-chipbox" data-genres={genres.length > 0 ? '' : undefined}>
+            <div className="game-card-chips">
+              <GameChips game={game} entry={entry} running={running} />
+            </div>
+            {genres.length > 0 && (
+              <div className="game-card-genres" aria-hidden>
+                {genres.map((genre) => (
+                  <span key={genre} className="gchip gchip-genre">
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <span className="game-card-sheen" aria-hidden />

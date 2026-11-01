@@ -65,7 +65,7 @@ export default function CollectionButtons({ appid, className = '' }: CollectionB
         }}
         onKeyDown={onKey(toggleFavorite)}
       >
-        <Star className="h-4 w-4" fill={favorite ? 'currentColor' : 'none'} />
+        <Star className="star-fill h-4 w-4" />
         {locked && <Lock className="coll-lock" />}
       </span>
       <span

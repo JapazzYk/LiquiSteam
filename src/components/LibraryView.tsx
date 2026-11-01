@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { CSSProperties } from 'react';
 import type { InstalledGame } from '@/types';
 import type { LayoutId } from '@/lib/theme';
@@ -18,6 +19,9 @@ interface LibraryViewProps {
   // Jogo em destaque: sorteado no App, para continuar o mesmo enquanto você busca e ordena.
   featuredId: number | null;
   onShuffleFeatured: () => void;
+  // Jogo da Steam aberto agora (AppID; 0 ou null = nenhum) e jogos de fora da Steam abertos (ids).
+  runningAppId?: number | null;
+  customRunning?: string[] | null;
 }
 
 export default function LibraryView({
@@ -29,8 +33,21 @@ export default function LibraryView({
   trailerPreview,
   featuredId,
   onShuffleFeatured,
+  runningAppId = null,
+  customRunning = null,
 }: LibraryViewProps) {
   const minutesOf = (game: InstalledGame) => (playtimes && !game.custom ? playtimes.get(game.appid)?.forever ?? 0 : undefined);
+  const entryOf = (game: InstalledGame) => (playtimes && !game.custom ? playtimes.get(game.appid) : undefined);
+  const isRunning = (game: InstalledGame) =>
+    game.custom ? !!game.customId && !!customRunning?.includes(game.customId) : !!runningAppId && runningAppId === game.appid;
+  // Maior tempo de jogo da conta, para a barra de cada cartão.
+  const maxMinutes = useMemo(() => {
+    let max = 0;
+    playtimes?.forEach((entry) => {
+      if (entry.forever > max) max = entry.forever;
+    });
+    return max;
+  }, [playtimes]);
 
   if (loading && games.length === 0) return <LibrarySkeleton layout={layout} />;
 
@@ -39,7 +56,7 @@ export default function LibraryView({
       <ul className="grid gap-2">
         {games.map((game, index) => (
           <li key={game.appid} className="game-row-wrap" style={{ '--i': index } as CSSProperties}>
-            <GameRow game={game} onOpen={onOpen} playtimeMinutes={minutesOf(game)} />
+            <GameRow game={game} onOpen={onOpen} entry={entryOf(game)} running={isRunning(game)} />
           </li>
         ))}
       </ul>
@@ -66,7 +83,9 @@ export default function LibraryView({
                 game={game}
                 index={index}
                 onOpen={onOpen}
-                playtimeMinutes={minutesOf(game)}
+                entry={entryOf(game)}
+                maxMinutes={maxMinutes}
+                running={isRunning(game)}
                 trailerPreview={trailerPreview}
               />
             ))}
@@ -84,7 +103,9 @@ export default function LibraryView({
                 game={game}
                 index={index}
                 onOpen={onOpen}
-                playtimeMinutes={minutesOf(game)}
+                entry={entryOf(game)}
+                maxMinutes={maxMinutes}
+                running={isRunning(game)}
                 trailerPreview={trailerPreview}
               />
       ))}

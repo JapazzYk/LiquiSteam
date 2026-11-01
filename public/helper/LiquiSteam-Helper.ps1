@@ -529,6 +529,13 @@ function Start-CustomGame([string]$id) {
         $info = Get-FailureInfo $_
         $script:launchDetail = $info.message
     }
+    try {
+        Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', 'start', '""', ('"' + $game.exe + '"')) -WindowStyle Hidden -ErrorAction Stop
+        return 'ok'
+    } catch {
+        $info = Get-FailureInfo $_
+        $script:launchDetail = $info.message
+    }
     return 'launch-failed'
 }
 
@@ -624,7 +631,7 @@ function Handle-Request($context) {
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
         $custom = @(Get-RunningCustomIds)
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 9; steam = $steamState; game = $game; custom = $custom }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 10; steam = $steamState; game = $game; custom = $custom }
         return
     }
 

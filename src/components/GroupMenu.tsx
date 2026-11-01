@@ -94,7 +94,7 @@ export default function GroupMenu({ appid, gameName, anchor, api, onClose: close
       <ul className="grid max-h-[40vh] gap-0.5 overflow-y-auto">
         <li>
           <button type="button" className="group-menu-row" onClick={() => api.toggleFavorite(appid)}>
-            <Star className="h-4 w-4 text-[color:var(--accent-color)]" fill={api.isFavorite(appid) ? 'currentColor' : 'none'} />
+            <Star className="star-fill h-4 w-4 text-[color:var(--accent-color)]" data-fill={api.isFavorite(appid) ? '' : undefined} />
             <span className="min-w-0 flex-1 truncate text-left">Favoritos</span>
             {api.isFavorite(appid) && <Check className="coll-check h-4 w-4 text-ok" />}
           </button>

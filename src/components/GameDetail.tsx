@@ -47,7 +47,7 @@ import type { OpenOrigin } from '@/lib/openOrigin';
 import { artBackdrop, useArtFit } from '@/lib/artFit';
 import { customLastLaunch, markCustomLaunched } from '@/lib/customGames';
 import { formatAgo, formatDateTime } from '@/lib/format';
-import { helperLastDetail, type CustomCommandResult } from '@/lib/steamHelper';
+import { CURRENT_HELPER_VERSION, helperLastDetail, helperVersion, type CustomCommandResult } from '@/lib/steamHelper';
 
 interface GameDetailProps {
   game: InstalledGame;
@@ -423,11 +423,17 @@ export default function GameDetail({
         markCustomLaunched(game.customId);
       } else {
         setGameBusy(null);
+        // Se o Helper instalado é mais velho que o do site, é quase certo que a correção ainda não foi instalada.
+        const installed = helperVersion();
+        const outdated = installed === null || installed < CURRENT_HELPER_VERSION;
+        const outdatedNote = outdated
+          ? ` Seu Helper está na versão ${installed ?? 'antiga'} e a mais nova é a ${CURRENT_HELPER_VERSION}: reinstale-o pelo botão "Helper" (ou com o comando de instalação) e tente de novo.`
+          : '';
         setStopError(
           result === 'missing-file'
             ? 'O arquivo deste jogo não está mais no lugar onde você o escolheu. Clique em Editar e escolha o programa (.exe) de novo.'
             : result === 'failed'
-              ? `O Windows não deixou o Helper abrir este programa${helperLastDetail() ? ` (${helperLastDetail()})` : ''}. Tente abri-lo uma vez fora do LiquiSteam: se ele pedir permissão de administrador, aceite o aviso do Windows.`
+              ? `O Windows não deixou o Helper abrir este programa${helperLastDetail() ? ` (${helperLastDetail()})` : ''}. Tente abri-lo uma vez fora do LiquiSteam: se ele pedir permissão de administrador, aceite o aviso do Windows.${outdatedNote}`
               : result === 'unreachable'
                 ? 'O site não conseguiu falar com o Helper. Abra o botão "Helper" na biblioteca e veja se ele está funcionando e não está desativado.'
                 : 'O Helper instalado é antigo e não sabe abrir este tipo de jogo. Abra o botão "Helper" na biblioteca e atualize-o.'
