@@ -477,27 +477,59 @@ function Find-CustomGame([string]$id) {
 }
 
 # Abre o jogo na pasta dele.
+# Ultimo motivo de falha ao abrir um jogo (o site mostra para a pessoa).
+$script:launchDetail = ''
+
+# Abre o arquivo como um duplo clique no Explorer: o proprio Windows mostra o aviso de administrador, se for preciso.
+function Open-WithShell([string]$exe, [string]$folder, [bool]$elevate) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $exe
+    $psi.WorkingDirectory = $folder
+    $psi.UseShellExecute = $true
+    if ($elevate) { $psi.Verb = 'runas' }
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    if ($proc) { $proc.Dispose() }
+}
+
+# Mensagem do erro de verdade e se foi a pessoa que cancelou o aviso do Windows (codigo 1223).
+function Get-FailureInfo($errorRecord) {
+    $ex = $errorRecord.Exception
+    if ($ex.InnerException) { $ex = $ex.InnerException }
+    $cancelled = ($ex -is [System.ComponentModel.Win32Exception]) -and ($ex.NativeErrorCode -eq 1223)
+    return @{ message = [string]$ex.Message; cancelled = $cancelled }
+}
+
+# Abre o jogo na pasta dele. Tenta de tres jeitos e guarda o motivo da falha em $script:launchDetail.
 function Start-CustomGame([string]$id) {
+    $script:launchDetail = ''
     $game = Find-CustomGame $id
     if (-not $game) { return 'unknown-game' }
     if (-not (Test-Path -LiteralPath $game.exe)) { return 'missing-file' }
     $folder = Split-Path -Parent $game.exe
     try {
-        Start-Process -FilePath $game.exe -WorkingDirectory $folder -ErrorAction Stop
+        Open-WithShell $game.exe $folder $false
         return 'ok'
     } catch {
-        $text = [string]$_.Exception.Message
-        # Programas que exigem permissao de administrador: abre com o aviso do Windows (UAC).
-        if ($text -match '740|eleva|elevat|administrador|administrator') {
-            try {
-                Start-Process -FilePath $game.exe -WorkingDirectory $folder -Verb RunAs -ErrorAction Stop
-                return 'ok'
-            } catch {
-                return 'launch-failed'
-            }
-        }
-        return 'launch-failed'
+        $info = Get-FailureInfo $_
+        $script:launchDetail = $info.message
+        if ($info.cancelled) { return 'launch-failed' }
     }
+    try {
+        Open-WithShell $game.exe $folder $true
+        return 'ok'
+    } catch {
+        $info = Get-FailureInfo $_
+        $script:launchDetail = $info.message
+        if ($info.cancelled) { return 'launch-failed' }
+    }
+    try {
+        Start-Process -FilePath 'explorer.exe' -ArgumentList ('"' + $game.exe + '"') -ErrorAction Stop
+        return 'ok'
+    } catch {
+        $info = Get-FailureInfo $_
+        $script:launchDetail = $info.message
+    }
+    return 'launch-failed'
 }
 
 # Ids dos jogos de fora da Steam que estao rodando (pelo nome do processo).
@@ -592,7 +624,7 @@ function Handle-Request($context) {
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
         $custom = @(Get-RunningCustomIds)
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 8; steam = $steamState; game = $game; custom = $custom }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 9; steam = $steamState; game = $game; custom = $custom }
         return
     }
 
@@ -666,11 +698,11 @@ function Handle-Request($context) {
             if (Remove-CustomGame $gameId) { Send-Json $response 200 @{ ok = $true } } else { Send-Json $response 404 @{ error = 'unknown-game' } }
             return
         }
-        if ($path -eq '/launch-custom') { $outcome = Start-CustomGame $gameId } else { $outcome = Stop-CustomGame $gameId }
+        if ($path -eq '/launch-custom') { $outcome = Start-CustomGame $gameId } else { $script:launchDetail = ''; $outcome = Stop-CustomGame $gameId }
         if ($outcome -eq 'ok') {
             Send-Json $response 202 @{ ok = $true }
         } else {
-            Send-Json $response 404 @{ error = $outcome }
+            Send-Json $response 404 @{ error = $outcome; detail = [string]$script:launchDetail }
         }
         return
     }
