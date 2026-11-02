@@ -272,6 +272,7 @@ interface GameOverviewProps {
   playFacts: string[];
   news: NewsItem[];
   onJump: (tab: JumpTab) => void;
+  onMore?: () => void;
 }
 
 export default function GameOverview({
@@ -283,6 +284,7 @@ export default function GameOverview({
   playFacts,
   news,
   onJump,
+  onMore,
 }: GameOverviewProps) {
   const media = (details?.movies.length ?? 0) + (details?.screenshots?.length ?? 0);
 
@@ -314,6 +316,15 @@ export default function GameOverview({
               </div>
             ) : (
               <p className="text-sm font-light text-white/50">A loja da Steam não tem uma descrição para este jogo.</p>
+            )}
+            {details?.found && onMore && (
+              <button
+                type="button"
+                onClick={onMore}
+                className="mt-4 h-9 rounded-full border border-white/20 px-4 text-sm font-medium text-white/85 hover:border-white/40 hover:text-white"
+              >
+                Saber mais
+              </button>
             )}
             {details && details.categories.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">

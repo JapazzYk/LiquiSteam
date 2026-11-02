@@ -1,3 +1,4 @@
+import DetailPopup from '@/components/DetailPopup';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useOutsideClose } from '@/lib/outsideClose';
 import { useScrollLock } from '@/lib/scrollLock';
@@ -154,6 +155,7 @@ export default function GameDetail({
   onClose,
 }: GameDetailProps) {
   const [tab, setTab] = useState<Tab>('overview');
+  const [popup, setPopup] = useState<Exclude<Tab, 'overview'> | 'more' | null>(null);
   const [achievements, setAchievements] = useState<AchievementSummary | null>(null);
   const [loadingAch, setLoadingAch] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -684,16 +686,16 @@ export default function GameDetail({
             {!isCustom && (
               <>
                 <TabButton
-                  active={tab === 'media'}
-                  onClick={() => setTab('media')}
+                  active={popup === 'media'}
+                  onClick={() => setPopup('media')}
                   icon={<Clapperboard className="h-4 w-4" />}
                   badge={mediaCount > 0 ? String(mediaCount) : undefined}
                 >
                   Mídia
                 </TabButton>
                 <TabButton
-                  active={tab === 'achievements'}
-                  onClick={() => setTab('achievements')}
+                  active={popup === 'achievements'}
+                  onClick={() => setPopup('achievements')}
                   icon={<Trophy className="h-4 w-4" />}
                   badge={
                     achievements && achievements.total > 0
@@ -706,16 +708,16 @@ export default function GameDetail({
                   Conquistas
                 </TabButton>
                 <TabButton
-                  active={tab === 'news'}
-                  onClick={() => setTab('news')}
+                  active={popup === 'news'}
+                  onClick={() => setPopup('news')}
                   icon={<Newspaper className="h-4 w-4" />}
                   badge={news.length > 0 ? String(news.length) : undefined}
                 >
                   Atualizações
                 </TabButton>
                 <TabButton
-                  active={tab === 'notes'}
-                  onClick={() => setTab('notes')}
+                  active={popup === 'notes'}
+                  onClick={() => setPopup('notes')}
                   icon={<StickyNote className="h-4 w-4" />}
                   badge={note?.content?.trim() ? '•' : undefined}
                 >
@@ -736,15 +738,27 @@ export default function GameDetail({
               hasSync={!!(user && hasKey)}
               playFacts={playtimes ? playtimeFacts(game, playtimes, libraryGames) : []}
               news={news}
-              onJump={(next) => setTab(next)}
+              onJump={(next) => setPopup(next)}
+              onMore={() => setPopup('more')}
             />
           )}
-          {tab === 'achievements' && (
-            <AchievementsTab loading={loadingAch} data={achievements} />
-          )}
-          {tab === 'media' && <MediaTab details={details} loading={loadingDetails} appid={game.appid} />}
-          {tab === 'news' && <NewsTab loading={loadingNews} news={news} />}
-          {tab === 'notes' && (
+          </div>
+        </div>
+      </div>
+      <span aria-hidden className="reveal pointer-events-none absolute inset-0 md:rounded-[32px]" />
+      </div>
+      {popup && (
+        <DetailPopup
+          key={popup}
+          wide={popup !== 'notes'}
+          title={{ media: 'Mídia', achievements: 'Conquistas', news: 'Atualizações', notes: 'Anotações', more: 'Saber mais' }[popup]}
+          onClose={() => setPopup(null)}
+        >
+          {popup === 'achievements' && <AchievementsTab loading={loadingAch} data={achievements} />}
+          {popup === 'media' && <MediaTab details={details} loading={loadingDetails} appid={game.appid} />}
+          {popup === 'news' && <NewsTab loading={loadingNews} news={news} />}
+          {popup === 'more' && <MoreInfo details={details} />}
+          {popup === 'notes' && (
             <NotesTab
               draft={noteDraft}
               onChange={setNoteDraft}
@@ -755,14 +769,47 @@ export default function GameDetail({
               updatedAt={note?.updatedAt}
             />
           )}
-          </div>
-        </div>
-      </div>
-      <span aria-hidden className="reveal pointer-events-none absolute inset-0 md:rounded-[32px]" />
-      </div>
+        </DetailPopup>
+      )}
     </div>
   );
 }
+
+function MoreInfo({ details }: { details: GameDetails | null }) {
+  if (!details) return <p className="text-sm font-light text-white/50">Sem detalhes da loja da Steam para este jogo.</p>;
+  const rows: [string, string][] = [
+    ['Desenvolvedora', details.developers.join(', ')],
+    ['Publicadora', details.publishers.join(', ')],
+    ['Lançamento', details.releaseDate],
+    ['Gêneros', details.genres.join(', ')],
+    ['Idiomas', details.languages],
+  ].filter((row): row is [string, string] => !!row[1]);
+  return (
+    <div className="space-y-5">
+      {details.shortDescription && (
+        <p className="text-[15px] font-light leading-relaxed text-white/75">{details.shortDescription}</p>
+      )}
+      <dl className="grid gap-3 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs uppercase tracking-[0.14em] text-white/45">{label}</dt>
+            <dd className="mt-0.5 font-light text-white/80">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {details.categories.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {details.categories.map((category) => (
+            <span key={category} className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/70">
+              {category}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function TabButton({
   active,
