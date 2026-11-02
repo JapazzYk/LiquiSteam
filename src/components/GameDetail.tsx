@@ -633,7 +633,7 @@ export default function GameDetail({
               <a
                 href={storeUrl}
                 title="Abre a página da loja deste jogo dentro da Steam"
-                className="reveal relative flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm font-light text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
+                className="press reveal relative flex h-11 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-5 text-sm font-light text-white/80 backdrop-blur-xl transition-all hover:border-white/30 hover:text-white"
               >
                 <ExternalLink className="h-4 w-4" />
                 Loja
