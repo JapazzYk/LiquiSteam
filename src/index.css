@@ -132,7 +132,7 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--ink) / 0.16);
+  background: rgba(var(--accent-rgb), 0.38);
   border-radius: 999px;
   border: 4px solid transparent;
   background-clip: padding-box;
@@ -150,6 +150,13 @@ html {
 html::-webkit-scrollbar-track {
   margin: 0;
 }
+/* Campos de texto e caixas pequenas: trilho com menos margem, para a barra aparecer inteira. */
+textarea::-webkit-scrollbar-track {
+  margin: 8px 0;
+}
+textarea::-webkit-scrollbar-thumb {
+  min-height: 24px;
+}
 /* Janela aberta por cima: a página de trás não rola, e a rolagem das janelas não "vaza" para ela. */
 html[data-scroll-locked],
 html[data-scroll-locked] body {
@@ -164,7 +171,7 @@ html[data-scroll-locked] body {
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgb(var(--ink) / 0.28) transparent;
+    scrollbar-color: rgba(var(--accent-rgb), 0.5) transparent;
   }
 }
 
@@ -2944,27 +2951,27 @@ button.coll-chip.coll-chip-drop {
 button:not(:disabled):not([aria-disabled='true']) {
   transition: color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
     border-color var(--t-base) var(--ease-smooth), box-shadow var(--t-base) var(--ease-smooth),
-    opacity var(--t-base) var(--ease-smooth), transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-smooth), scale 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 button:not(:disabled):not([aria-disabled='true']):active {
-  transform: scale(0.93);
+  scale: 0.93;
   transition-duration: var(--t-fast), var(--t-fast), var(--t-fast), var(--t-fast), var(--t-fast), 0.12s;
 }
-@media (prefers-reduced-motion: reduce) { button:not(:disabled):active { transform: none; } }
-[data-motion='none'] button:not(:disabled):active { transform: none; }
+@media (prefers-reduced-motion: reduce) { button:not(:disabled):active { scale: none; } }
+[data-motion='none'] button:not(:disabled):active { scale: none; }
 
 /* Mesmo pulinho nos botões que não são <button> (Loja, favoritar e pasta). O clique neles não mexe no card. */
 :is(.press, .coll-btn) {
   transition: color var(--t-base) var(--ease-smooth), background-color var(--t-base) var(--ease-smooth),
     border-color var(--t-base) var(--ease-smooth), opacity var(--t-base) var(--ease-smooth),
-    transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+    scale 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 :is(.press, .coll-btn):active {
-  transform: scale(0.88);
+  scale: 0.88;
   transition-duration: var(--t-fast), var(--t-fast), var(--t-fast), var(--t-fast), 0.12s;
 }
 button:has(.coll-btn:active):not(:disabled):active {
-  transform: none;
+  scale: none;
 }
-@media (prefers-reduced-motion: reduce) { :is(.press, .coll-btn):active { transform: none; } }
-[data-motion='none'] :is(.press, .coll-btn):active { transform: none; }
+@media (prefers-reduced-motion: reduce) { :is(.press, .coll-btn):active { scale: none; } }
+[data-motion='none'] :is(.press, .coll-btn):active { scale: none; }

@@ -369,7 +369,7 @@ export default function GameDetail({
   }, [requestClose]);
 
   const handleSaveNote = async () => {
-    if (!user?.steamId) return;
+    if (!user?.steamId) return false;
     setSavingNote(true);
     setNoteSaved(false);
     const saved = await saveNote(user.steamId, game.appid, game.name, noteDraft);
@@ -379,6 +379,7 @@ export default function GameDetail({
       setNoteSaved(true);
       setTimeout(() => setNoteSaved(false), 1800);
     }
+    return !!saved;
   };
 
   // Estado do jogo, como no botão da Steam: executar, iniciando, em execução (encerrar) e encerrando.
@@ -750,7 +751,12 @@ export default function GameDetail({
       {popup && (
         <DetailPopup
           key={popup}
-          wide={popup !== 'notes'}
+          wide={popup !== 'notes' && popup !== 'more'}
+          tall={popup === 'achievements' || popup === 'news' || popup === 'media'}
+          dirty={popup === 'notes' && noteDraft !== (note?.content ?? '')}
+          canSave={!!user}
+          onSave={handleSaveNote}
+          onDiscard={() => setNoteDraft(note?.content ?? '')}
           title={{ media: 'Mídia', achievements: 'Conquistas', news: 'Atualizações', notes: 'Anotações', more: 'Saber mais' }[popup]}
           onClose={() => setPopup(null)}
         >
@@ -1088,7 +1094,7 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
               type="button"
               onClick={() => go(index - 1)}
               aria-label="Anterior"
-              className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
+              className="absolute left-3 top-1/2 -mt-5 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -1096,7 +1102,7 @@ function MediaTab({ details, loading, appid }: { details: GameDetails | null; lo
               type="button"
               onClick={() => go(index + 1)}
               aria-label="Próximo"
-              className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
+              className="absolute right-3 top-1/2 -mt-5 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/50 text-white/85 backdrop-blur-xl transition hover:bg-black/70"
             >
               <ChevronRight className="h-5 w-5" />
             </button>

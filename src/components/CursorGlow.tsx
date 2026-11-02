@@ -37,11 +37,22 @@ export default function CursorGlow() {
       const near: { el: HTMLElement; rx: number; ry: number }[] = [];
       // Com uma janela aberta por cima, só o que está dentro dela recebe luz (o resto está escondido atrás).
       const locked = document.documentElement.hasAttribute('data-scroll-locked');
+      // Com várias janelas empilhadas, só a de cima (maior z-index) acende.
+      const scrims = locked ? document.querySelectorAll('.overlay-scrim') : null;
+      let top: Element | null = null;
+      let topZ = -Infinity;
+      scrims?.forEach((scrim) => {
+        const z = Number.parseInt(getComputedStyle(scrim).zIndex, 10) || 0;
+        if (z >= topZ) {
+          topZ = z;
+          top = scrim;
+        }
+      });
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       for (const el of elements) {
         if (!el.isConnected) continue;
-        if (locked && !el.closest('.overlay-scrim')) continue;
+        if (locked && el.closest('.overlay-scrim') !== top) continue;
         const rect = el.getBoundingClientRect();
         if (rect.width < 1 || rect.height < 1) continue;
         // Fora da tela não há o que acender.
