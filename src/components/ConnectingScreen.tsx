@@ -1,4 +1,4 @@
-import { Check, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useScrollLock } from '@/lib/scrollLock';
 
 export interface ConnectStep {
@@ -40,7 +40,8 @@ export default function ConnectingScreen({ steps, closing }: ConnectingScreenPro
           {steps.map((step, index) => (
             <li key={step.label} className="flex items-center gap-3 text-sm">
               <span
-                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                key={step.done ? 'done' : 'wait'}
+                className={`conn-mark grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
                   step.done
                     ? 'border-ok/50 bg-ok/15 text-ok'
                     : index === firstPending
@@ -49,7 +50,9 @@ export default function ConnectingScreen({ steps, closing }: ConnectingScreenPro
                 }`}
               >
                 {step.done ? (
-                  <Check className="h-3.5 w-3.5" />
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path className="conn-check" d="M5 12.5l4.5 4.5L19 7.5" />
+                  </svg>
                 ) : index === firstPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : null}

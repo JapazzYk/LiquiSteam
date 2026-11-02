@@ -2932,3 +2932,10 @@ button.coll-chip.coll-chip-drop {
     animation: none;
   }
 }
+
+/* Etapa concluída: o aro azul some em fade e o certo verde se desenha, no mesmo ritmo das outras animações. */
+.conn-mark { animation: fade-in var(--t-base) var(--ease-smooth) both; }
+.conn-check { stroke-dasharray: 24; stroke-dashoffset: 24; animation: conn-draw var(--t-slow) var(--ease-smooth) 0.08s forwards; }
+@keyframes conn-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .conn-mark, .conn-check { animation: none; stroke-dashoffset: 0; } }
+[data-motion='none'] .conn-mark, [data-motion='none'] .conn-check { animation: none; stroke-dashoffset: 0; }
