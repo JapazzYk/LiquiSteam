@@ -55,6 +55,12 @@ export default function AccountPanel({
   const [apiKeyBusy, setApiKeyBusy] = useState(false);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [keyNote, setKeyNote] = useState<{ text: string; out: boolean } | null>(null);
+  const showKeyNote = (text: string) => {
+    setKeyNote({ text, out: false });
+    setTimeout(() => setKeyNote((n) => (n && n.text === text ? { ...n, out: true } : n)), 3400);
+    setTimeout(() => setKeyNote((n) => (n && n.text === text && n.out ? null : n)), 3900);
+  };
 
   const handleSteamLogin = () => {
     window.location.href = steamLoginUrl();
@@ -84,6 +90,7 @@ export default function AccountPanel({
     setApiKey('');
     onApiKeyChange(true);
     setApiKeySaved(true);
+    showKeyNote('Chave verificada e salva com sucesso.');
     setTimeout(() => setApiKeySaved(false), 1800);
   };
 
@@ -91,6 +98,7 @@ export default function AccountPanel({
     await removeSteamKey();
     setApiKey('');
     onApiKeyChange(false);
+    showKeyNote('Chave removida com sucesso.');
   };
 
   const refreshDirs = useCallback(async () => {
@@ -281,6 +289,15 @@ export default function AccountPanel({
               </button>
             )}
           </div>
+          {keyNote && (
+            <p
+              role="status"
+              className={`${keyNote.out ? 'fx-out' : 'fx-soft'} mt-3 flex items-center gap-2 text-sm font-light text-ok`}
+            >
+              <Check className="h-4 w-4 shrink-0" />
+              {keyNote.text}
+            </p>
+          )}
           <a
             href="https://steamcommunity.com/dev/apikey"
             target="_blank"

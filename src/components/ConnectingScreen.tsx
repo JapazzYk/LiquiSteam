@@ -40,8 +40,8 @@ export default function ConnectingScreen({ steps, closing }: ConnectingScreenPro
           {steps.map((step, index) => (
             <li key={step.label} className="flex items-center gap-3 text-sm">
               <span
-                key={step.done ? 'done' : 'wait'}
-                className={`conn-mark grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                data-done={step.done || undefined}
+                className={`conn-mark relative grid h-6 w-6 shrink-0 place-items-center rounded-full border transition-[color,background-color,border-color] duration-500 ${
                   step.done
                     ? 'border-ok/50 bg-ok/15 text-ok'
                     : index === firstPending
@@ -49,13 +49,13 @@ export default function ConnectingScreen({ steps, closing }: ConnectingScreenPro
                       : 'border-white/15 text-white/25'
                 }`}
               >
-                {step.done ? (
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path className="conn-check" d="M5 12.5l4.5 4.5L19 7.5" />
-                  </svg>
-                ) : index === firstPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : null}
+                <Loader2
+                  className={`conn-spin absolute h-3.5 w-3.5 ${index === firstPending && !step.done ? 'animate-spin' : ''}`}
+                  style={{ opacity: step.done || index !== firstPending ? 0 : 1 }}
+                />
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path className="conn-check" d="M5 12.5l4.5 4.5L19 7.5" />
+                </svg>
               </span>
               <span className={step.done ? 'text-white/80' : index === firstPending ? 'text-white' : 'text-white/40'}>
                 {step.label}

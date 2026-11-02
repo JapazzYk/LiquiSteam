@@ -2933,12 +2933,12 @@ button.coll-chip.coll-chip-drop {
   }
 }
 
-/* Etapa concluída: o aro azul some em fade e o certo verde se desenha, no mesmo ritmo das outras animações. */
-.conn-mark { animation: fade-in var(--t-base) var(--ease-smooth) both; }
-.conn-check { stroke-dasharray: 24; stroke-dashoffset: 24; animation: conn-draw var(--t-slow) var(--ease-smooth) 0.08s forwards; }
-@keyframes conn-draw { to { stroke-dashoffset: 0; } }
-@media (prefers-reduced-motion: reduce) { .conn-mark, .conn-check { animation: none; stroke-dashoffset: 0; } }
-[data-motion='none'] .conn-mark, [data-motion='none'] .conn-check { animation: none; stroke-dashoffset: 0; }
+/* Etapa concluída: o aro azul esmaece enquanto o certo verde se desenha, tudo numa transição só. */
+.conn-spin { transition: opacity 0.45s var(--ease-smooth); }
+.conn-check { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset 0.6s var(--ease-smooth) 0.15s; }
+.conn-mark[data-done] .conn-check { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) { .conn-spin, .conn-check { transition: none; } }
+[data-motion='none'] .conn-spin, [data-motion='none'] .conn-check { transition: none; }
 
 /* Pulinho padrão de clique em todos os botões (e no X do card grande): afunda de leve e volta com um leve ressalto. */
 button:not(:disabled):not([aria-disabled='true']) {
