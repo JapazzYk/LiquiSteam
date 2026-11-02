@@ -156,6 +156,15 @@ textarea::-webkit-scrollbar-track {
 }
 textarea::-webkit-scrollbar-thumb {
   min-height: 24px;
+  background: rgba(var(--accent-rgb), 0.7);
+  background-clip: padding-box;
+}
+/* Cursor de digitação e seleção de texto sempre visíveis, na cor do tema. */
+:is(input, textarea) {
+  caret-color: var(--accent-color);
+}
+::selection {
+  background: rgba(var(--accent-rgb), 0.55);
 }
 /* Janela aberta por cima: a página de trás não rola, e a rolagem das janelas não "vaza" para ela. */
 html[data-scroll-locked],

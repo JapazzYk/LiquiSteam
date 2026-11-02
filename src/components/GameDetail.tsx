@@ -1171,7 +1171,7 @@ function AchievementsTab({
     );
   }
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <div className="mb-4 flex items-center justify-between">
         <span className="text-sm font-light text-white/55">
           {data.hasPersonal
@@ -1184,7 +1184,7 @@ function AchievementsTab({
           </span>
         )}
       </div>
-      <div className="grid gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
         {data.achievements
           .slice()
           .sort((a, b) => Number(b.achieved) - Number(a.achieved))
@@ -1297,7 +1297,7 @@ function NewsTab({ loading, news }: { loading: boolean; news: NewsItem[] }) {
           href={n.url}
           target="_blank"
           rel="noreferrer"
-          className="fx-lift reveal theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl hover:border-white/30 hover:bg-white/[0.08]"
+          className="fx-lift theme-glass group relative overflow-hidden rounded-2xl border border-white/12 bg-white/[0.05] p-5 backdrop-blur-xl hover:border-white/30 hover:bg-white/[0.08]"
         >
           <div className="mb-2 flex items-center gap-3 text-xs font-light text-white/45">
             <Calendar className="h-3.5 w-3.5" />

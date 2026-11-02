@@ -72,7 +72,7 @@ export default function DetailPopup({ title, icon, wide, tall, dirty, canSave, o
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`${closing ? 'fx-out' : 'fx-in'} overlay-surface reveal relative my-auto flex w-full flex-col ${tall ? 'h-[min(86vh,760px)]' : 'max-h-[88vh]'} overflow-hidden rounded-[28px] ${
+        className={`${closing ? 'fx-out' : 'fx-in'} overlay-surface relative my-auto flex w-full flex-col ${tall ? 'h-[min(86vh,760px)]' : 'max-h-[88vh]'} overflow-hidden rounded-[28px] ${
           wide ? 'max-w-3xl' : 'max-w-xl'
         }`}
       >
