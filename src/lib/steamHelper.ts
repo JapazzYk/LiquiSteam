@@ -120,7 +120,7 @@ async function call(
 // Estado lido do helper. game = AppID do jogo em execução (0 = nenhum); null quando o helper é de uma
 // versão antiga, que ainda não informa o jogo.
 // Versão mais nova do Helper (o número vem do script em public/helper). Sobe a cada mudança no script.
-export const CURRENT_HELPER_VERSION = 11;
+export const CURRENT_HELPER_VERSION = 12;
 
 // Versão do Helper que respondeu por último (null = nenhuma resposta, ou Helper antigo que não informa).
 let lastHelperVersion: number | null = null;
@@ -197,6 +197,15 @@ export interface HelperGameUpdate {
   buildId: number;
   targetBuildId: number;
   bytesToDownload: number;
+  // Helper 12+: progresso do download e da instalação, e se a Steam está mexendo nele agora.
+  // Em Helper antigo estes campos não vêm (progress = false).
+  progress: boolean;
+  size: number;
+  bytesDownloaded: number;
+  bytesToStage: number;
+  bytesStaged: number;
+  lastUpdated: number;
+  updating: boolean;
 }
 
 // null = helper desligado ou de uma versão antiga, sem essa função.
@@ -216,6 +225,13 @@ export async function helperUpdates(): Promise<HelperGameUpdate[] | null> {
         buildId: num(g.buildId),
         targetBuildId: num(g.targetBuildId),
         bytesToDownload: num(g.bytesToDownload),
+        progress: typeof g.bytesDownloaded === 'number',
+        size: num(g.size),
+        bytesDownloaded: num(g.bytesDownloaded),
+        bytesToStage: num(g.bytesToStage),
+        bytesStaged: num(g.bytesStaged),
+        lastUpdated: num(g.lastUpdated),
+        updating: g.updating === true,
       }));
   } catch {
     return null;
@@ -368,4 +384,15 @@ export function helperLaunchCustom(id: string): Promise<CustomCommandResult> {
 
 export function helperStopCustom(id: string): Promise<CustomCommandResult> {
   return customCommand(`/stop-custom?id=${id}`);
+}
+
+export type SteamAction = 'install' | 'validate' | 'uninstall' | 'downloads';
+
+// Pede à Steam para instalar, verificar ou desinstalar um jogo, ou abrir os Downloads. Com o Helper 12+
+// o pedido vai por ele (sem o navegador perguntar a cada vez); sem ele, pelo atalho steam://.
+export async function steamAction(kind: SteamAction, appid?: number): Promise<void> {
+  const query = `kind=${kind}${appid ? `&appid=${appid}` : ''}`;
+  const response = await call(`/steam-action?${query}`, 'POST', 4000);
+  if (response) return;
+  window.location.href = kind === 'downloads' ? 'steam://open/downloads' : `steam://${kind}/${appid}`;
 }

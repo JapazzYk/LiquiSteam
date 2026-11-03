@@ -185,6 +185,10 @@ function Get-GameManifests {
                     buildId         = (Get-AcfNumber $text 'buildid')
                     targetBuildId   = (Get-AcfNumber $text 'TargetBuildID')
                     bytesToDownload = (Get-AcfNumber $text 'BytesToDownload')
+                    bytesDownloaded = (Get-AcfNumber $text 'BytesDownloaded')
+                    bytesToStage    = (Get-AcfNumber $text 'BytesToStage')
+                    bytesStaged     = (Get-AcfNumber $text 'BytesStaged')
+                    lastUpdated     = (Get-AcfNumber $text 'LastUpdated')
                 }
             } catch { }
         }
@@ -198,7 +202,39 @@ function Get-InstalledGames {
 
 # Estado de atualizacao de cada jogo, como a Steam anota no manifesto (sem o caminho da pasta).
 function Get-GameUpdates {
-    return @(Get-GameManifests | Select-Object appid, name, stateFlags, buildId, targetBuildId, bytesToDownload)
+    $list = @(Get-GameManifests | Select-Object appid, name, size, stateFlags, buildId, targetBuildId, bytesToDownload, bytesDownloaded, bytesToStage, bytesStaged, lastUpdated)
+    # A Steam marca no registro qual jogo esta sendo atualizado agora (Apps\<appid>\Updating = 1).
+    # So consulta os jogos que nao estao simplesmente instalados e em dia (StateFlags 4).
+    foreach ($game in $list) {
+        $updating = $false
+        if ($game.stateFlags -ne 4) {
+            try {
+                $value = (Get-ItemProperty -LiteralPath ('HKCU:\Software\Valve\Steam\Apps\' + $game.appid) -Name 'Updating' -ErrorAction Stop).Updating
+                $updating = ($value -eq 1)
+            } catch { }
+        }
+        $game | Add-Member -NotePropertyName updating -NotePropertyValue $updating
+    }
+    return $list
+}
+
+# Atalhos da Steam para um jogo (instalar, verificar arquivos, desinstalar) e para a pagina de Downloads.
+# Abertos pelo helper, o navegador nao precisa perguntar se pode abrir a Steam a cada clique.
+function Start-SteamAction([string]$kind, [string]$appid) {
+    $urls = @{
+        install   = "steam://install/$appid"
+        validate  = "steam://validate/$appid"
+        uninstall = "steam://uninstall/$appid"
+        downloads = 'steam://open/downloads'
+    }
+    if (-not $urls.ContainsKey($kind)) { return $false }
+    if ($kind -ne 'downloads' -and $appid -notmatch '^\d{1,10}$') { return $false }
+    try {
+        Start-Process $urls[$kind]
+        return $true
+    } catch {
+        return $false
+    }
 }
 
 # Encerra o jogo: pede para fechar as janelas dos processos que rodam da pasta do jogo e, se ainda
@@ -638,7 +674,7 @@ function Handle-Request($context) {
         $game = 0
         if ($steamState -eq 'running') { $game = Get-RunningAppId }
         $custom = @(Get-RunningCustomIds)
-        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 11; steam = $steamState; game = $game; custom = $custom }
+        Send-Json $response 200 @{ app = 'liquisteam-helper'; version = 12; steam = $steamState; game = $game; custom = $custom }
         return
     }
 
@@ -651,6 +687,16 @@ function Handle-Request($context) {
     # Estado das atualizacoes (lido dos manifestos): so para o seu site.
     if ($method -eq 'GET' -and $origin -and $path -eq '/updates') {
         Send-Json $response 200 @{ games = @(Get-GameUpdates) }
+        return
+    }
+
+    # Instalar, verificar, desinstalar ou abrir os Downloads da Steam (so para o seu site).
+    if ($method -eq 'POST' -and $origin -and $path -eq '/steam-action') {
+        if (Start-SteamAction ([string]$request.QueryString['kind']) ([string]$request.QueryString['appid'])) {
+            Send-Json $response 202 @{ ok = $true }
+        } else {
+            Send-Json $response 400 @{ error = 'invalid' }
+        }
         return
     }
 

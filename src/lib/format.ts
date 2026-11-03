@@ -51,3 +51,21 @@ export function formatAgoShort(ms: number, now = Date.now()): string {
   if (months < 12) return `${months} m`;
   return `${Math.floor(days / 365)} a`;
 }
+
+// Velocidade de download: "12,4 MB/s", "850 KB/s".
+export function formatSpeed(bytesPerSecond: number): string {
+  const mb = bytesPerSecond / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(mb >= 100 ? 0 : 1).replace('.', ',')} MB/s`;
+  return `${Math.max(1, Math.round(bytesPerSecond / 1024))} KB/s`;
+}
+
+// Tempo restante aproximado: "menos de 1 min", "12 min", "1 h 20 min".
+export function formatEta(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '';
+  if (seconds < 60) return 'menos de 1 min';
+  const min = Math.round(seconds / 60);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const rest = min % 60;
+  return rest ? `${h} h ${rest} min` : `${h} h`;
+}
