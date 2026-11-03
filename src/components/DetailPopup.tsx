@@ -141,6 +141,7 @@ export default function DetailPopup({ title, icon, wide, tall, dirty, canSave, o
         )}
       </div>
     </div>,
-    document.body
+    // Dentro da raiz do app (e não do body), para herdar as cores do tema (destaque, seleção, rolagem).
+    document.querySelector('[data-app-root]') ?? document.body
   );
 }

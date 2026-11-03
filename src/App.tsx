@@ -536,7 +536,7 @@ export default function App() {
 
   return (
     <CollectionsContext.Provider value={collectionsUi}>
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
+    <div data-app-root className="relative flex min-h-screen w-full flex-col overflow-hidden font-sans text-white" style={rootStyle}>
       <LiquidBackground ambient={skin.ambient} live={theme.liveBackground} />
       {skin.glow && theme.glowIntensity > 0 && <CursorGlow />}
 
