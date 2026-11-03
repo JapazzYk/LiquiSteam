@@ -637,33 +637,12 @@ export default function App() {
                   : 'border-white/15 bg-white/[0.07] text-white/80 hover:border-white/30 hover:text-white'
               }`}
               aria-label={
-                updates.current
-                  ? `Downloads: ${updates.current.name}, ${Math.floor(updates.current.progress * 100)}%`
-                  : updates.pendingCount > 0
-                    ? `Downloads (${updates.pendingCount} atualizações pendentes)`
-                    : 'Downloads'
+                updates.pendingCount > 0 ? `Atualizações (${updates.pendingCount} pendentes)` : 'Atualizações'
               }
-              title={
-                updates.current
-                  ? `${updates.current.name}: ${Math.floor(updates.current.progress * 100)}%`
-                  : 'Downloads e atualizações dos seus jogos da Steam'
-              }
+              title="Atualizações pendentes dos seus jogos da Steam"
             >
               <ArrowDownToLine className="h-4 w-4" />
-              {updates.current && (
-                <svg className="dl-ring" viewBox="0 0 46 46" aria-hidden>
-                  <circle className="dl-ring-track" cx="23" cy="23" r="21.5" />
-                  <circle
-                    className="dl-ring-fill"
-                    cx="23"
-                    cy="23"
-                    r="21.5"
-                    strokeDasharray="135.1"
-                    strokeDashoffset={135.1 * (1 - updates.current.progress)}
-                  />
-                </svg>
-              )}
-              {!updates.current && updates.pendingCount > 0 && (
+              {updates.pendingCount > 0 && (
                 <span key={updates.pendingCount} className="icon-badge absolute -right-1 -top-1 z-10 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--accent-color)] px-1 text-[10px] font-semibold leading-none text-[color:var(--on-accent)] opacity-100 shadow-[0_0_0_2px_rgb(var(--bg))]">
                   {updates.pendingCount > 99 ? '99+' : updates.pendingCount}
                 </span>

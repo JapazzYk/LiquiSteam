@@ -16,6 +16,21 @@ export interface FinishedDownload {
   at: number;
 }
 
+const RECENT_KEY = 'liquid_recent_downloads';
+const RECENT_MAX_AGE = 7 * 24 * 3600 * 1000;
+
+function readRecent(): FinishedDownload[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') as FinishedDownload[];
+    const now = Date.now();
+    return Array.isArray(list)
+      ? list.filter((f) => f && typeof f.appid === 'number' && typeof f.at === 'number' && now - f.at < RECENT_MAX_AGE).slice(0, 8)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 interface SpeedSample {
   bytes: number;
   at: number;
@@ -37,7 +52,15 @@ export function useUpdates({ helperOnline, active }: UseUpdatesOptions) {
   const [live, setLive] = useState(false);
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
   const [speeds, setSpeeds] = useState<Record<number, number>>({});
-  const [finished, setFinished] = useState<FinishedDownload[]>([]);
+  // Downloads recentes: ficam guardados neste navegador por alguns dias.
+  const [finished, setFinished] = useState<FinishedDownload[]>(readRecent);
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(finished));
+    } catch {
+      // armazenamento indisponível
+    }
+  }, [finished]);
   const samples = useRef(new Map<number, SpeedSample>());
   const previous = useRef(new Map<number, DownloadItem>());
   const liveRef = useRef(false);
@@ -159,17 +182,8 @@ export function useUpdates({ helperOnline, active }: UseUpdatesOptions) {
   const refresh = useCallback(() => tickRef.current(), []);
   const clearFinished = useCallback(() => setFinished([]), []);
 
-  // O que está andando agora (o primeiro da lista) e o progresso dele, para o anel no ícone e o título.
+  // O que está andando agora (o primeiro da lista).
   const current = downloads.find((item) => item.active) ?? null;
-
-  useEffect(() => {
-    if (!current) return;
-    const base = document.title.replace(/^↓ \d+% · /, '');
-    document.title = `↓ ${Math.floor(current.progress * 100)}% · ${base}`;
-    return () => {
-      document.title = document.title.replace(/^↓ \d+% · /, '');
-    };
-  }, [current?.appid, current ? Math.floor(current.progress * 100) : -1]);
 
   return {
     pending,
